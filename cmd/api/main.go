@@ -25,8 +25,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if !cfg.MySQL.Enabled {
-		log.Fatal("DB_ENABLED must be true for auth-enabled backend")
+	if err := cfg.ValidateForAPI(); err != nil {
+		log.Fatal(err)
 	}
 
 	startupCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -37,10 +37,6 @@ func main() {
 		log.Fatalf("mysql connection failed: %v", err)
 	}
 	defer db.Close()
-
-	if err := database.BootstrapAuth(startupCtx, db, cfg.Auth); err != nil {
-		log.Fatalf("auth bootstrap failed: %v", err)
-	}
 
 	log.Printf("mysql connected to %s:%s/%s", cfg.MySQL.Host, cfg.MySQL.Port, cfg.MySQL.Name)
 

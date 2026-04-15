@@ -27,6 +27,16 @@ go run ./cmd/api
 
 The server starts on `http://localhost:8080`.
 
+## Workflow
+
+Jalankan perintah ini dari root project:
+
+```powershell
+go run ./cmd/migrate up
+go run ./cmd/seed
+go run ./cmd/api
+```
+
 ## Endpoints
 
 - `GET /`
@@ -37,12 +47,12 @@ The server starts on `http://localhost:8080`.
 
 ## Auth Configuration
 
-Project ini sekarang mengasumsikan auth aktif dan MySQL tersedia. Saat startup, app akan:
+Project ini sekarang mengasumsikan auth aktif dan MySQL tersedia. Server API tidak lagi membuat table atau data awal saat startup. Alurnya:
 
 - konek ke MySQL
-- membuat table `users` dan `refresh_tokens` jika belum ada
-- upsert 1 akun bootstrap dari environment
 - otomatis membaca file `.env` jika ada di root project
+- migration membuat table `users` dan `refresh_tokens`
+- seed membuat atau update 1 akun awal
 
 Isi environment seperti ini:
 
@@ -55,14 +65,56 @@ $env:DB_PORT="3306"
 $env:DB_USER="root"
 $env:DB_PASSWORD="secret"
 $env:DB_NAME="finance_db"
-$env:AUTH_BOOTSTRAP_NAME="Owner"
-$env:AUTH_BOOTSTRAP_EMAIL="owner@example.com"
-$env:AUTH_BOOTSTRAP_PASSWORD="supersecret123"
 $env:AUTH_JWT_SECRET="change-this-to-a-long-random-secret"
+$env:SEED_USER_NAME="Owner"
+$env:SEED_USER_EMAIL="owner@example.com"
+$env:SEED_USER_PASSWORD="supersecret123"
 go run ./cmd/api
 ```
 
-`AUTH_BOOTSTRAP_PASSWORD` akan di-hash ke bcrypt lalu disimpan ke table `users`.
+`SEED_USER_PASSWORD` akan di-hash ke bcrypt lalu disimpan ke table `users`.
+
+## Database Migration
+
+Schema database sekarang ada di folder [migrations](d:/freelance/finance-backend/migrations:1).
+
+Naikkan semua migration:
+
+```powershell
+go run ./cmd/migrate up
+```
+
+Turunkan 1 migration:
+
+```powershell
+go run ./cmd/migrate down 1
+```
+
+Cek versi migration:
+
+```powershell
+go run ./cmd/migrate version
+```
+
+Paksa versi jika database dirty:
+
+```powershell
+go run ./cmd/migrate force 2
+```
+
+## Seed User
+
+Buat atau update akun awal:
+
+```powershell
+go run ./cmd/seed
+```
+
+Seeder menggunakan env:
+
+- `SEED_USER_NAME`
+- `SEED_USER_EMAIL`
+- `SEED_USER_PASSWORD`
 
 ## Auth Endpoints
 

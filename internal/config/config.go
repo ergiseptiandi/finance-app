@@ -11,6 +11,7 @@ type Config struct {
 	Server ServerConfig
 	MySQL  MySQLConfig
 	Auth   AuthConfig
+	Seed   SeedConfig
 }
 
 type ServerConfig struct {
@@ -30,13 +31,16 @@ type MySQLConfig struct {
 }
 
 type AuthConfig struct {
-	BootstrapName     string
-	BootstrapEmail    string
-	BootstrapPassword string
-	JWTSecret         string
-	Issuer            string
-	AccessTokenTTL    time.Duration
-	RefreshTokenTTL   time.Duration
+	JWTSecret       string
+	Issuer          string
+	AccessTokenTTL  time.Duration
+	RefreshTokenTTL time.Duration
+}
+
+type SeedConfig struct {
+	UserName     string
+	UserEmail    string
+	UserPassword string
 }
 
 func Load() (Config, error) {
@@ -86,22 +90,16 @@ func Load() (Config, error) {
 			ConnMaxLifetime: connMaxLifetime,
 		},
 		Auth: AuthConfig{
-			BootstrapName:     getEnv("AUTH_BOOTSTRAP_NAME", "Owner"),
-			BootstrapEmail:    os.Getenv("AUTH_BOOTSTRAP_EMAIL"),
-			BootstrapPassword: os.Getenv("AUTH_BOOTSTRAP_PASSWORD"),
-			JWTSecret:         os.Getenv("AUTH_JWT_SECRET"),
-			Issuer:            getEnv("AUTH_ISSUER", "finance-backend"),
-			AccessTokenTTL:    accessTokenTTL,
-			RefreshTokenTTL:   refreshTokenTTL,
+			JWTSecret:       os.Getenv("AUTH_JWT_SECRET"),
+			Issuer:          getEnv("AUTH_ISSUER", "finance-backend"),
+			AccessTokenTTL:  accessTokenTTL,
+			RefreshTokenTTL: refreshTokenTTL,
 		},
-	}
-
-	if err := cfg.MySQL.Validate(); err != nil {
-		return Config{}, err
-	}
-
-	if err := cfg.Auth.Validate(cfg.MySQL.Enabled); err != nil {
-		return Config{}, err
+		Seed: SeedConfig{
+			UserName:     getEnv("SEED_USER_NAME", getEnv("AUTH_BOOTSTRAP_NAME", "Owner")),
+			UserEmail:    firstNonEmptyEnv("SEED_USER_EMAIL", "AUTH_BOOTSTRAP_EMAIL"),
+			UserPassword: firstNonEmptyEnv("SEED_USER_PASSWORD", "AUTH_BOOTSTRAP_PASSWORD"),
+		},
 	}
 
 	return cfg, nil
@@ -109,7 +107,7 @@ func Load() (Config, error) {
 
 func (c MySQLConfig) Validate() error {
 	if !c.Enabled {
-		return nil
+		return fmt.Errorf("DB_ENABLED must be true")
 	}
 
 	if c.User == "" {
@@ -123,24 +121,44 @@ func (c MySQLConfig) Validate() error {
 	return nil
 }
 
-func (c AuthConfig) Validate(mysqlEnabled bool) error {
-	if !mysqlEnabled {
-		return nil
-	}
-
-	if c.BootstrapEmail == "" {
-		return fmt.Errorf("AUTH_BOOTSTRAP_EMAIL is required when DB_ENABLED=true")
-	}
-
-	if c.BootstrapPassword == "" {
-		return fmt.Errorf("AUTH_BOOTSTRAP_PASSWORD is required when DB_ENABLED=true")
-	}
-
+func (c AuthConfig) Validate() error {
 	if c.JWTSecret == "" {
-		return fmt.Errorf("AUTH_JWT_SECRET is required when DB_ENABLED=true")
+		return fmt.Errorf("AUTH_JWT_SECRET is required")
 	}
 
 	return nil
+}
+
+func (c SeedConfig) Validate() error {
+	if c.UserEmail == "" {
+		return fmt.Errorf("SEED_USER_EMAIL is required")
+	}
+
+	if c.UserPassword == "" {
+		return fmt.Errorf("SEED_USER_PASSWORD is required")
+	}
+
+	return nil
+}
+
+func (c Config) ValidateForAPI() error {
+	if err := c.MySQL.Validate(); err != nil {
+		return err
+	}
+
+	return c.Auth.Validate()
+}
+
+func (c Config) ValidateForMigrate() error {
+	return c.MySQL.Validate()
+}
+
+func (c Config) ValidateForSeed() error {
+	if err := c.MySQL.Validate(); err != nil {
+		return err
+	}
+
+	return c.Seed.Validate()
 }
 
 func getEnv(key, fallback string) string {
@@ -192,4 +210,14 @@ func getEnvDuration(key string, fallback time.Duration) (time.Duration, error) {
 	}
 
 	return parsed, nil
+}
+
+func firstNonEmptyEnv(keys ...string) string {
+	for _, key := range keys {
+		if value := os.Getenv(key); value != "" {
+			return value
+		}
+	}
+
+	return ""
 }
