@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	domainauth "finance-backend/internal/auth"
+	"finance-backend/internal/httpapi/routeinfo"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -22,6 +23,15 @@ type HandlerDependencies struct {
 type handler struct {
 	authService    *domainauth.Service
 	authMiddleware Middleware
+}
+
+func Definitions() []routeinfo.RouteInfo {
+	return []routeinfo.RouteInfo{
+		{Method: http.MethodPost, Path: "/v1/auth/login", Summary: "Authenticate bootstrap user and issue token pair"},
+		{Method: http.MethodPost, Path: "/v1/auth/refresh", Summary: "Rotate refresh token and issue a new token pair"},
+		{Method: http.MethodPost, Path: "/v1/auth/logout", Summary: "Revoke refresh token"},
+		{Method: http.MethodGet, Path: "/v1/auth/me", Summary: "Get current authenticated user", Protected: true},
+	}
 }
 
 func RegisterRoutes(r chi.Router, deps HandlerDependencies) {

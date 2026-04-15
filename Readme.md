@@ -31,6 +31,9 @@ The server starts on `http://localhost:8080`.
 
 - `GET /`
 - `GET /health`
+- `GET /routes`
+- `GET /openapi.json`
+- `GET /docs`
 
 ## Auth Configuration
 
@@ -85,6 +88,12 @@ Respons login berisi:
 - `refresh_token`
 - `refresh_token_expires_at`
 - data `user`
+
+## API Explorer
+
+- `GET /routes` menampilkan daftar route aktif dalam JSON
+- `GET /openapi.json` menampilkan OpenAPI spec
+- `GET /docs` membuka Swagger UI
 
 ## Test
 
