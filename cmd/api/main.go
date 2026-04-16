@@ -10,9 +10,11 @@ import (
 	"finance-backend/internal/category"
 	"finance-backend/internal/config"
 	"finance-backend/internal/database"
+	"finance-backend/internal/debt"
 	"finance-backend/internal/mail"
 	"finance-backend/internal/salary"
 	"finance-backend/internal/server"
+	"finance-backend/internal/storage"
 	"finance-backend/internal/transaction"
 
 	"github.com/joho/godotenv"
@@ -71,12 +73,17 @@ func main() {
 	salaryRepo := salary.NewMySQLSalaryRepository(db)
 	salaryService := salary.NewService(salaryRepo)
 
+	debtRepo := debt.NewMySQLDebtRepository(db)
+	debtService := debt.NewService(debtRepo)
+
+	fileStorage := storage.NewLocalStorage(cfg.Storage.UploadDir)
+
 	txRepo := transaction.NewMySQLTransactionRepository(db)
 	txService := transaction.NewService(txRepo)
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
-		Handler: server.NewRouter(authService, txService, categoryService, salaryService),
+		Handler: server.NewRouter(authService, txService, categoryService, salaryService, debtService, fileStorage, cfg.Storage.UploadDir),
 	}
 
 	log.Printf("server listening on :%s", cfg.Server.Port)

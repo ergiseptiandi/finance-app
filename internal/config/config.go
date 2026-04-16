@@ -8,11 +8,12 @@ import (
 )
 
 type Config struct {
-	Server ServerConfig
-	MySQL  MySQLConfig
-	Auth   AuthConfig
-	Seed   SeedConfig
-	SMTP   SMTPConfig
+	Server  ServerConfig
+	MySQL   MySQLConfig
+	Auth    AuthConfig
+	Seed    SeedConfig
+	SMTP    SMTPConfig
+	Storage StorageConfig
 }
 
 type ServerConfig struct {
@@ -50,6 +51,10 @@ type SMTPConfig struct {
 	Username string
 	Password string
 	From     string
+}
+
+type StorageConfig struct {
+	UploadDir string
 }
 
 func Load() (Config, error) {
@@ -115,6 +120,9 @@ func Load() (Config, error) {
 			Username: os.Getenv("SMTP_USERNAME"),
 			Password: os.Getenv("SMTP_PASSWORD"),
 			From:     getEnv("SMTP_FROM", "noreply@finance-app.local"),
+		},
+		Storage: StorageConfig{
+			UploadDir: getEnv("UPLOAD_DIR", "uploads"),
 		},
 	}
 
