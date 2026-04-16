@@ -1,33 +1,79 @@
 # Finance Backend
 
-Go backend terstruktur menggunakan pola **Package-by-Feature (Vertical Slices)** untuk kapabilitas Authentication dan Transaction:
+Backend API berbasis Go untuk autentikasi dan transaksi keuangan.
 
-- Semua endpoint REST, business logic, dan akses MySQL dibungkus erat ke dalam fiturnya: `internal/auth/` & `internal/transaction/`
-- `internal/server/` untuk transport HTTP Global (Chi Router, Middleware)
-- access token JWT dan refresh token opaque yang di-hash di database
+## Package-by-Feature (Vertical Slices)
 
-Struktur fitur sekarang:
+Project ini memakai pendekatan **Package-by-Feature (Vertical Slices)**. Artinya, kode dipisah berdasarkan fitur, bukan dipisah global per layer.
 
-- `internal/auth/` berisi layer *handler*, *service*, dan *MySQL Repo* untuk authentication
-- `internal/transaction/` berisi layer *handler*, *service*, dan *MySQL Repo* untuk transaksi keuangan
-- `internal/server/router.go` untuk root router dan versioning `/v1`
-- `internal/server/middleware/auth.go` untuk global middleware JWT
+Contohnya:
 
-## Requirements
+- `internal/auth/` berisi kebutuhan fitur autentikasi
+- `internal/transaction/` berisi kebutuhan fitur transaksi
+- `internal/server/` berisi kebutuhan global seperti router, middleware, dan dokumentasi
 
-- Go `1.26.2`
+Di dalam tiap fitur, komponen seperti handler, service, repository, dan model disimpan berdekatan. Dengan pola ini:
 
-## Run
+- perubahan biasanya tetap di satu slice fitur
+- penambahan fitur baru lebih mudah karena struktur sudah jelas
+- dependensi antar fitur lebih terkontrol
 
-```powershell
-go run ./cmd/api
+Struktur ringkas:
+
+```text
+cmd/
+  api/
+  migrate/
+  seed/
+internal/
+  auth/
+  transaction/
+  server/
+  config/
+  database/
+  seed/
+migrations/
 ```
 
-The server starts on `http://localhost:8080`.
+## Persyaratan
 
-## Workflow
+- Go `1.26.2`
+- MySQL aktif
+- File environment `.env`
 
-Jalankan perintah ini dari root project:
+Gunakan `.env.example` sebagai template awal.
+
+## Konfigurasi
+
+Salin `.env.example` menjadi `.env`, lalu isi minimal value berikut:
+
+```env
+PORT=8080
+
+DB_ENABLED=true
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=secret
+DB_NAME=finance_db
+
+AUTH_JWT_SECRET=change-this-to-a-long-random-secret
+
+SEED_USER_NAME=Owner
+SEED_USER_EMAIL=owner@example.com
+SEED_USER_PASSWORD=supersecret123
+```
+
+Keterangan singkat:
+
+- `DB_ENABLED` harus `true`
+- `AUTH_JWT_SECRET` wajib diisi untuk menjalankan API
+- `SEED_USER_*` dipakai saat menjalankan seeder
+- konfigurasi SMTP bersifat opsional
+
+## Cara Menjalankan
+
+Urutan lokal yang disarankan:
 
 ```powershell
 go run ./cmd/migrate up
@@ -35,46 +81,18 @@ go run ./cmd/seed
 go run ./cmd/api
 ```
 
-## Endpoints
+Server berjalan di `http://localhost:8080`.
 
-- `GET /`
-- `GET /health`
-- `GET /routes`
-- `GET /openapi.json`
-- `GET /docs`
-
-## Auth Configuration
-
-Project ini sekarang mengasumsikan auth aktif dan MySQL tersedia. Server API tidak lagi membuat table atau data awal saat startup. Alurnya:
-
-- konek ke MySQL
-- otomatis membaca file `.env` jika ada di root project
-- migration membuat table `users` dan `refresh_tokens`
-- seed membuat atau update 1 akun awal
-
-Isi environment seperti ini:
-
-Example PowerShell:
+Jika ingin mengganti port:
 
 ```powershell
-$env:DB_ENABLED="true"
-$env:DB_HOST="127.0.0.1"
-$env:DB_PORT="3306"
-$env:DB_USER="root"
-$env:DB_PASSWORD="secret"
-$env:DB_NAME="finance_db"
-$env:AUTH_JWT_SECRET="change-this-to-a-long-random-secret"
-$env:SEED_USER_NAME="Owner"
-$env:SEED_USER_EMAIL="owner@example.com"
-$env:SEED_USER_PASSWORD="supersecret123"
+$env:PORT="9000"
 go run ./cmd/api
 ```
 
-`SEED_USER_PASSWORD` akan di-hash ke bcrypt lalu disimpan ke table `users`.
+## Migration
 
-## Database Migration
-
-Schema database sekarang ada di folder [migrations](d:/freelance/finance-backend/migrations:1).
+Semua file migration ada di folder `migrations/`.
 
 Naikkan semua migration:
 
@@ -94,79 +112,36 @@ Cek versi migration:
 go run ./cmd/migrate version
 ```
 
-Paksa versi jika database dirty:
+Paksa versi jika status migration dirty:
 
 ```powershell
 go run ./cmd/migrate force 2
 ```
 
-## Seed User
+## Seed Data
 
-Buat atau update akun awal:
+Untuk membuat atau update user awal:
 
 ```powershell
 go run ./cmd/seed
 ```
 
-Seeder menggunakan env:
+Seeder akan membaca:
 
 - `SEED_USER_NAME`
 - `SEED_USER_EMAIL`
 - `SEED_USER_PASSWORD`
 
-## Auth Endpoints
+## Testing
 
-- `POST /v1/auth/login`
-- `POST /v1/auth/refresh`
-- `POST /v1/auth/logout`
-- `GET /v1/auth/me`
-
-Contoh login:
-
-```json
-{
-  "email": "owner@example.com",
-  "password": "supersecret123",
-  "device_name": "android-phone"
-}
-```
-
-Respons login berisi:
-
-- `access_token`
-- `access_token_expires_at`
-- `refresh_token`
-- `refresh_token_expires_at`
-- data `user`
-
-## Transaction Endpoints
-
-Seluruh endpoint berikut membutuhkan Header: `Authorization: Bearer <access_token>`
-
-- `POST /v1/transactions` - Buat transaksi baru (Type: `income` / `expense`)
-- `GET /v1/transactions` - Ambil daftar transaksi dengan filter (`start_date`, `end_date`, `category`, `type`, `page`, `per_page`)
-- `GET /v1/transactions/summary` - Ambil Ringkasan Akun (Total Income, Total Expense, Balance)
-- `GET /v1/transactions/{id}` - Ambil detail 1 transaksi
-- `PATCH /v1/transactions/{id}` - Update transaksi (Partial update)
-- `DELETE /v1/transactions/{id}` - Hapus transaksi
-
-## API Explorer
-
-- `GET /routes` menampilkan daftar route aktif dalam JSON
-- `GET /openapi.json` menampilkan OpenAPI spec
-- `GET /docs` membuka Swagger UI
-
-## Test
+Jalankan seluruh test:
 
 ```powershell
 go test ./...
 ```
 
-## Optional
+## Catatan
 
-Use a custom port:
-
-```powershell
-$env:PORT="9000"
-go run ./cmd/api
-```
+- API akan membaca file `.env` otomatis jika tersedia di root project
+- database dan tabel tidak dibuat otomatis saat API start, jadi jalankan migration terlebih dahulu
+- jika butuh detail endpoint dan request/response, lihat dokumentasi di folder `docs/api/`
