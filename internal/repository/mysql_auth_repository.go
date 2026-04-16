@@ -166,3 +166,82 @@ func (r *MySQLAuthRepository) RevokeByHash(ctx context.Context, tokenHash string
 	_, err := r.db.ExecContext(ctx, query, tokenHash)
 	return err
 }
+
+func (r *MySQLAuthRepository) CreateUser(ctx context.Context, user auth.User) (int64, error) {
+	const query = `
+		INSERT INTO users (name, email, password_hash)
+		VALUES (?, ?, ?)
+	`
+	result, err := r.db.ExecContext(ctx, query, user.Name, user.Email, user.PasswordHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
+}
+
+func (r *MySQLAuthRepository) UpdateUser(ctx context.Context, user auth.User) error {
+	const query = `
+		UPDATE users
+		SET name = ?, email = ?
+		WHERE id = ?
+	`
+	_, err := r.db.ExecContext(ctx, query, user.Name, user.Email, user.ID)
+	return err
+}
+
+func (r *MySQLAuthRepository) UpdateUserPassword(ctx context.Context, id int64, passwordHash string) error {
+	const query = `
+		UPDATE users
+		SET password_hash = ?
+		WHERE id = ?
+	`
+	_, err := r.db.ExecContext(ctx, query, passwordHash, id)
+	return err
+}
+
+type MySQLPasswordResetRepository struct {
+	db *sql.DB
+}
+
+func NewMySQLPasswordResetRepository(db *sql.DB) *MySQLPasswordResetRepository {
+	return &MySQLPasswordResetRepository{db: db}
+}
+
+func (r *MySQLPasswordResetRepository) Create(ctx context.Context, token auth.PasswordResetToken) error {
+	const query = `
+		INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
+		VALUES (?, ?, ?)
+	`
+	_, err := r.db.ExecContext(ctx, query, token.UserID, token.TokenHash, token.ExpiresAt.UTC())
+	return err
+}
+
+func (r *MySQLPasswordResetRepository) FindByHash(ctx context.Context, tokenHash string) (auth.PasswordResetToken, error) {
+	const query = `
+		SELECT id, user_id, token_hash, expires_at, created_at
+		FROM password_reset_tokens
+		WHERE token_hash = ?
+		LIMIT 1
+	`
+	var token auth.PasswordResetToken
+	err := r.db.QueryRowContext(ctx, query, tokenHash).Scan(
+		&token.ID,
+		&token.UserID,
+		&token.TokenHash,
+		&token.ExpiresAt,
+		&token.CreatedAt,
+	)
+	return token, err
+}
+
+func (r *MySQLPasswordResetRepository) Delete(ctx context.Context, id int64) error {
+	const query = `DELETE FROM password_reset_tokens WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
+}
+
+func (r *MySQLPasswordResetRepository) DeleteAllForUser(ctx context.Context, userID int64) error {
+	const query = `DELETE FROM password_reset_tokens WHERE user_id = ?`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	return err
+}

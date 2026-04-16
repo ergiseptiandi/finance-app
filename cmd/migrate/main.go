@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
-	"strings"
 	"time"
 
 	"finance-backend/internal/config"
@@ -139,8 +139,8 @@ func migrationsSourceURL(dir string) (string, error) {
 	}
 
 	slashed := filepath.ToSlash(absDir)
-	if !strings.HasPrefix(slashed, "/") {
-		slashed = "/" + slashed
+	if runtime.GOOS == "windows" {
+		return "file://" + slashed, nil
 	}
 
 	return (&url.URL{Scheme: "file", Path: slashed}).String(), nil

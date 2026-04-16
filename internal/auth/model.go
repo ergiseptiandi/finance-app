@@ -41,3 +41,37 @@ type AuthResult struct {
 	User  User      `json:"user"`
 	Token TokenPair `json:"token"`
 }
+
+type PasswordResetToken struct {
+	ID        int64
+	UserID    int64
+	TokenHash string
+	ExpiresAt time.Time
+	CreatedAt time.Time
+}
+
+type RegisterInput struct {
+	Name       string
+	Email      string
+	Password   string
+	DeviceName string
+}
+
+type UpdateProfileInput struct {
+	Name  string
+	Email string
+}
+
+type ChangePasswordInput struct {
+	OldPassword string
+	NewPassword string
+}
+
+type ForgotPasswordInput struct {
+	Email string
+}
+
+type ResetPasswordInput struct {
+	Token       string
+	NewPassword string
+}

@@ -12,6 +12,7 @@ type Config struct {
 	MySQL  MySQLConfig
 	Auth   AuthConfig
 	Seed   SeedConfig
+	SMTP   SMTPConfig
 }
 
 type ServerConfig struct {
@@ -41,6 +42,14 @@ type SeedConfig struct {
 	UserName     string
 	UserEmail    string
 	UserPassword string
+}
+
+type SMTPConfig struct {
+	Host     string
+	Port     int
+	Username string
+	Password string
+	From     string
 }
 
 func Load() (Config, error) {
@@ -99,6 +108,13 @@ func Load() (Config, error) {
 			UserName:     getEnv("SEED_USER_NAME", getEnv("AUTH_BOOTSTRAP_NAME", "Owner")),
 			UserEmail:    firstNonEmptyEnv("SEED_USER_EMAIL", "AUTH_BOOTSTRAP_EMAIL"),
 			UserPassword: firstNonEmptyEnv("SEED_USER_PASSWORD", "AUTH_BOOTSTRAP_PASSWORD"),
+		},
+		SMTP: SMTPConfig{
+			Host:     getEnv("SMTP_HOST", "smtp.mailtrap.io"),
+			Port:     func() int { p, _ := getEnvInt("SMTP_PORT", 2525); return p }(),
+			Username: os.Getenv("SMTP_USERNAME"),
+			Password: os.Getenv("SMTP_PASSWORD"),
+			From:     getEnv("SMTP_FROM", "noreply@finance-app.local"),
 		},
 	}
 
