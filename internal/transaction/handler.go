@@ -1,11 +1,8 @@
 package transaction
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
-	"time"
 
 	domainauth "finance-backend/internal/auth"
 	"finance-backend/internal/server/routeinfo"
@@ -26,23 +23,6 @@ type HandlerDependencies struct {
 type handler struct {
 	svc            *Service
 	authMiddleware Middleware
-}
-
-func decodeJSON(r *http.Request, dst any) error {
-	defer r.Body.Close()
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	return decoder.Decode(dst)
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
-}
-
-func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
 }
 
 func Definitions() []routeinfo.RouteInfo {
@@ -74,15 +54,7 @@ func RegisterRoutes(r chi.Router, deps HandlerDependencies) {
 }
 
 func (h handler) getUserID(r *http.Request) (int64, bool) {
-	claims, ok := h.authMiddleware.GetAccessClaims(r)
-	if !ok {
-		return 0, false
-	}
-	id, err := strconv.ParseInt(claims.Subject, 10, 64)
-	if err != nil {
-		return 0, false
-	}
-	return id, true
+	return parseTransactionUserID(r, h.authMiddleware)
 }
 
 func (h handler) create(w http.ResponseWriter, r *http.Request) {
@@ -92,8 +64,8 @@ func (h handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var input CreateInput
-	if err := decodeJSON(r, &input); err != nil {
+	input, err := decodeCreateInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -114,8 +86,7 @@ func (h handler) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := parseTransactionID(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid transaction id")
 		return
@@ -141,15 +112,14 @@ func (h handler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := parseTransactionID(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid transaction id")
 		return
 	}
 
-	var input UpdateInput
-	if err := decodeJSON(r, &input); err != nil {
+	input, err := decodeUpdateInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -174,8 +144,7 @@ func (h handler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := parseTransactionID(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid transaction id")
 		return
@@ -191,7 +160,7 @@ func (h handler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+	writeJSON(w, http.StatusOK, statusResponse{Status: "deleted"})
 }
 
 func (h handler) list(w http.ResponseWriter, r *http.Request) {
@@ -201,36 +170,7 @@ func (h handler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
-	var filter ListFilter
-
-	if s := q.Get("start_date"); s != "" {
-		if t, err := time.Parse("2006-01-02", s); err == nil {
-			filter.StartDate = &t
-		}
-	}
-	if s := q.Get("end_date"); s != "" {
-		if t, err := time.Parse("2006-01-02", s); err == nil {
-			filter.EndDate = &t
-		}
-	}
-	if s := q.Get("category"); s != "" {
-		filter.Category = &s
-	}
-	if s := q.Get("type"); s != "" {
-		t := Type(s)
-		filter.Type = &t
-	}
-	if pageStr := q.Get("page"); pageStr != "" {
-		if p, err := strconv.Atoi(pageStr); err == nil {
-			filter.Page = p
-		}
-	}
-	if perPageStr := q.Get("per_page"); perPageStr != "" {
-		if pp, err := strconv.Atoi(perPageStr); err == nil {
-			filter.PerPage = pp
-		}
-	}
+	filter := parseListFilter(r)
 
 	list, err := h.svc.List(r.Context(), userID, filter)
 	if err != nil {

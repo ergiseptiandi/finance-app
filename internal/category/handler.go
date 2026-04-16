@@ -1,10 +1,8 @@
 package category
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"finance-backend/internal/server/routeinfo"
@@ -24,23 +22,6 @@ type HandlerDependencies struct {
 type handler struct {
 	svc            *Service
 	authMiddleware Middleware
-}
-
-func decodeJSON(r *http.Request, dst any) error {
-	defer r.Body.Close()
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	return decoder.Decode(dst)
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
-}
-
-func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
 }
 
 func Definitions() []routeinfo.RouteInfo {
@@ -68,16 +49,13 @@ func RegisterRoutes(r chi.Router, deps HandlerDependencies) {
 }
 
 func (h handler) create(w http.ResponseWriter, r *http.Request) {
-	var input CreateInput
-	if err := decodeJSON(r, &input); err != nil {
+	input, err := decodeCreateInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	item, err := h.svc.Create(r.Context(), CreateInput{
-		Name: strings.TrimSpace(input.Name),
-		Type: input.Type,
-	})
+	item, err := h.svc.Create(r.Context(), input)
 	if err != nil {
 		writeCategoryError(w, err)
 		return
@@ -87,14 +65,14 @@ func (h handler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) update(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	id, err := parseCategoryID(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid category id")
 		return
 	}
 
-	var input UpdateInput
-	if err := decodeJSON(r, &input); err != nil {
+	input, err := decodeUpdateInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -114,7 +92,7 @@ func (h handler) update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) delete(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 64)
+	id, err := parseCategoryID(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid category id")
 		return
@@ -125,15 +103,11 @@ func (h handler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
+	writeJSON(w, http.StatusOK, statusResponse{Status: "deleted"})
 }
 
 func (h handler) list(w http.ResponseWriter, r *http.Request) {
-	var filter ListFilter
-	if value := strings.TrimSpace(r.URL.Query().Get("type")); value != "" {
-		categoryType := Type(value)
-		filter.Type = &categoryType
-	}
+	filter := parseListFilter(r)
 
 	items, err := h.svc.List(r.Context(), filter)
 	if err != nil {
@@ -141,7 +115,7 @@ func (h handler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string][]Category{"data": items})
+	writeJSON(w, http.StatusOK, listResponse{Data: items})
 }
 
 func writeCategoryError(w http.ResponseWriter, err error) {

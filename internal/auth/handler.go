@@ -2,7 +2,6 @@ package auth
 
 import (
 	"net/http"
-	"strings"
 
 	"finance-backend/internal/server/routeinfo"
 
@@ -62,22 +61,13 @@ func RegisterRoutes(r chi.Router, deps HandlerDependencies) {
 }
 
 func (h handler) login(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Email      string `json:"email"`
-		Password   string `json:"password"`
-		DeviceName string `json:"device_name"`
-	}
-
-	if err := decodeJSON(r, &request); err != nil {
+	input, err := decodeLoginInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	result, err := h.authService.Login(r.Context(), LoginInput{
-		Email:      strings.TrimSpace(request.Email),
-		Password:   request.Password,
-		DeviceName: strings.TrimSpace(request.DeviceName),
-	})
+	result, err := h.authService.Login(r.Context(), input)
 	if err != nil {
 		writeAuthError(w, err)
 		return
@@ -87,17 +77,13 @@ func (h handler) login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) refresh(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		RefreshToken string `json:"refresh_token"`
-		DeviceName   string `json:"device_name"`
-	}
-
-	if err := decodeJSON(r, &request); err != nil {
+	refreshToken, deviceName, err := decodeRefreshInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	result, err := h.authService.Refresh(r.Context(), strings.TrimSpace(request.RefreshToken), strings.TrimSpace(request.DeviceName))
+	result, err := h.authService.Refresh(r.Context(), refreshToken, deviceName)
 	if err != nil {
 		writeAuthError(w, err)
 		return
@@ -107,21 +93,18 @@ func (h handler) refresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) logout(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		RefreshToken string `json:"refresh_token"`
-	}
-
-	if err := decodeJSON(r, &request); err != nil {
+	refreshToken, err := decodeLogoutInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := h.authService.Logout(r.Context(), strings.TrimSpace(request.RefreshToken)); err != nil {
+	if err := h.authService.Logout(r.Context(), refreshToken); err != nil {
 		writeAuthError(w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "logged_out"})
+	writeJSON(w, http.StatusOK, statusResponse{Status: "logged_out"})
 }
 
 func (h handler) me(w http.ResponseWriter, r *http.Request) {
@@ -137,28 +120,17 @@ func (h handler) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]User{"user": user})
+	writeJSON(w, http.StatusOK, userResponse{User: user})
 }
 
 func (h handler) register(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Name       string `json:"name"`
-		Email      string `json:"email"`
-		Password   string `json:"password"`
-		DeviceName string `json:"device_name"`
-	}
-
-	if err := decodeJSON(r, &request); err != nil {
+	input, err := decodeRegisterInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	result, err := h.authService.Register(r.Context(), RegisterInput{
-		Name:       strings.TrimSpace(request.Name),
-		Email:      strings.TrimSpace(request.Email),
-		Password:   request.Password,
-		DeviceName: strings.TrimSpace(request.DeviceName),
-	})
+	result, err := h.authService.Register(r.Context(), input)
 	if err != nil {
 		writeAuthError(w, err)
 		return
@@ -168,12 +140,8 @@ func (h handler) register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) updateProfile(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Name  string `json:"name"`
-		Email string `json:"email"`
-	}
-
-	if err := decodeJSON(r, &request); err != nil {
+	input, err := decodeUpdateProfileInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -190,25 +158,18 @@ func (h handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedUser, err := h.authService.UpdateProfile(r.Context(), user.ID, UpdateProfileInput{
-		Name:  strings.TrimSpace(request.Name),
-		Email: strings.TrimSpace(request.Email),
-	})
+	updatedUser, err := h.authService.UpdateProfile(r.Context(), user.ID, input)
 	if err != nil {
 		writeAuthError(w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]User{"user": updatedUser})
+	writeJSON(w, http.StatusOK, userResponse{User: updatedUser})
 }
 
 func (h handler) changePassword(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		OldPassword string `json:"old_password"`
-		NewPassword string `json:"new_password"`
-	}
-
-	if err := decodeJSON(r, &request); err != nil {
+	input, err := decodeChangePasswordInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -225,57 +186,44 @@ func (h handler) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.authService.ChangePassword(r.Context(), user.ID, ChangePasswordInput{
-		OldPassword: request.OldPassword,
-		NewPassword: request.NewPassword,
-	}); err != nil {
+	if err := h.authService.ChangePassword(r.Context(), user.ID, input); err != nil {
 		writeAuthError(w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "password_changed"})
+	writeJSON(w, http.StatusOK, statusResponse{Status: "password_changed"})
 }
 
 func (h handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Email string `json:"email"`
-	}
-
-	if err := decodeJSON(r, &request); err != nil {
+	input, err := decodeForgotPasswordInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	token, err := h.authService.ForgotPassword(r.Context(), ForgotPasswordInput{
-		Email: strings.TrimSpace(request.Email),
-	})
+	token, err := h.authService.ForgotPassword(r.Context(), input)
 	if err != nil {
 		writeAuthError(w, err)
 		return
 	}
 
-	// We return the token for debugging/development
-	writeJSON(w, http.StatusOK, map[string]string{"status": "email_sent", "reset_token": token})
+	writeJSON(w, http.StatusOK, forgotPasswordResponse{
+		Status:     "email_sent",
+		ResetToken: token,
+	})
 }
 
 func (h handler) resetPassword(w http.ResponseWriter, r *http.Request) {
-	var request struct {
-		Token       string `json:"token"`
-		NewPassword string `json:"new_password"`
-	}
-
-	if err := decodeJSON(r, &request); err != nil {
+	input, err := decodeResetPasswordInput(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := h.authService.ResetPassword(r.Context(), ResetPasswordInput{
-		Token:       strings.TrimSpace(request.Token),
-		NewPassword: request.NewPassword,
-	}); err != nil {
+	if err := h.authService.ResetPassword(r.Context(), input); err != nil {
 		writeAuthError(w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "password_reset"})
+	writeJSON(w, http.StatusOK, statusResponse{Status: "password_reset"})
 }
