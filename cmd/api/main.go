@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"finance-backend/internal/alerts"
 	"finance-backend/internal/auth"
 	"finance-backend/internal/category"
 	"finance-backend/internal/config"
@@ -81,6 +82,9 @@ func main() {
 	dashboardRepo := dashboard.NewMySQLDashboardRepository(db)
 	dashboardService := dashboard.NewService(dashboardRepo)
 
+	alertsRepo := alerts.NewMySQLAlertsRepository(db)
+	alertsService := alerts.NewService(alertsRepo)
+
 	reportsRepo := reports.NewMySQLReportsRepository(db)
 	reportsService := reports.NewService(reportsRepo)
 
@@ -91,7 +95,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
-		Handler: server.NewRouter(authService, txService, categoryService, salaryService, debtService, dashboardService, reportsService, fileStorage, cfg.Storage.UploadDir),
+		Handler: server.NewRouter(authService, txService, categoryService, salaryService, debtService, dashboardService, reportsService, alertsService, fileStorage, cfg.Storage.UploadDir),
 	}
 
 	log.Printf("server listening on :%s", cfg.Server.Port)
