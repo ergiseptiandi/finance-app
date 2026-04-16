@@ -13,6 +13,8 @@ type Config struct {
 	Auth    AuthConfig
 	Seed    SeedConfig
 	SMTP    SMTPConfig
+	Push    PushConfig
+	Runtime RuntimeConfig
 	Storage StorageConfig
 }
 
@@ -51,6 +53,16 @@ type SMTPConfig struct {
 	Username string
 	Password string
 	From     string
+}
+
+type PushConfig struct {
+	FirebaseProjectID       string
+	FirebaseCredentialsJSON string
+}
+
+type RuntimeConfig struct {
+	Mode                 string
+	NotificationCronSpec string
 }
 
 type StorageConfig struct {
@@ -120,6 +132,14 @@ func Load() (Config, error) {
 			Username: os.Getenv("SMTP_USERNAME"),
 			Password: os.Getenv("SMTP_PASSWORD"),
 			From:     getEnv("SMTP_FROM", "noreply@finance-app.local"),
+		},
+		Push: PushConfig{
+			FirebaseProjectID:       getEnv("FIREBASE_PROJECT_ID", os.Getenv("GOOGLE_CLOUD_PROJECT")),
+			FirebaseCredentialsJSON: os.Getenv("FIREBASE_CREDENTIALS_JSON"),
+		},
+		Runtime: RuntimeConfig{
+			Mode:                 getEnv("APP_MODE", "api"),
+			NotificationCronSpec: getEnv("NOTIFICATION_CRON_SCHEDULE", "@every 1m"),
 		},
 		Storage: StorageConfig{
 			UploadDir: getEnv("UPLOAD_DIR", "uploads"),

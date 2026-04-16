@@ -16,6 +16,25 @@ services:
           cpus: "0.5"
           memory: 256M
 
+  finance-notification-worker:
+    container_name: finance-notification-worker-1
+    build:
+      context: .
+    env_file: .env
+    environment:
+      - DB_HOST=mysql
+      - APP_MODE=worker
+      - NOTIFICATION_CRON_SCHEDULE=@every 1m
+    networks:
+      - nginx-proxy-manager_default
+      - db_net
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
 networks:
   nginx-proxy-manager_default:
     external: true

@@ -1,0 +1,361 @@
+package notifications
+
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"strings"
+	"time"
+)
+
+type MySQLNotificationsRepository struct {
+	db *sql.DB
+}
+
+func NewMySQLNotificationsRepository(db *sql.DB) *MySQLNotificationsRepository {
+	return &MySQLNotificationsRepository{db: db}
+}
+
+func (r *MySQLNotificationsRepository) GetSettings(ctx context.Context, userID int64) (*Settings, error) {
+	const query = `
+		SELECT user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
+		       debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
+		       salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before,
+		       push_token, created_at, updated_at
+		FROM notification_settings
+		WHERE user_id = ?
+		LIMIT 1
+	`
+
+	var item Settings
+	if err := r.db.QueryRowContext(ctx, query, userID).Scan(
+		&item.UserID,
+		&item.Enabled,
+		&item.DailyExpenseReminderEnabled,
+		&item.DailyExpenseReminderTime,
+		&item.DebtPaymentReminderEnabled,
+		&item.DebtPaymentReminderTime,
+		&item.DebtPaymentReminderDaysBefore,
+		&item.SalaryReminderEnabled,
+		&item.SalaryReminderTime,
+		&item.SalaryReminderDaysBefore,
+		&item.PushToken,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &item, nil
+}
+
+func (r *MySQLNotificationsRepository) UpsertSettings(ctx context.Context, settings Settings) (Settings, error) {
+	const query = `
+		INSERT INTO notification_settings (
+			user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
+			debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
+			salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before, push_token
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			enabled = VALUES(enabled),
+			daily_expense_reminder_enabled = VALUES(daily_expense_reminder_enabled),
+			daily_expense_reminder_time = VALUES(daily_expense_reminder_time),
+			debt_payment_reminder_enabled = VALUES(debt_payment_reminder_enabled),
+			debt_payment_reminder_time = VALUES(debt_payment_reminder_time),
+			debt_payment_reminder_days_before = VALUES(debt_payment_reminder_days_before),
+			salary_reminder_enabled = VALUES(salary_reminder_enabled),
+			salary_reminder_time = VALUES(salary_reminder_time),
+			salary_reminder_days_before = VALUES(salary_reminder_days_before),
+			push_token = VALUES(push_token)
+	`
+
+	if _, err := r.db.ExecContext(ctx, query,
+		settings.UserID,
+		settings.Enabled,
+		settings.DailyExpenseReminderEnabled,
+		settings.DailyExpenseReminderTime,
+		settings.DebtPaymentReminderEnabled,
+		settings.DebtPaymentReminderTime,
+		settings.DebtPaymentReminderDaysBefore,
+		settings.SalaryReminderEnabled,
+		settings.SalaryReminderTime,
+		settings.SalaryReminderDaysBefore,
+		settings.PushToken,
+	); err != nil {
+		return Settings{}, err
+	}
+
+	stored, err := r.GetSettings(ctx, settings.UserID)
+	if err != nil {
+		return Settings{}, err
+	}
+	if stored == nil {
+		return Settings{}, ErrNotFound
+	}
+
+	return *stored, nil
+}
+
+func (r *MySQLNotificationsRepository) ListUserIDs(ctx context.Context) ([]int64, error) {
+	const query = `
+		SELECT id
+		FROM users
+		ORDER BY id ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+func (r *MySQLNotificationsRepository) ListNotifications(ctx context.Context, userID int64, filter NotificationFilter) ([]Notification, error) {
+	builder := strings.Builder{}
+	builder.WriteString(`
+		SELECT id, user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key, created_at, updated_at
+		FROM notifications
+		WHERE user_id = ?
+	`)
+	args := []any{userID}
+
+	if filter.Kind != nil && strings.TrimSpace(*filter.Kind) != "" {
+		builder.WriteString(" AND kind = ?")
+		args = append(args, strings.TrimSpace(*filter.Kind))
+	}
+	if filter.Read != nil {
+		if *filter.Read {
+			builder.WriteString(" AND read_at IS NOT NULL")
+		} else {
+			builder.WriteString(" AND read_at IS NULL")
+		}
+	}
+	builder.WriteString(" ORDER BY created_at DESC, id DESC")
+
+	rows, err := r.db.QueryContext(ctx, builder.String(), args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]Notification, 0)
+	for rows.Next() {
+		item, err := scanNotification(rows)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+func (r *MySQLNotificationsRepository) GetNotificationByID(ctx context.Context, userID, id int64) (Notification, error) {
+	const query = `
+		SELECT id, user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key, created_at, updated_at
+		FROM notifications
+		WHERE id = ? AND user_id = ?
+		LIMIT 1
+	`
+
+	row := r.db.QueryRowContext(ctx, query, id, userID)
+	return scanNotificationRow(row)
+}
+
+func (r *MySQLNotificationsRepository) MarkNotificationRead(ctx context.Context, userID, id int64, readAt time.Time) (Notification, error) {
+	const query = `
+		UPDATE notifications
+		SET read_at = ?
+		WHERE id = ? AND user_id = ?
+	`
+
+	result, err := r.db.ExecContext(ctx, query, readAt, id, userID)
+	if err != nil {
+		return Notification{}, err
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return Notification{}, err
+	}
+	if rows == 0 {
+		return Notification{}, ErrNotFound
+	}
+
+	return r.GetNotificationByID(ctx, userID, id)
+}
+
+func (r *MySQLNotificationsRepository) UpsertNotification(ctx context.Context, item Notification) (Notification, error) {
+	const query = `
+		INSERT INTO notifications (
+			user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			kind = VALUES(kind),
+			title = VALUES(title),
+			message = VALUES(message),
+			delivery_status = VALUES(delivery_status),
+			scheduled_for = VALUES(scheduled_for),
+			sent_at = VALUES(sent_at),
+			read_at = VALUES(read_at)
+	`
+
+	var sentAt any
+	if item.SentAt != nil {
+		sentAt = *item.SentAt
+	}
+	var readAt any
+	if item.ReadAt != nil {
+		readAt = *item.ReadAt
+	}
+
+	if _, err := r.db.ExecContext(ctx, query,
+		item.UserID,
+		item.Kind,
+		item.Title,
+		item.Message,
+		item.DeliveryStatus,
+		item.ScheduledFor,
+		sentAt,
+		readAt,
+		item.DedupeKey,
+	); err != nil {
+		return Notification{}, err
+	}
+
+	existing, err := r.FindNotificationByDedupeKey(ctx, item.UserID, item.DedupeKey)
+	if err != nil {
+		return Notification{}, err
+	}
+	if existing == nil {
+		return Notification{}, ErrNotFound
+	}
+
+	return *existing, nil
+}
+
+func (r *MySQLNotificationsRepository) FindNotificationByDedupeKey(ctx context.Context, userID int64, dedupeKey string) (*Notification, error) {
+	const query = `
+		SELECT id, user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key, created_at, updated_at
+		FROM notifications
+		WHERE user_id = ? AND dedupe_key = ?
+		LIMIT 1
+	`
+
+	row := r.db.QueryRowContext(ctx, query, userID, dedupeKey)
+	item, err := scanNotificationRow(row)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &item, nil
+}
+
+func (r *MySQLNotificationsRepository) DebtReminderSummary(ctx context.Context, userID int64, cutoff time.Time) (ReminderSummary, error) {
+	const query = `
+		SELECT COALESCE(COUNT(i.id), 0), COALESCE(SUM(i.amount), 0), MIN(i.due_date)
+		FROM debt_installments i
+		JOIN debts d ON d.id = i.debt_id
+		WHERE d.user_id = ?
+		  AND i.status IN ('pending', 'overdue')
+		  AND i.due_date <= ?
+	`
+
+	var summary ReminderSummary
+	var nextDue sql.NullTime
+	if err := r.db.QueryRowContext(ctx, query, userID, cutoff).Scan(&summary.Count, &summary.Amount, &nextDue); err != nil {
+		return ReminderSummary{}, err
+	}
+	if nextDue.Valid {
+		summary.NextDueAt = &nextDue.Time
+	}
+
+	return summary, nil
+}
+
+func (r *MySQLNotificationsRepository) SalaryReminderDay(ctx context.Context, userID int64) (*int, error) {
+	const query = `
+		SELECT salary_day
+		FROM salary_settings
+		WHERE user_id = ?
+		LIMIT 1
+	`
+
+	var day int
+	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&day); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &day, nil
+}
+
+func scanNotification(rows *sql.Rows) (Notification, error) {
+	var item Notification
+	if err := rows.Scan(
+		&item.ID,
+		&item.UserID,
+		&item.Kind,
+		&item.Title,
+		&item.Message,
+		&item.DeliveryStatus,
+		&item.ScheduledFor,
+		&item.SentAt,
+		&item.ReadAt,
+		&item.DedupeKey,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	); err != nil {
+		return Notification{}, err
+	}
+	return item, nil
+}
+
+func scanNotificationRow(row *sql.Row) (Notification, error) {
+	var item Notification
+	if err := row.Scan(
+		&item.ID,
+		&item.UserID,
+		&item.Kind,
+		&item.Title,
+		&item.Message,
+		&item.DeliveryStatus,
+		&item.ScheduledFor,
+		&item.SentAt,
+		&item.ReadAt,
+		&item.DedupeKey,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return Notification{}, ErrNotFound
+		}
+		return Notification{}, err
+	}
+	return item, nil
+}

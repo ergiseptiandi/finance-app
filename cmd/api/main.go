@@ -4,6 +4,9 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"finance-backend/internal/alerts"
@@ -14,6 +17,7 @@ import (
 	"finance-backend/internal/database"
 	"finance-backend/internal/debt"
 	"finance-backend/internal/mail"
+	"finance-backend/internal/notifications"
 	"finance-backend/internal/reports"
 	"finance-backend/internal/salary"
 	"finance-backend/internal/server"
@@ -82,6 +86,18 @@ func main() {
 	dashboardRepo := dashboard.NewMySQLDashboardRepository(db)
 	dashboardService := dashboard.NewService(dashboardRepo)
 
+	notificationsRepo := notifications.NewMySQLNotificationsRepository(db)
+	var pushSender notifications.PushSender
+	if sender, err := notifications.NewFirebaseSender(startupCtx, notifications.FirebasePushConfig{
+		ProjectID:       cfg.Push.FirebaseProjectID,
+		CredentialsJSON: cfg.Push.FirebaseCredentialsJSON,
+	}); err != nil {
+		log.Printf("firebase push disabled: %v", err)
+	} else {
+		pushSender = sender
+	}
+	notificationsService := notifications.NewService(notificationsRepo, pushSender)
+
 	alertsRepo := alerts.NewMySQLAlertsRepository(db)
 	alertsService := alerts.NewService(alertsRepo)
 
@@ -93,9 +109,20 @@ func main() {
 	txRepo := transaction.NewMySQLTransactionRepository(db)
 	txService := transaction.NewService(txRepo)
 
+	if cfg.Runtime.Mode == "worker" || os.Getenv("APP_MODE") == "worker" {
+		worker := notifications.NewWorker(notificationsService, notificationsRepo, cfg.Runtime.NotificationCronSpec)
+		workerCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer stop()
+
+		if err := worker.Run(workerCtx); err != nil && err != context.Canceled {
+			log.Fatal(err)
+		}
+		return
+	}
+
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
-		Handler: server.NewRouter(authService, txService, categoryService, salaryService, debtService, dashboardService, reportsService, alertsService, fileStorage, cfg.Storage.UploadDir),
+		Handler: server.NewRouter(authService, txService, categoryService, salaryService, debtService, dashboardService, reportsService, alertsService, notificationsService, fileStorage, cfg.Storage.UploadDir),
 	}
 
 	log.Printf("server listening on :%s", cfg.Server.Port)

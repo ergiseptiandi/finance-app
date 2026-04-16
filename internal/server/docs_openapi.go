@@ -73,6 +73,7 @@ func openAPIComponents() map[string]any {
 	mergeOpenAPIComponents(components, dashboardOpenAPIComponents())
 	mergeOpenAPIComponents(components, reportsOpenAPIComponents())
 	mergeOpenAPIComponents(components, alertsOpenAPIComponents())
+	mergeOpenAPIComponents(components, notificationsOpenAPIComponents())
 
 	return components
 }
@@ -151,6 +152,9 @@ func requestBodySchema(route routeinfo.RouteInfo) map[string]any {
 	if requestBody := alertsRequestBodySchema(route); requestBody != nil {
 		return requestBody
 	}
+	if requestBody := notificationsRequestBodySchema(route); requestBody != nil {
+		return requestBody
+	}
 
 	return nil
 }
@@ -181,6 +185,9 @@ func responseSchemas(route routeinfo.RouteInfo) map[string]any {
 		return responses
 	}
 	if responses := alertsResponseSchemas(route); responses != nil {
+		return responses
+	}
+	if responses := notificationsResponseSchemas(route); responses != nil {
 		return responses
 	}
 
