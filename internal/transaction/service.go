@@ -1,0 +1,103 @@
+package transaction
+
+import (
+	"context"
+	"errors"
+)
+
+var (
+	ErrNotFound      = errors.New("transaction not found")
+	ErrInvalidInput  = errors.New("invalid transaction input")
+)
+
+type Service struct {
+	repo Repository
+}
+
+func NewService(repo Repository) *Service {
+	return &Service{repo: repo}
+}
+
+func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (Transaction, error) {
+	if input.Amount <= 0 {
+		return Transaction{}, errors.New("amount must be greater than zero")
+	}
+	if input.Type != TypeIncome && input.Type != TypeExpense {
+		return Transaction{}, errors.New("invalid transaction type")
+	}
+	
+	txn := Transaction{
+		UserID:      userID,
+		Type:        input.Type,
+		Category:    input.Category,
+		Amount:      input.Amount,
+		Date:        input.Date,
+		Description: input.Description,
+	}
+
+	id, err := s.repo.Create(ctx, txn)
+	if err != nil {
+		return Transaction{}, err
+	}
+
+	txn.ID = id
+	return txn, nil
+}
+
+func (s *Service) Get(ctx context.Context, id int64, userID int64) (Transaction, error) {
+	return s.repo.GetByID(ctx, id, userID)
+}
+
+func (s *Service) Update(ctx context.Context, id int64, userID int64, input UpdateInput) (Transaction, error) {
+	txn, err := s.repo.GetByID(ctx, id, userID)
+	if err != nil {
+		return Transaction{}, err
+	}
+
+	if input.Type != nil {
+		if *input.Type != TypeIncome && *input.Type != TypeExpense {
+			return Transaction{}, errors.New("invalid transaction type")
+		}
+		txn.Type = *input.Type
+	}
+	if input.Category != nil {
+		txn.Category = *input.Category
+	}
+	if input.Amount != nil {
+		if *input.Amount <= 0 {
+			return Transaction{}, errors.New("amount must be greater than zero")
+		}
+		txn.Amount = *input.Amount
+	}
+	if input.Date != nil {
+		txn.Date = *input.Date
+	}
+	if input.Description != nil {
+		txn.Description = *input.Description
+	}
+
+	err = s.repo.Update(ctx, txn)
+	if err != nil {
+		return Transaction{}, err
+	}
+	
+	return s.repo.GetByID(ctx, id, userID)
+}
+
+func (s *Service) Delete(ctx context.Context, id int64, userID int64) error {
+	return s.repo.Delete(ctx, id, userID)
+}
+
+func (s *Service) List(ctx context.Context, userID int64, filter ListFilter) (PaginatedList, error) {
+	if filter.Page <= 0 {
+		filter.Page = 1
+	}
+	if filter.PerPage <= 0 {
+		filter.PerPage = 10
+	}
+	return s.repo.FindAll(ctx, userID, filter)
+}
+
+func (s *Service) Summary(ctx context.Context, userID int64) (Summary, error) {
+	return s.repo.GetSummary(ctx, userID)
+}

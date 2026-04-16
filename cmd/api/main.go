@@ -12,6 +12,7 @@ import (
 	"finance-backend/internal/httpapi"
 	"finance-backend/internal/mail"
 	"finance-backend/internal/repository"
+	"finance-backend/internal/transaction"
 
 	"github.com/joho/godotenv"
 )
@@ -63,9 +64,12 @@ func main() {
 
 	authService := auth.NewService(authRepo, authRepo, passwordResetRepo, tokenManager, mailer)
 
+	txRepo := repository.NewMySQLTransactionRepository(db)
+	txService := transaction.NewService(txRepo)
+
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
-		Handler: httpapi.NewRouter(authService),
+		Handler: httpapi.NewRouter(authService, txService),
 	}
 
 	log.Printf("server listening on :%s", cfg.Server.Port)

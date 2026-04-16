@@ -8,6 +8,8 @@ import (
 	"finance-backend/internal/httpapi/routeinfo"
 
 	"finance-backend/internal/auth"
+	"finance-backend/internal/transaction"
+	txroutes "finance-backend/internal/httpapi/transaction"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -17,7 +19,7 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
-func NewRouter(authService *auth.Service) http.Handler {
+func NewRouter(authService *auth.Service, txService *transaction.Service) http.Handler {
 	router := chi.NewRouter()
 	catalog := newRouteCatalog()
 	router.Use(chimiddleware.RequestID)
@@ -37,6 +39,16 @@ func NewRouter(authService *auth.Service) http.Handler {
 				AuthMiddleware: authmiddleware.NewAuth(authService),
 			})
 			for _, route := range authroutes.Definitions() {
+				catalog.Add(route)
+			}
+		}
+
+		if txService != nil && authService != nil {
+			txroutes.RegisterRoutes(r, txroutes.HandlerDependencies{
+				TransactionService: txService,
+				AuthMiddleware:     authmiddleware.NewAuth(authService),
+			})
+			for _, route := range txroutes.Definitions() {
 				catalog.Add(route)
 			}
 		}
