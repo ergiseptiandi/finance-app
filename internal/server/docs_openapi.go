@@ -58,25 +58,47 @@ func buildOpenAPISpec(routes []routeinfo.RouteInfo) map[string]any {
 	}
 }
 
-func operationID(route routeinfo.RouteInfo) string {
-	switch route.Method + " " + route.Path {
-	case "GET /":
-		return "getRootStatus"
-	case "GET /health":
-		return "getHealthStatus"
-	case "GET /routes":
-		return "listRoutes"
-	case "POST /v1/auth/login":
-		return "login"
-	case "POST /v1/auth/refresh":
-		return "refreshToken"
-	case "POST /v1/auth/logout":
-		return "logout"
-	case "GET /v1/auth/me":
-		return "getCurrentUser"
-	default:
-		return methodName(route.Method) + route.Path
+func openAPIComponents() map[string]any {
+	components := map[string]any{
+		"securitySchemes": map[string]any{},
+		"schemas":         map[string]any{},
 	}
+
+	mergeOpenAPIComponents(components, coreOpenAPIComponents())
+	mergeOpenAPIComponents(components, authOpenAPIComponents())
+	mergeOpenAPIComponents(components, transactionOpenAPIComponents())
+	mergeOpenAPIComponents(components, categoryOpenAPIComponents())
+
+	return components
+}
+
+func mergeOpenAPIComponents(dst, src map[string]any) {
+	for key, value := range src {
+		switch typed := value.(type) {
+		case map[string]any:
+			target, _ := dst[key].(map[string]any)
+			if target == nil {
+				target = map[string]any{}
+				dst[key] = target
+			}
+
+			for nestedKey, nestedValue := range typed {
+				target[nestedKey] = nestedValue
+			}
+		default:
+			dst[key] = value
+		}
+	}
+}
+
+func operationID(route routeinfo.RouteInfo) string {
+	if id, ok := coreOperationID(route); ok {
+		return id
+	}
+	if id, ok := authOperationID(route); ok {
+		return id
+	}
+	return methodName(route.Method) + route.Path
 }
 
 func methodName(method string) string {
@@ -97,43 +119,37 @@ func methodName(method string) string {
 }
 
 func requestBodySchema(route routeinfo.RouteInfo) map[string]any {
-	switch route.Method + " " + route.Path {
-	case "POST /v1/auth/login":
-		return jsonRequestBody("#/components/schemas/LoginRequest")
-	case "POST /v1/auth/refresh":
-		return jsonRequestBody("#/components/schemas/RefreshRequest")
-	case "POST /v1/auth/logout":
-		return jsonRequestBody("#/components/schemas/LogoutRequest")
-	case "POST /v1/categories":
-		return jsonRequestBody("#/components/schemas/CreateCategoryRequest")
-	case "PATCH /v1/categories/{id}":
-		return jsonRequestBody("#/components/schemas/UpdateCategoryRequest")
-	default:
-		return nil
+	if requestBody := coreRequestBodySchema(route); requestBody != nil {
+		return requestBody
 	}
+	if requestBody := authRequestBodySchema(route); requestBody != nil {
+		return requestBody
+	}
+	if requestBody := transactionRequestBodySchema(route); requestBody != nil {
+		return requestBody
+	}
+	if requestBody := categoryRequestBodySchema(route); requestBody != nil {
+		return requestBody
+	}
+
+	return nil
 }
 
 func responseSchemas(route routeinfo.RouteInfo) map[string]any {
-	switch route.Method + " " + route.Path {
-	case "GET /", "GET /health":
-		return successResponse("#/components/schemas/StatusResponse")
-	case "GET /routes":
-		return successResponse("#/components/schemas/RoutesResponse")
-	case "POST /v1/auth/login", "POST /v1/auth/refresh":
-		return authResponses("#/components/schemas/AuthResult")
-	case "POST /v1/auth/logout":
-		return authResponses("#/components/schemas/StatusResponse")
-	case "GET /v1/auth/me":
-		return authResponses("#/components/schemas/UserProfile")
-	case "GET /v1/categories":
-		return authResponses("#/components/schemas/CategoriesResponse")
-	case "POST /v1/categories", "PATCH /v1/categories/{id}":
-		return authResponses("#/components/schemas/Category")
-	case "DELETE /v1/categories/{id}":
-		return authResponses("#/components/schemas/StatusResponse")
-	default:
-		return nil
+	if responses := coreResponseSchemas(route); responses != nil {
+		return responses
 	}
+	if responses := authResponseSchemas(route); responses != nil {
+		return responses
+	}
+	if responses := transactionResponseSchemas(route); responses != nil {
+		return responses
+	}
+	if responses := categoryResponseSchemas(route); responses != nil {
+		return responses
+	}
+
+	return nil
 }
 
 func jsonRequestBody(schemaRef string) map[string]any {
