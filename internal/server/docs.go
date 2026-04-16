@@ -186,6 +186,43 @@ func buildOpenAPISpec(routes []routeinfo.RouteInfo) map[string]any {
 						"status": map[string]any{"type": "string"},
 					},
 				},
+				"Category": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"id":         map[string]any{"type": "integer"},
+						"name":       map[string]any{"type": "string"},
+						"type":       map[string]any{"type": "string", "enum": []string{"income", "expense"}},
+						"created_at": map[string]any{"type": "string", "format": "date-time"},
+						"updated_at": map[string]any{"type": "string", "format": "date-time"},
+					},
+				},
+				"CategoriesResponse": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"data": map[string]any{
+							"type":  "array",
+							"items": map[string]any{"$ref": "#/components/schemas/Category"},
+						},
+					},
+				},
+				"CreateCategoryRequest": map[string]any{
+					"type": "object",
+					"required": []string{
+						"name",
+						"type",
+					},
+					"properties": map[string]any{
+						"name": map[string]any{"type": "string"},
+						"type": map[string]any{"type": "string", "enum": []string{"income", "expense"}},
+					},
+				},
+				"UpdateCategoryRequest": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"name": map[string]any{"type": "string"},
+						"type": map[string]any{"type": "string", "enum": []string{"income", "expense"}},
+					},
+				},
 				"ErrorResponse": map[string]any{
 					"type": "object",
 					"properties": map[string]any{
@@ -261,6 +298,10 @@ func requestBodySchema(route routeinfo.RouteInfo) map[string]any {
 		return jsonRequestBody("#/components/schemas/RefreshRequest")
 	case "POST /v1/auth/logout":
 		return jsonRequestBody("#/components/schemas/LogoutRequest")
+	case "POST /v1/categories":
+		return jsonRequestBody("#/components/schemas/CreateCategoryRequest")
+	case "PATCH /v1/categories/{id}":
+		return jsonRequestBody("#/components/schemas/UpdateCategoryRequest")
 	default:
 		return nil
 	}
@@ -278,6 +319,12 @@ func responseSchemas(route routeinfo.RouteInfo) map[string]any {
 		return authResponses("#/components/schemas/StatusResponse")
 	case "GET /v1/auth/me":
 		return authResponses("#/components/schemas/UserProfile")
+	case "GET /v1/categories":
+		return authResponses("#/components/schemas/CategoriesResponse")
+	case "POST /v1/categories", "PATCH /v1/categories/{id}":
+		return authResponses("#/components/schemas/Category")
+	case "DELETE /v1/categories/{id}":
+		return authResponses("#/components/schemas/StatusResponse")
 	default:
 		return nil
 	}

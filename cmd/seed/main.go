@@ -39,5 +39,9 @@ func main() {
 		log.Fatalf("seed failed: %v", err)
 	}
 
-	log.Printf("seeded user %s", cfg.Seed.UserEmail)
+	if err := seed.UpsertDefaultCategories(ctx, db); err != nil {
+		log.Fatalf("seed failed: %v", err)
+	}
+
+	log.Printf("seeded user %s and default categories", cfg.Seed.UserEmail)
 }

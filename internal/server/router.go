@@ -3,10 +3,10 @@ package server
 import (
 	"net/http"
 
-	authmiddleware "finance-backend/internal/server/middleware"
 	"finance-backend/internal/server/routeinfo"
 
 	"finance-backend/internal/auth"
+	"finance-backend/internal/category"
 	"finance-backend/internal/transaction"
 
 	"github.com/go-chi/chi/v5"
@@ -17,39 +17,19 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
-func NewRouter(authService *auth.Service, txService *transaction.Service) http.Handler {
+func NewRouter(authService *auth.Service, txService *transaction.Service, categoryService *category.Service) http.Handler {
 	router := chi.NewRouter()
 	catalog := newRouteCatalog()
 	router.Use(chimiddleware.RequestID)
 	router.Use(chimiddleware.RealIP)
 	router.Use(chimiddleware.Recoverer)
 
-	router.Get("/", rootHandler)
-	router.Get("/health", healthHandler)
-	catalog.Add(routeinfo.RouteInfo{Method: http.MethodGet, Path: "/", Summary: "Root service status"})
-	catalog.Add(routeinfo.RouteInfo{Method: http.MethodGet, Path: "/health", Summary: "Health check"})
-	catalog.Add(routeinfo.RouteInfo{Method: http.MethodGet, Path: "/routes", Summary: "List registered API routes"})
+	registerBaseRoutes(router, catalog)
 
 	router.Route("/v1", func(r chi.Router) {
-		if authService != nil {
-			auth.RegisterRoutes(r, auth.HandlerDependencies{
-				AuthService:    authService,
-				AuthMiddleware: authmiddleware.NewAuth(authService),
-			})
-			for _, route := range auth.Definitions() {
-				catalog.Add(route)
-			}
-		}
-
-		if txService != nil && authService != nil {
-			transaction.RegisterRoutes(r, transaction.HandlerDependencies{
-				TransactionService: txService,
-				AuthMiddleware:     authmiddleware.NewAuth(authService),
-			})
-			for _, route := range transaction.Definitions() {
-				catalog.Add(route)
-			}
-		}
+		registerAuthRoutes(r, catalog, authService)
+		registerTransactionRoutes(r, catalog, authService, txService)
+		registerCategoryRoutes(r, catalog, authService, categoryService)
 	})
 
 	registerDocsRoutes(router, catalog)
@@ -57,12 +37,4 @@ func NewRouter(authService *auth.Service, txService *transaction.Service) http.H
 	catalog.Add(routeinfo.RouteInfo{Method: http.MethodGet, Path: "/docs", Summary: "Swagger UI"})
 
 	return router
-}
-
-func rootHandler(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, healthResponse{Status: "finance-backend running"})
-}
-
-func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, healthResponse{Status: "ok"})
 }

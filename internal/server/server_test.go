@@ -13,7 +13,7 @@ func TestHealthHandler(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()
 
-	NewRouter(nil, nil).ServeHTTP(rec, req)
+	NewRouter(nil, nil, nil).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
@@ -29,7 +29,7 @@ func TestRoutesEndpoint(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/routes", nil)
 	rec := httptest.NewRecorder()
 
-	NewRouter(nil, nil).ServeHTTP(rec, req)
+	NewRouter(nil, nil, nil).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
@@ -52,7 +52,7 @@ func TestOpenAPIEndpoint(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/openapi.json", nil)
 	rec := httptest.NewRecorder()
 
-	NewRouter(nil, nil).ServeHTTP(rec, req)
+	NewRouter(nil, nil, nil).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
@@ -72,7 +72,7 @@ func TestDocsRedirect(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/docs", nil)
 	rec := httptest.NewRecorder()
 
-	NewRouter(nil, nil).ServeHTTP(rec, req)
+	NewRouter(nil, nil, nil).ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusTemporaryRedirect {
 		t.Fatalf("expected status %d, got %d", http.StatusTemporaryRedirect, rec.Code)
