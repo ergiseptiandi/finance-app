@@ -1,19 +1,17 @@
 # Finance Backend
 
-Go backend scaffold dengan struktur yang lebih rapi untuk mobile authentication:
+Go backend terstruktur menggunakan pola **Package-by-Feature (Vertical Slices)** untuk kapabilitas Authentication dan Transaction:
 
-- `repository` untuk akses MySQL
-- `service` untuk business logic auth
-- `httpapi` untuk transport HTTP
-- `chi router` untuk grouping route modular
-- access token JWT
-- refresh token opaque yang di-hash di database
+- Semua endpoint REST, business logic, dan akses MySQL dibungkus erat ke dalam fiturnya: `internal/auth/` & `internal/transaction/`
+- `internal/server/` untuk transport HTTP Global (Chi Router, Middleware)
+- access token JWT dan refresh token opaque yang di-hash di database
 
-Struktur router sekarang:
+Struktur fitur sekarang:
 
-- `internal/httpapi/router.go` untuk root router dan versioning `/v1`
-- `internal/httpapi/auth/routes.go` untuk auth module routes
-- `internal/httpapi/middleware/auth.go` untuk auth middleware
+- `internal/auth/` berisi layer *handler*, *service*, dan *MySQL Repo* untuk authentication
+- `internal/transaction/` berisi layer *handler*, *service*, dan *MySQL Repo* untuk transaksi keuangan
+- `internal/server/router.go` untuk root router dan versioning `/v1`
+- `internal/server/middleware/auth.go` untuk global middleware JWT
 
 ## Requirements
 
@@ -140,6 +138,17 @@ Respons login berisi:
 - `refresh_token`
 - `refresh_token_expires_at`
 - data `user`
+
+## Transaction Endpoints
+
+Seluruh endpoint berikut membutuhkan Header: `Authorization: Bearer <access_token>`
+
+- `POST /v1/transactions` - Buat transaksi baru (Type: `income` / `expense`)
+- `GET /v1/transactions` - Ambil daftar transaksi dengan filter (`start_date`, `end_date`, `category`, `type`, `page`, `per_page`)
+- `GET /v1/transactions/summary` - Ambil Ringkasan Akun (Total Income, Total Expense, Balance)
+- `GET /v1/transactions/{id}` - Ambil detail 1 transaksi
+- `PATCH /v1/transactions/{id}` - Update transaksi (Partial update)
+- `DELETE /v1/transactions/{id}` - Hapus transaksi
 
 ## API Explorer
 

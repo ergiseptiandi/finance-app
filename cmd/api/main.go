@@ -9,9 +9,9 @@ import (
 	"finance-backend/internal/auth"
 	"finance-backend/internal/config"
 	"finance-backend/internal/database"
-	"finance-backend/internal/httpapi"
 	"finance-backend/internal/mail"
-	"finance-backend/internal/repository"
+	"finance-backend/internal/server"
+
 	"finance-backend/internal/transaction"
 
 	"github.com/joho/godotenv"
@@ -42,15 +42,15 @@ func main() {
 
 	log.Printf("mysql connected to %s:%s/%s", cfg.MySQL.Host, cfg.MySQL.Port, cfg.MySQL.Name)
 
-	authRepo := repository.NewMySQLAuthRepository(db)
-	passwordResetRepo := repository.NewMySQLPasswordResetRepository(db)
+	authRepo := auth.NewMySQLAuthRepository(db)
+	passwordResetRepo := auth.NewMySQLPasswordResetRepository(db)
 	tokenManager := auth.NewTokenManager(
 		cfg.Auth.JWTSecret,
 		cfg.Auth.Issuer,
 		cfg.Auth.AccessTokenTTL,
 		cfg.Auth.RefreshTokenTTL,
 	)
-	
+
 	var mailer mail.Sender
 	if cfg.SMTP.Host != "" && cfg.SMTP.Port > 0 {
 		mailer = mail.NewSMTPSender(
@@ -64,12 +64,12 @@ func main() {
 
 	authService := auth.NewService(authRepo, authRepo, passwordResetRepo, tokenManager, mailer)
 
-	txRepo := repository.NewMySQLTransactionRepository(db)
+	txRepo := transaction.NewMySQLTransactionRepository(db)
 	txService := transaction.NewService(txRepo)
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
-		Handler: httpapi.NewRouter(authService, txService),
+		Handler: server.NewRouter(authService, txService),
 	}
 
 	log.Printf("server listening on :%s", cfg.Server.Port)

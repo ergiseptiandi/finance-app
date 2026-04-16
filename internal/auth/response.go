@@ -1,11 +1,9 @@
-package httpapi
+package auth
 
 import (
 	"encoding/json"
 	"errors"
 	"net/http"
-
-	"finance-backend/internal/auth"
 )
 
 func decodeJSON(r *http.Request, dst any) error {
@@ -33,9 +31,9 @@ func writeError(w http.ResponseWriter, status int, message string) {
 
 func writeAuthError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, auth.ErrInvalidCredentials):
+	case errors.Is(err, ErrInvalidCredentials):
 		writeError(w, http.StatusUnauthorized, err.Error())
-	case errors.Is(err, auth.ErrInvalidToken), errors.Is(err, auth.ErrExpiredToken):
+	case errors.Is(err, ErrInvalidToken), errors.Is(err, ErrExpiredToken):
 		writeError(w, http.StatusUnauthorized, err.Error())
 	default:
 		writeError(w, http.StatusInternalServerError, "internal server error")

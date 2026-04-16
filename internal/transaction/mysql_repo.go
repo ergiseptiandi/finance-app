@@ -1,4 +1,4 @@
-package repository
+package transaction
 
 import (
 	"context"
@@ -6,8 +6,6 @@ import (
 	"errors"
 	"math"
 	"strings"
-
-	"finance-backend/internal/transaction"
 )
 
 type MySQLTransactionRepository struct {
@@ -18,7 +16,7 @@ func NewMySQLTransactionRepository(db *sql.DB) *MySQLTransactionRepository {
 	return &MySQLTransactionRepository{db: db}
 }
 
-func (r *MySQLTransactionRepository) Create(ctx context.Context, txn transaction.Transaction) (int64, error) {
+func (r *MySQLTransactionRepository) Create(ctx context.Context, txn Transaction) (int64, error) {
 	const query = `
 		INSERT INTO transactions (user_id, type, category, amount, date, description)
 		VALUES (?, ?, ?, ?, ?, ?)
@@ -30,15 +28,15 @@ func (r *MySQLTransactionRepository) Create(ctx context.Context, txn transaction
 	return result.LastInsertId()
 }
 
-func (r *MySQLTransactionRepository) GetByID(ctx context.Context, id int64, userID int64) (transaction.Transaction, error) {
+func (r *MySQLTransactionRepository) GetByID(ctx context.Context, id int64, userID int64) (Transaction, error) {
 	const query = `
 		SELECT id, user_id, type, category, amount, date, description, created_at, updated_at
 		FROM transactions
 		WHERE id = ? AND user_id = ?
 		LIMIT 1;
 	`
-	
-	var txn transaction.Transaction
+
+	var txn Transaction
 	var description sql.NullString
 
 	err := r.db.QueryRowContext(ctx, query, id, userID).Scan(
@@ -52,21 +50,21 @@ func (r *MySQLTransactionRepository) GetByID(ctx context.Context, id int64, user
 		&txn.CreatedAt,
 		&txn.UpdatedAt,
 	)
-	
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return transaction.Transaction{}, transaction.ErrNotFound
+			return Transaction{}, ErrNotFound
 		}
-		return transaction.Transaction{}, err
+		return Transaction{}, err
 	}
-	
+
 	if description.Valid {
 		txn.Description = description.String
 	}
 	return txn, nil
 }
 
-func (r *MySQLTransactionRepository) Update(ctx context.Context, txn transaction.Transaction) error {
+func (r *MySQLTransactionRepository) Update(ctx context.Context, txn Transaction) error {
 	const query = `
 		UPDATE transactions
 		SET type = ?, category = ?, amount = ?, date = ?, description = ?
@@ -81,7 +79,7 @@ func (r *MySQLTransactionRepository) Update(ctx context.Context, txn transaction
 		return err
 	}
 	if rows == 0 {
-		return transaction.ErrNotFound
+		return ErrNotFound
 	}
 	return nil
 }
@@ -97,17 +95,17 @@ func (r *MySQLTransactionRepository) Delete(ctx context.Context, id int64, userI
 		return err
 	}
 	if rows == 0 {
-		return transaction.ErrNotFound
+		return ErrNotFound
 	}
 	return nil
 }
 
-func (r *MySQLTransactionRepository) FindAll(ctx context.Context, userID int64, filter transaction.ListFilter) (transaction.PaginatedList, error) {
+func (r *MySQLTransactionRepository) FindAll(ctx context.Context, userID int64, filter ListFilter) (PaginatedList, error) {
 	queryBuilder := strings.Builder{}
 	queryBuilder.WriteString("FROM transactions WHERE user_id = ?")
-	
+
 	args := []interface{}{userID}
-	
+
 	if filter.StartDate != nil {
 		queryBuilder.WriteString(" AND date >= ?")
 		args = append(args, filter.StartDate)
@@ -124,53 +122,53 @@ func (r *MySQLTransactionRepository) FindAll(ctx context.Context, userID int64, 
 		queryBuilder.WriteString(" AND type = ?")
 		args = append(args, *filter.Type)
 	}
-	
+
 	whereClause := queryBuilder.String()
-	
+
 	var total int64
 	countQuery := "SELECT COUNT(*) " + whereClause
 	err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total)
 	if err != nil {
-		return transaction.PaginatedList{}, err
+		return PaginatedList{}, err
 	}
-	
-	selectQuery := "SELECT id, user_id, type, category, amount, date, description, created_at, updated_at " + 
-				   whereClause + " ORDER BY date DESC, id DESC LIMIT ? OFFSET ?"
-	
+
+	selectQuery := "SELECT id, user_id, type, category, amount, date, description, created_at, updated_at " +
+		whereClause + " ORDER BY date DESC, id DESC LIMIT ? OFFSET ?"
+
 	offset := (filter.Page - 1) * filter.PerPage
 	args = append(args, filter.PerPage, offset)
-	
+
 	rows, err := r.db.QueryContext(ctx, selectQuery, args...)
 	if err != nil {
-		return transaction.PaginatedList{}, err
+		return PaginatedList{}, err
 	}
 	defer rows.Close()
-	
-	var items []transaction.Transaction
+
+	var items []Transaction
 	for rows.Next() {
-		var txn transaction.Transaction
+		var txn Transaction
 		var desc sql.NullString
 		if err := rows.Scan(
 			&txn.ID, &txn.UserID, &txn.Type, &txn.Category, &txn.Amount, &txn.Date, &desc, &txn.CreatedAt, &txn.UpdatedAt,
 		); err != nil {
-			return transaction.PaginatedList{}, err
+			return PaginatedList{}, err
 		}
 		if desc.Valid {
 			txn.Description = desc.String
 		}
 		items = append(items, txn)
 	}
-	
+
 	if err := rows.Err(); err != nil {
-		return transaction.PaginatedList{}, err
+		return PaginatedList{}, err
 	}
-	
+
 	totalPages := 0
 	if total > 0 {
 		totalPages = int(math.Ceil(float64(total) / float64(filter.PerPage)))
 	}
-	
-	return transaction.PaginatedList{
+
+	return PaginatedList{
 		Data:       items,
 		Total:      total,
 		Page:       filter.Page,
@@ -179,7 +177,7 @@ func (r *MySQLTransactionRepository) FindAll(ctx context.Context, userID int64, 
 	}, nil
 }
 
-func (r *MySQLTransactionRepository) GetSummary(ctx context.Context, userID int64) (transaction.Summary, error) {
+func (r *MySQLTransactionRepository) GetSummary(ctx context.Context, userID int64) (Summary, error) {
 	const query = `
 		SELECT type, SUM(amount)
 		FROM transactions
@@ -188,27 +186,27 @@ func (r *MySQLTransactionRepository) GetSummary(ctx context.Context, userID int6
 	`
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
-		return transaction.Summary{}, err
+		return Summary{}, err
 	}
 	defer rows.Close()
 
-	var sum transaction.Summary
+	var sum Summary
 	for rows.Next() {
 		var txnType string
 		var amount float64
 		if err := rows.Scan(&txnType, &amount); err != nil {
-			return transaction.Summary{}, err
+			return Summary{}, err
 		}
-		if txnType == string(transaction.TypeIncome) {
+		if txnType == string(TypeIncome) {
 			sum.TotalIncome = amount
-		} else if txnType == string(transaction.TypeExpense) {
+		} else if txnType == string(TypeExpense) {
 			sum.TotalExpense = amount
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return transaction.Summary{}, err
+		return Summary{}, err
 	}
-	
+
 	sum.Balance = sum.TotalIncome - sum.TotalExpense
 	return sum, nil
 }

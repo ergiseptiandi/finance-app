@@ -1,10 +1,8 @@
-package repository
+package auth
 
 import (
 	"context"
 	"database/sql"
-
-	"finance-backend/internal/auth"
 )
 
 type MySQLAuthRepository struct {
@@ -15,7 +13,7 @@ func NewMySQLAuthRepository(db *sql.DB) *MySQLAuthRepository {
 	return &MySQLAuthRepository{db: db}
 }
 
-func (r *MySQLAuthRepository) FindByEmail(ctx context.Context, email string) (auth.User, error) {
+func (r *MySQLAuthRepository) FindByEmail(ctx context.Context, email string) (User, error) {
 	const query = `
 		SELECT id, name, email, password_hash, created_at, updated_at
 		FROM users
@@ -23,7 +21,7 @@ func (r *MySQLAuthRepository) FindByEmail(ctx context.Context, email string) (au
 		LIMIT 1
 	`
 
-	var user auth.User
+	var user User
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
 		&user.Name,
@@ -35,7 +33,7 @@ func (r *MySQLAuthRepository) FindByEmail(ctx context.Context, email string) (au
 	return user, err
 }
 
-func (r *MySQLAuthRepository) FindByID(ctx context.Context, id int64) (auth.User, error) {
+func (r *MySQLAuthRepository) FindByID(ctx context.Context, id int64) (User, error) {
 	const query = `
 		SELECT id, name, email, password_hash, created_at, updated_at
 		FROM users
@@ -43,7 +41,7 @@ func (r *MySQLAuthRepository) FindByID(ctx context.Context, id int64) (auth.User
 		LIMIT 1
 	`
 
-	var user auth.User
+	var user User
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&user.ID,
 		&user.Name,
@@ -55,7 +53,7 @@ func (r *MySQLAuthRepository) FindByID(ctx context.Context, id int64) (auth.User
 	return user, err
 }
 
-func (r *MySQLAuthRepository) Create(ctx context.Context, params auth.CreateRefreshTokenParams) error {
+func (r *MySQLAuthRepository) Create(ctx context.Context, params CreateRefreshTokenParams) error {
 	const query = `
 		INSERT INTO refresh_tokens (user_id, token_hash, device_name, expires_at)
 		VALUES (?, ?, ?, ?)
@@ -72,7 +70,7 @@ func (r *MySQLAuthRepository) Create(ctx context.Context, params auth.CreateRefr
 	return err
 }
 
-func (r *MySQLAuthRepository) FindActiveByHash(ctx context.Context, tokenHash string) (auth.RefreshToken, error) {
+func (r *MySQLAuthRepository) FindActiveByHash(ctx context.Context, tokenHash string) (RefreshToken, error) {
 	const query = `
 		SELECT id, user_id, token_hash, device_name, expires_at, revoked_at, created_at, updated_at, last_used_at
 		FROM refresh_tokens
@@ -80,7 +78,7 @@ func (r *MySQLAuthRepository) FindActiveByHash(ctx context.Context, tokenHash st
 		LIMIT 1
 	`
 
-	var token auth.RefreshToken
+	var token RefreshToken
 	var revokedAt sql.NullTime
 	var lastUsedAt sql.NullTime
 
@@ -96,7 +94,7 @@ func (r *MySQLAuthRepository) FindActiveByHash(ctx context.Context, tokenHash st
 		&lastUsedAt,
 	)
 	if err != nil {
-		return auth.RefreshToken{}, err
+		return RefreshToken{}, err
 	}
 
 	if revokedAt.Valid {
@@ -110,7 +108,7 @@ func (r *MySQLAuthRepository) FindActiveByHash(ctx context.Context, tokenHash st
 	return token, nil
 }
 
-func (r *MySQLAuthRepository) Rotate(ctx context.Context, currentTokenHash string, nextToken auth.CreateRefreshTokenParams) error {
+func (r *MySQLAuthRepository) Rotate(ctx context.Context, currentTokenHash string, nextToken CreateRefreshTokenParams) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -134,7 +132,7 @@ func (r *MySQLAuthRepository) Rotate(ctx context.Context, currentTokenHash strin
 	}
 
 	if rowsAffected == 0 {
-		return auth.ErrInvalidToken
+		return ErrInvalidToken
 	}
 
 	const insertQuery = `
@@ -167,7 +165,7 @@ func (r *MySQLAuthRepository) RevokeByHash(ctx context.Context, tokenHash string
 	return err
 }
 
-func (r *MySQLAuthRepository) CreateUser(ctx context.Context, user auth.User) (int64, error) {
+func (r *MySQLAuthRepository) CreateUser(ctx context.Context, user User) (int64, error) {
 	const query = `
 		INSERT INTO users (name, email, password_hash)
 		VALUES (?, ?, ?)
@@ -179,7 +177,7 @@ func (r *MySQLAuthRepository) CreateUser(ctx context.Context, user auth.User) (i
 	return result.LastInsertId()
 }
 
-func (r *MySQLAuthRepository) UpdateUser(ctx context.Context, user auth.User) error {
+func (r *MySQLAuthRepository) UpdateUser(ctx context.Context, user User) error {
 	const query = `
 		UPDATE users
 		SET name = ?, email = ?
@@ -207,7 +205,7 @@ func NewMySQLPasswordResetRepository(db *sql.DB) *MySQLPasswordResetRepository {
 	return &MySQLPasswordResetRepository{db: db}
 }
 
-func (r *MySQLPasswordResetRepository) Create(ctx context.Context, token auth.PasswordResetToken) error {
+func (r *MySQLPasswordResetRepository) Create(ctx context.Context, token PasswordResetToken) error {
 	const query = `
 		INSERT INTO password_reset_tokens (user_id, token_hash, expires_at)
 		VALUES (?, ?, ?)
@@ -216,14 +214,14 @@ func (r *MySQLPasswordResetRepository) Create(ctx context.Context, token auth.Pa
 	return err
 }
 
-func (r *MySQLPasswordResetRepository) FindByHash(ctx context.Context, tokenHash string) (auth.PasswordResetToken, error) {
+func (r *MySQLPasswordResetRepository) FindByHash(ctx context.Context, tokenHash string) (PasswordResetToken, error) {
 	const query = `
 		SELECT id, user_id, token_hash, expires_at, created_at
 		FROM password_reset_tokens
 		WHERE token_hash = ?
 		LIMIT 1
 	`
-	var token auth.PasswordResetToken
+	var token PasswordResetToken
 	err := r.db.QueryRowContext(ctx, query, tokenHash).Scan(
 		&token.ID,
 		&token.UserID,

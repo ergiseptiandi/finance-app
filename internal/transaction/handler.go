@@ -8,8 +8,7 @@ import (
 	"time"
 
 	domainauth "finance-backend/internal/auth"
-	"finance-backend/internal/httpapi/routeinfo"
-	"finance-backend/internal/transaction"
+	"finance-backend/internal/server/routeinfo"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -20,12 +19,12 @@ type Middleware interface {
 }
 
 type HandlerDependencies struct {
-	TransactionService *transaction.Service
+	TransactionService *Service
 	AuthMiddleware     Middleware
 }
 
 type handler struct {
-	svc            *transaction.Service
+	svc            *Service
 	authMiddleware Middleware
 }
 
@@ -93,7 +92,7 @@ func (h handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var input transaction.CreateInput
+	var input CreateInput
 	if err := decodeJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -124,7 +123,7 @@ func (h handler) get(w http.ResponseWriter, r *http.Request) {
 
 	txn, err := h.svc.Get(r.Context(), id, userID)
 	if err != nil {
-		if errors.Is(err, transaction.ErrNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
@@ -149,7 +148,7 @@ func (h handler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var input transaction.UpdateInput
+	var input UpdateInput
 	if err := decodeJSON(r, &input); err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
@@ -157,7 +156,7 @@ func (h handler) update(w http.ResponseWriter, r *http.Request) {
 
 	txn, err := h.svc.Update(r.Context(), id, userID, input)
 	if err != nil {
-		if errors.Is(err, transaction.ErrNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
@@ -184,7 +183,7 @@ func (h handler) delete(w http.ResponseWriter, r *http.Request) {
 
 	err = h.svc.Delete(r.Context(), id, userID)
 	if err != nil {
-		if errors.Is(err, transaction.ErrNotFound) {
+		if errors.Is(err, ErrNotFound) {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
@@ -203,7 +202,7 @@ func (h handler) list(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := r.URL.Query()
-	var filter transaction.ListFilter
+	var filter ListFilter
 
 	if s := q.Get("start_date"); s != "" {
 		if t, err := time.Parse("2006-01-02", s); err == nil {
@@ -219,7 +218,7 @@ func (h handler) list(w http.ResponseWriter, r *http.Request) {
 		filter.Category = &s
 	}
 	if s := q.Get("type"); s != "" {
-		t := transaction.Type(s)
+		t := Type(s)
 		filter.Type = &t
 	}
 	if pageStr := q.Get("page"); pageStr != "" {

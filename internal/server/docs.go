@@ -1,11 +1,11 @@
-package httpapi
+package server
 
 import (
 	"encoding/json"
 	"net/http"
 	"sort"
 
-	"finance-backend/internal/httpapi/routeinfo"
+	"finance-backend/internal/server/routeinfo"
 
 	"github.com/go-chi/chi/v5"
 	httpSwagger "github.com/swaggo/http-swagger/v2"

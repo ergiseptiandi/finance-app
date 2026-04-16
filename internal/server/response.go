@@ -1,11 +1,11 @@
-package auth
+package server
 
 import (
 	"encoding/json"
 	"errors"
 	"net/http"
 
-	domainauth "finance-backend/internal/auth"
+	"finance-backend/internal/auth"
 )
 
 func decodeJSON(r *http.Request, dst any) error {
@@ -33,9 +33,9 @@ func writeError(w http.ResponseWriter, status int, message string) {
 
 func writeAuthError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, domainauth.ErrInvalidCredentials):
+	case errors.Is(err, auth.ErrInvalidCredentials):
 		writeError(w, http.StatusUnauthorized, err.Error())
-	case errors.Is(err, domainauth.ErrInvalidToken), errors.Is(err, domainauth.ErrExpiredToken):
+	case errors.Is(err, auth.ErrInvalidToken), errors.Is(err, auth.ErrExpiredToken):
 		writeError(w, http.StatusUnauthorized, err.Error())
 	default:
 		writeError(w, http.StatusInternalServerError, "internal server error")

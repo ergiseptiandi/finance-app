@@ -1,4 +1,4 @@
-package httpapi
+package server
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"finance-backend/internal/httpapi/routeinfo"
+	"finance-backend/internal/server/routeinfo"
 )
 
 func TestHealthHandler(t *testing.T) {

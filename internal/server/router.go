@@ -1,15 +1,13 @@
-package httpapi
+package server
 
 import (
 	"net/http"
 
-	authroutes "finance-backend/internal/httpapi/auth"
-	authmiddleware "finance-backend/internal/httpapi/middleware"
-	"finance-backend/internal/httpapi/routeinfo"
+	authmiddleware "finance-backend/internal/server/middleware"
+	"finance-backend/internal/server/routeinfo"
 
 	"finance-backend/internal/auth"
 	"finance-backend/internal/transaction"
-	txroutes "finance-backend/internal/httpapi/transaction"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -34,21 +32,21 @@ func NewRouter(authService *auth.Service, txService *transaction.Service) http.H
 
 	router.Route("/v1", func(r chi.Router) {
 		if authService != nil {
-			authroutes.RegisterRoutes(r, authroutes.HandlerDependencies{
+			auth.RegisterRoutes(r, auth.HandlerDependencies{
 				AuthService:    authService,
 				AuthMiddleware: authmiddleware.NewAuth(authService),
 			})
-			for _, route := range authroutes.Definitions() {
+			for _, route := range auth.Definitions() {
 				catalog.Add(route)
 			}
 		}
 
 		if txService != nil && authService != nil {
-			txroutes.RegisterRoutes(r, txroutes.HandlerDependencies{
+			transaction.RegisterRoutes(r, transaction.HandlerDependencies{
 				TransactionService: txService,
 				AuthMiddleware:     authmiddleware.NewAuth(authService),
 			})
-			for _, route := range txroutes.Definitions() {
+			for _, route := range transaction.Definitions() {
 				catalog.Add(route)
 			}
 		}

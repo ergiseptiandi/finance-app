@@ -4,24 +4,23 @@ import (
 	"net/http"
 	"strings"
 
-	domainauth "finance-backend/internal/auth"
-	"finance-backend/internal/httpapi/routeinfo"
+	"finance-backend/internal/server/routeinfo"
 
 	"github.com/go-chi/chi/v5"
 )
 
 type Middleware interface {
 	RequireAuth(next http.Handler) http.Handler
-	GetAccessClaims(r *http.Request) (domainauth.AccessTokenClaims, bool)
+	GetAccessClaims(r *http.Request) (AccessTokenClaims, bool)
 }
 
 type HandlerDependencies struct {
-	AuthService    *domainauth.Service
+	AuthService    *Service
 	AuthMiddleware Middleware
 }
 
 type handler struct {
-	authService    *domainauth.Service
+	authService    *Service
 	authMiddleware Middleware
 }
 
@@ -74,7 +73,7 @@ func (h handler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.authService.Login(r.Context(), domainauth.LoginInput{
+	result, err := h.authService.Login(r.Context(), LoginInput{
 		Email:      strings.TrimSpace(request.Email),
 		Password:   request.Password,
 		DeviceName: strings.TrimSpace(request.DeviceName),
@@ -138,7 +137,7 @@ func (h handler) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]domainauth.User{"user": user})
+	writeJSON(w, http.StatusOK, map[string]User{"user": user})
 }
 
 func (h handler) register(w http.ResponseWriter, r *http.Request) {
@@ -154,7 +153,7 @@ func (h handler) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.authService.Register(r.Context(), domainauth.RegisterInput{
+	result, err := h.authService.Register(r.Context(), RegisterInput{
 		Name:       strings.TrimSpace(request.Name),
 		Email:      strings.TrimSpace(request.Email),
 		Password:   request.Password,
@@ -191,7 +190,7 @@ func (h handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	updatedUser, err := h.authService.UpdateProfile(r.Context(), user.ID, domainauth.UpdateProfileInput{
+	updatedUser, err := h.authService.UpdateProfile(r.Context(), user.ID, UpdateProfileInput{
 		Name:  strings.TrimSpace(request.Name),
 		Email: strings.TrimSpace(request.Email),
 	})
@@ -200,7 +199,7 @@ func (h handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]domainauth.User{"user": updatedUser})
+	writeJSON(w, http.StatusOK, map[string]User{"user": updatedUser})
 }
 
 func (h handler) changePassword(w http.ResponseWriter, r *http.Request) {
@@ -226,7 +225,7 @@ func (h handler) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.authService.ChangePassword(r.Context(), user.ID, domainauth.ChangePasswordInput{
+	if err := h.authService.ChangePassword(r.Context(), user.ID, ChangePasswordInput{
 		OldPassword: request.OldPassword,
 		NewPassword: request.NewPassword,
 	}); err != nil {
@@ -247,7 +246,7 @@ func (h handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.authService.ForgotPassword(r.Context(), domainauth.ForgotPasswordInput{
+	token, err := h.authService.ForgotPassword(r.Context(), ForgotPasswordInput{
 		Email: strings.TrimSpace(request.Email),
 	})
 	if err != nil {
@@ -270,7 +269,7 @@ func (h handler) resetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.authService.ResetPassword(r.Context(), domainauth.ResetPasswordInput{
+	if err := h.authService.ResetPassword(r.Context(), ResetPasswordInput{
 		Token:       strings.TrimSpace(request.Token),
 		NewPassword: request.NewPassword,
 	}); err != nil {
