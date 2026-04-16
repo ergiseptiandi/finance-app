@@ -10,6 +10,7 @@ import (
 	"finance-backend/internal/category"
 	"finance-backend/internal/dashboard"
 	"finance-backend/internal/debt"
+	"finance-backend/internal/media"
 	"finance-backend/internal/notifications"
 	"finance-backend/internal/reports"
 	"finance-backend/internal/salary"
@@ -23,7 +24,7 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
-func NewRouter(authService *auth.Service, txService *transaction.Service, categoryService *category.Service, salaryService *salary.Service, debtService *debt.Service, dashboardService *dashboard.Service, reportsService *reports.Service, alertsService *alerts.Service, notificationsService *notifications.Service, debtStorage debt.FileStorage, uploadDir string) http.Handler {
+func NewRouter(authService *auth.Service, txService *transaction.Service, categoryService *category.Service, salaryService *salary.Service, debtService *debt.Service, dashboardService *dashboard.Service, reportsService *reports.Service, alertsService *alerts.Service, notificationsService *notifications.Service, mediaService *media.Service, debtStorage debt.FileStorage, uploadDir string) http.Handler {
 	router := chi.NewRouter()
 	catalog := newRouteCatalog()
 	router.Use(chimiddleware.RequestID)
@@ -42,6 +43,7 @@ func NewRouter(authService *auth.Service, txService *transaction.Service, catego
 		registerReportsRoutes(r, catalog, authService, reportsService)
 		registerAlertsRoutes(r, catalog, authService, alertsService)
 		registerNotificationsRoutes(r, catalog, authService, notificationsService)
+		registerMediaRoutes(r, catalog, authService, mediaService)
 	})
 
 	if uploadDir != "" {
