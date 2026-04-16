@@ -11,6 +11,7 @@ import (
 	"finance-backend/internal/config"
 	"finance-backend/internal/database"
 	"finance-backend/internal/mail"
+	"finance-backend/internal/salary"
 	"finance-backend/internal/server"
 	"finance-backend/internal/transaction"
 
@@ -67,12 +68,15 @@ func main() {
 	categoryRepo := category.NewMySQLCategoryRepository(db)
 	categoryService := category.NewService(categoryRepo)
 
+	salaryRepo := salary.NewMySQLSalaryRepository(db)
+	salaryService := salary.NewService(salaryRepo)
+
 	txRepo := transaction.NewMySQLTransactionRepository(db)
 	txService := transaction.NewService(txRepo)
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
-		Handler: server.NewRouter(authService, txService, categoryService),
+		Handler: server.NewRouter(authService, txService, categoryService, salaryService),
 	}
 
 	log.Printf("server listening on :%s", cfg.Server.Port)

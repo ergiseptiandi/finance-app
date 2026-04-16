@@ -7,6 +7,7 @@ import (
 
 	"finance-backend/internal/auth"
 	"finance-backend/internal/category"
+	"finance-backend/internal/salary"
 	"finance-backend/internal/transaction"
 
 	"github.com/go-chi/chi/v5"
@@ -17,7 +18,7 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
-func NewRouter(authService *auth.Service, txService *transaction.Service, categoryService *category.Service) http.Handler {
+func NewRouter(authService *auth.Service, txService *transaction.Service, categoryService *category.Service, salaryService *salary.Service) http.Handler {
 	router := chi.NewRouter()
 	catalog := newRouteCatalog()
 	router.Use(chimiddleware.RequestID)
@@ -30,6 +31,7 @@ func NewRouter(authService *auth.Service, txService *transaction.Service, catego
 		registerAuthRoutes(r, catalog, authService)
 		registerTransactionRoutes(r, catalog, authService, txService)
 		registerCategoryRoutes(r, catalog, authService, categoryService)
+		registerSalaryRoutes(r, catalog, authService, salaryService)
 	})
 
 	registerDocsRoutes(router, catalog)
