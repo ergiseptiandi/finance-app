@@ -19,9 +19,26 @@ func TestHealthHandler(t *testing.T) {
 		t.Fatalf("expected status %d, got %d", http.StatusOK, rec.Code)
 	}
 
-	expected := "{\"status\":\"ok\"}\n"
-	if rec.Body.String() != expected {
-		t.Fatalf("expected body %q, got %q", expected, rec.Body.String())
+	var payload struct {
+		Status  string `json:"Status"`
+		Message string `json:"Message"`
+		Data    struct {
+			Status string `json:"status"`
+		} `json:"Data"`
+	}
+
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("failed to decode health response: %v", err)
+	}
+
+	if payload.Status != "200" {
+		t.Fatalf("expected status field 200, got %q", payload.Status)
+	}
+	if payload.Message != "Success Get" {
+		t.Fatalf("expected message Success Get, got %q", payload.Message)
+	}
+	if payload.Data.Status != "ok" {
+		t.Fatalf("expected data status ok, got %q", payload.Data.Status)
 	}
 }
 
@@ -36,15 +53,22 @@ func TestRoutesEndpoint(t *testing.T) {
 	}
 
 	var payload struct {
-		Routes []routeinfo.RouteInfo `json:"routes"`
+		Status  string `json:"Status"`
+		Message string `json:"Message"`
+		Data    struct {
+			Routes []routeinfo.RouteInfo `json:"routes"`
+		} `json:"Data"`
 	}
 
 	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
 		t.Fatalf("failed to decode routes response: %v", err)
 	}
 
-	if len(payload.Routes) < 3 {
-		t.Fatalf("expected at least 3 routes, got %d", len(payload.Routes))
+	if payload.Status != "200" {
+		t.Fatalf("expected status field 200, got %q", payload.Status)
+	}
+	if len(payload.Data.Routes) < 3 {
+		t.Fatalf("expected at least 3 routes, got %d", len(payload.Data.Routes))
 	}
 }
 

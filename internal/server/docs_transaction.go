@@ -88,13 +88,13 @@ func transactionRequestBodySchema(route routeinfo.RouteInfo) map[string]any {
 func transactionResponseSchemas(route routeinfo.RouteInfo) map[string]any {
 	switch route.Method + " " + route.Path {
 	case "GET /v1/transactions":
-		return authResponses("#/components/schemas/TransactionListResponse")
+		return authResponses("#/components/schemas/SuccessResponse")
 	case "GET /v1/transactions/summary":
-		return authResponses("#/components/schemas/TransactionSummary")
+		return authResponses("#/components/schemas/SuccessResponse")
 	case "POST /v1/transactions", "GET /v1/transactions/{id}", "PATCH /v1/transactions/{id}":
-		return authResponses("#/components/schemas/Transaction")
+		return authResponses("#/components/schemas/SuccessResponse")
 	case "DELETE /v1/transactions/{id}":
-		return authResponses("#/components/schemas/StatusResponse")
+		return authResponses("#/components/schemas/SuccessResponse")
 	default:
 		return nil
 	}

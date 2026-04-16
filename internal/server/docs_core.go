@@ -12,16 +12,19 @@ func coreOpenAPIComponents() map[string]any {
 			},
 		},
 		"schemas": map[string]any{
-			"StatusResponse": map[string]any{
+			"SuccessResponse": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"status": map[string]any{"type": "string"},
+					"Status":  map[string]any{"type": "string"},
+					"Message": map[string]any{"type": "string"},
+					"Data":    map[string]any{"nullable": true},
 				},
 			},
 			"ErrorResponse": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"error": map[string]any{"type": "string"},
+					"Status":  map[string]any{"type": "string"},
+					"Message": map[string]any{"type": "string"},
 				},
 			},
 			"RouteInfo": map[string]any{
@@ -31,15 +34,6 @@ func coreOpenAPIComponents() map[string]any {
 					"path":      map[string]any{"type": "string"},
 					"summary":   map[string]any{"type": "string"},
 					"protected": map[string]any{"type": "boolean"},
-				},
-			},
-			"RoutesResponse": map[string]any{
-				"type": "object",
-				"properties": map[string]any{
-					"routes": map[string]any{
-						"type":  "array",
-						"items": map[string]any{"$ref": "#/components/schemas/RouteInfo"},
-					},
 				},
 			},
 		},
@@ -71,9 +65,9 @@ func coreRequestBodySchema(route routeinfo.RouteInfo) map[string]any {
 func coreResponseSchemas(route routeinfo.RouteInfo) map[string]any {
 	switch route.Method + " " + route.Path {
 	case "GET /", "GET /health":
-		return successResponse("#/components/schemas/StatusResponse")
+		return successResponse("#/components/schemas/SuccessResponse")
 	case "GET /routes":
-		return successResponse("#/components/schemas/RoutesResponse")
+		return successResponse("#/components/schemas/SuccessResponse")
 	default:
 		return nil
 	}

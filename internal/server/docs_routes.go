@@ -12,7 +12,7 @@ import (
 
 func registerDocsRoutes(router chi.Router, catalog routeCatalog) {
 	router.Get("/routes", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string][]routeinfo.RouteInfo{"routes": catalog.List()})
+		writeJSON(w, http.StatusOK, "Success Get", map[string][]routeinfo.RouteInfo{"routes": catalog.List()})
 	})
 
 	router.Get("/openapi.json", func(w http.ResponseWriter, _ *http.Request) {

@@ -73,7 +73,7 @@ func (h handler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, result)
+	writeJSON(w, http.StatusOK, "Success Login", result)
 }
 
 func (h handler) refresh(w http.ResponseWriter, r *http.Request) {
@@ -89,7 +89,7 @@ func (h handler) refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, result)
+	writeJSON(w, http.StatusOK, "Success Refresh", result)
 }
 
 func (h handler) logout(w http.ResponseWriter, r *http.Request) {
@@ -104,7 +104,7 @@ func (h handler) logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, statusResponse{Status: "logged_out"})
+	writeJSON(w, http.StatusOK, "Success Logout", map[string]string{"status": "logged_out"})
 }
 
 func (h handler) me(w http.ResponseWriter, r *http.Request) {
@@ -120,7 +120,7 @@ func (h handler) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, userResponse{User: user})
+	writeJSON(w, http.StatusOK, "Success Get", user)
 }
 
 func (h handler) register(w http.ResponseWriter, r *http.Request) {
@@ -136,7 +136,7 @@ func (h handler) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, result)
+	writeJSON(w, http.StatusCreated, "Success Register", result)
 }
 
 func (h handler) updateProfile(w http.ResponseWriter, r *http.Request) {
@@ -164,7 +164,7 @@ func (h handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, userResponse{User: updatedUser})
+	writeJSON(w, http.StatusOK, "Success Update", updatedUser)
 }
 
 func (h handler) changePassword(w http.ResponseWriter, r *http.Request) {
@@ -191,7 +191,7 @@ func (h handler) changePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, statusResponse{Status: "password_changed"})
+	writeJSON(w, http.StatusOK, "Success Change Password", map[string]string{"status": "password_changed"})
 }
 
 func (h handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
@@ -207,10 +207,7 @@ func (h handler) forgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, forgotPasswordResponse{
-		Status:     "email_sent",
-		ResetToken: token,
-	})
+	writeJSON(w, http.StatusOK, "Success Forgot Password", map[string]string{"status": "email_sent", "reset_token": token})
 }
 
 func (h handler) resetPassword(w http.ResponseWriter, r *http.Request) {
@@ -225,5 +222,5 @@ func (h handler) resetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, statusResponse{Status: "password_reset"})
+	writeJSON(w, http.StatusOK, "Success Reset Password", map[string]string{"status": "password_reset"})
 }

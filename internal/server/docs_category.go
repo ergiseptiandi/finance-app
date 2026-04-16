@@ -60,11 +60,11 @@ func categoryRequestBodySchema(route routeinfo.RouteInfo) map[string]any {
 func categoryResponseSchemas(route routeinfo.RouteInfo) map[string]any {
 	switch route.Method + " " + route.Path {
 	case "GET /v1/categories":
-		return authResponses("#/components/schemas/CategoriesResponse")
+		return authResponses("#/components/schemas/SuccessResponse")
 	case "POST /v1/categories", "PATCH /v1/categories/{id}":
-		return authResponses("#/components/schemas/Category")
+		return authResponses("#/components/schemas/SuccessResponse")
 	case "DELETE /v1/categories/{id}":
-		return authResponses("#/components/schemas/StatusResponse")
+		return authResponses("#/components/schemas/SuccessResponse")
 	default:
 		return nil
 	}

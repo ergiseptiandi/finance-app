@@ -18,9 +18,9 @@ func registerBaseRoutes(router chi.Router, catalog routeCatalog) {
 }
 
 func rootHandler(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, healthResponse{Status: "finance-backend running"})
+	writeJSON(w, http.StatusOK, "Success Get", healthResponse{Status: "finance-backend running"})
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, healthResponse{Status: "ok"})
+	writeJSON(w, http.StatusOK, "Success Get", healthResponse{Status: "ok"})
 }

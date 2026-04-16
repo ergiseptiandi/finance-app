@@ -76,7 +76,7 @@ func (h handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, txn)
+	writeJSON(w, http.StatusCreated, "Success Create", txn)
 }
 
 func (h handler) get(w http.ResponseWriter, r *http.Request) {
@@ -102,7 +102,7 @@ func (h handler) get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, txn)
+	writeJSON(w, http.StatusOK, "Success Get", txn)
 }
 
 func (h handler) update(w http.ResponseWriter, r *http.Request) {
@@ -134,7 +134,7 @@ func (h handler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, txn)
+	writeJSON(w, http.StatusOK, "Success Update", txn)
 }
 
 func (h handler) delete(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +160,7 @@ func (h handler) delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, statusResponse{Status: "deleted"})
+	writeJSON(w, http.StatusOK, "Success Delete", map[string]string{"status": "deleted"})
 }
 
 func (h handler) list(w http.ResponseWriter, r *http.Request) {
@@ -178,7 +178,7 @@ func (h handler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, list)
+	writeJSON(w, http.StatusOK, "Success Get", list)
 }
 
 func (h handler) summary(w http.ResponseWriter, r *http.Request) {
@@ -194,5 +194,5 @@ func (h handler) summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, summary)
+	writeJSON(w, http.StatusOK, "Success Get", summary)
 }

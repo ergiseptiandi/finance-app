@@ -1,20 +1,16 @@
 package transaction
 
 import (
-	"encoding/json"
 	"net/http"
+	"strconv"
+
+	"finance-backend/internal/helpers"
 )
 
-type statusResponse struct {
-	Status string `json:"status"`
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
+func writeJSON(w http.ResponseWriter, status int, message string, payload any) {
+	helpers.WriteJSON(w, status, helpers.SuccessResponse(payload, message, strconv.Itoa(status)))
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, map[string]string{"error": message})
+	helpers.WriteJSON(w, status, helpers.ErrorResponse(message, strconv.Itoa(status)))
 }

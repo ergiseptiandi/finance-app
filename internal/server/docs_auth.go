@@ -104,11 +104,11 @@ func authRequestBodySchema(route routeinfo.RouteInfo) map[string]any {
 func authResponseSchemas(route routeinfo.RouteInfo) map[string]any {
 	switch route.Method + " " + route.Path {
 	case "POST /v1/auth/login", "POST /v1/auth/refresh":
-		return authResponses("#/components/schemas/AuthResult")
+		return authResponses("#/components/schemas/SuccessResponse")
 	case "POST /v1/auth/logout":
-		return authResponses("#/components/schemas/StatusResponse")
+		return authResponses("#/components/schemas/SuccessResponse")
 	case "GET /v1/auth/me":
-		return authResponses("#/components/schemas/UserProfile")
+		return authResponses("#/components/schemas/SuccessResponse")
 	default:
 		return nil
 	}
