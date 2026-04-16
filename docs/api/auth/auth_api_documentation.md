@@ -6,6 +6,13 @@ This document outlines the API endpoints available under `/v1/auth` for user man
 > All endpoints protected by authentication require the `Authorization` header formatted as:
 > `Authorization: Bearer <access_token>`
 
+> [!NOTE]
+> Semua success response sekarang memakai envelope:
+> `{ "Status": "...", "Message": "...", "Data": ... }`
+>
+> Semua error response memakai:
+> `{ "Status": "...", "Message": "..." }`
+
 ---
 
 ## 1. Register a New User
@@ -30,19 +37,23 @@ Creates a new user account and immediately logs them in, returning an access tok
 ### Success Response (201 Created)
 ```json
 {
-  "user": {
-    "id": 1,
-    "name": "John Doe",
-    "email": "john@example.com",
-    "created_at": "2026-04-16T10:00:00Z",
-    "updated_at": "2026-04-16T10:00:00Z"
-  },
-  "token": {
-    "access_token": "eyJhbG...",
-    "access_token_expires_at": "2026-04-16T10:15:00Z",
-    "refresh_token": "abc123hex...",
-    "refresh_token_expires_at": "2026-05-16T10:00:00Z",
-    "token_type": "Bearer"
+  "Status": "201",
+  "Message": "Success Register",
+  "Data": {
+    "user": {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "created_at": "2026-04-16T10:00:00Z",
+      "updated_at": "2026-04-16T10:00:00Z"
+    },
+    "token": {
+      "access_token": "eyJhbG...",
+      "access_token_expires_at": "2026-04-16T10:15:00Z",
+      "refresh_token": "abc123hex...",
+      "refresh_token_expires_at": "2026-05-16T10:00:00Z",
+      "token_type": "Bearer"
+    }
   }
 }
 ```
@@ -67,7 +78,28 @@ Authenticates an existing user and returns a token bundle.
 ```
 
 ### Success Response (200 OK)
-*(Same as Register response)*
+```json
+{
+  "Status": "200",
+  "Message": "Success Login",
+  "Data": {
+    "user": {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "created_at": "2026-04-16T10:00:00Z",
+      "updated_at": "2026-04-16T10:00:00Z"
+    },
+    "token": {
+      "access_token": "eyJhbG...",
+      "access_token_expires_at": "2026-04-16T10:15:00Z",
+      "refresh_token": "abc123hex...",
+      "refresh_token_expires_at": "2026-05-16T10:00:00Z",
+      "token_type": "Bearer"
+    }
+  }
+}
+```
 
 ---
 
@@ -88,7 +120,28 @@ Issues a new `access_token` and rolls the `refresh_token` before the background 
 ```
 
 ### Success Response (200 OK)
-*(Same as Register/Login response containing the new rotated token pair)*
+```json
+{
+  "Status": "200",
+  "Message": "Success Refresh",
+  "Data": {
+    "user": {
+      "id": 1,
+      "name": "John Doe",
+      "email": "john@example.com",
+      "created_at": "2026-04-16T10:00:00Z",
+      "updated_at": "2026-04-16T10:00:00Z"
+    },
+    "token": {
+      "access_token": "eyJhbG...",
+      "access_token_expires_at": "2026-04-16T10:15:00Z",
+      "refresh_token": "def456hex...",
+      "refresh_token_expires_at": "2026-05-16T10:00:00Z",
+      "token_type": "Bearer"
+    }
+  }
+}
+```
 
 ---
 
@@ -110,7 +163,11 @@ Revokes the refresh token effectively logging out the device.
 ### Success Response (200 OK)
 ```json
 {
-  "status": "logged_out"
+  "Status": "200",
+  "Message": "Success Logout",
+  "Data": {
+    "status": "logged_out"
+  }
 }
 ```
 
@@ -127,7 +184,9 @@ Fetches the currently authenticated user's profile information.
 ### Success Response (200 OK)
 ```json
 {
-  "user": {
+  "Status": "200",
+  "Message": "Success Get",
+  "Data": {
     "id": 1,
     "name": "John Doe",
     "email": "john@example.com",
@@ -159,7 +218,9 @@ Updates the logged-in user's name or email.
 ### Success Response (200 OK)
 ```json
 {
-  "user": {
+  "Status": "200",
+  "Message": "Success Update",
+  "Data": {
     "id": 1,
     "name": "Johnathan Doe",
     "email": "johnathan@example.com",
@@ -190,7 +251,11 @@ Updates the currently logged-in user's password.
 ### Success Response (200 OK)
 ```json
 {
-  "status": "password_changed"
+  "Status": "200",
+  "Message": "Success Change Password",
+  "Data": {
+    "status": "password_changed"
+  }
 }
 ```
 
@@ -214,8 +279,12 @@ Requests a password reset token via email.
 ### Success Response (200 OK)
 ```json
 {
-  "status": "email_sent", 
-  "reset_token": "random_token_string..." 
+  "Status": "200",
+  "Message": "Success Forgot Password",
+  "Data": {
+    "status": "email_sent",
+    "reset_token": "random_token_string..."
+  }
 }
 ```
 > [!NOTE]
@@ -242,6 +311,10 @@ Resets a user's password using the token received via email (or from the `forgot
 ### Success Response (200 OK)
 ```json
 {
-  "status": "password_reset"
+  "Status": "200",
+  "Message": "Success Reset Password",
+  "Data": {
+    "status": "password_reset"
+  }
 }
 ```

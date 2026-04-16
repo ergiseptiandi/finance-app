@@ -5,6 +5,13 @@ This module handles recording and fetching financial transactions.
 **Base URL**: `/v1/transactions`
 **Authentication**: All endpoints require `Authorization: Bearer <access_token>`
 
+> [!NOTE]
+> Semua success response sekarang memakai envelope:
+> `{ "Status": "...", "Message": "...", "Data": ... }`
+>
+> Semua error response memakai:
+> `{ "Status": "...", "Message": "..." }`
+
 ---
 
 ## 1. Create Transaction
@@ -27,15 +34,19 @@ Create a new income or expense transaction.
 **Response (201 Created)**:
 ```json
 {
-  "id": 1,
-  "user_id": 1,
-  "type": "income",
-  "category": "Salary",
-  "amount": 5500.00,
-  "date": "2026-04-16T15:00:00Z",
-  "description": "Monthly salary",
-  "created_at": "2026-04-16T14:00:00Z",
-  "updated_at": "2026-04-16T14:00:00Z"
+  "Status": "201",
+  "Message": "Success Create",
+  "Data": {
+    "id": 1,
+    "user_id": 1,
+    "type": "income",
+    "category": "Salary",
+    "amount": 5500.00,
+    "date": "2026-04-16T15:00:00Z",
+    "description": "Monthly salary",
+    "created_at": "2026-04-16T14:00:00Z",
+    "updated_at": "2026-04-16T14:00:00Z"
+  }
 }
 ```
 
@@ -57,23 +68,27 @@ Retrieve transactions tied to the authenticated user.
 **Response (200 OK)**:
 ```json
 {
-  "data": [
-    {
-      "id": 1,
-      "user_id": 1,
-      "type": "income",
-      "category": "Salary",
-      "amount": 5500.00,
-      "date": "2026-04-16T15:00:00Z",
-      "description": "Monthly salary",
-      "created_at": "2026-04-16T14:00:00Z",
-      "updated_at": "2026-04-16T14:00:00Z"
-    }
-  ],
-  "total": 1,
-  "page": 1,
-  "per_page": 10,
-  "total_pages": 1
+  "Status": "200",
+  "Message": "Success Get",
+  "Data": {
+    "data": [
+      {
+        "id": 1,
+        "user_id": 1,
+        "type": "income",
+        "category": "Salary",
+        "amount": 5500.00,
+        "date": "2026-04-16T15:00:00Z",
+        "description": "Monthly salary",
+        "created_at": "2026-04-16T14:00:00Z",
+        "updated_at": "2026-04-16T14:00:00Z"
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "per_page": 10,
+    "total_pages": 1
+  }
 }
 ```
 
@@ -87,9 +102,13 @@ Get aggregated metrics for the user's account.
 **Response (200 OK)**:
 ```json
 {
-  "total_income": 5500.00,
-  "total_expense": 200.00,
-  "balance": 5300.00
+  "Status": "200",
+  "Message": "Success Get",
+  "Data": {
+    "total_income": 5500.00,
+    "total_expense": 200.00,
+    "balance": 5300.00
+  }
 }
 ```
 
@@ -101,7 +120,23 @@ Get aggregated metrics for the user's account.
 Retrieve full details of a specific transaction by its ID.
 
 **Response (200 OK)**:
-Returns the transaction JSON object.
+```json
+{
+  "Status": "200",
+  "Message": "Success Get",
+  "Data": {
+    "id": 1,
+    "user_id": 1,
+    "type": "income",
+    "category": "Salary",
+    "amount": 5500.00,
+    "date": "2026-04-16T15:00:00Z",
+    "description": "Monthly salary",
+    "created_at": "2026-04-16T14:00:00Z",
+    "updated_at": "2026-04-16T14:00:00Z"
+  }
+}
+```
 
 **Error Cases**:
 - `404 Not Found`: If the transaction doesn't exist or is owned by another user.
@@ -123,7 +158,23 @@ Partially update a transaction matching the given ID.
 ```
 
 **Response (200 OK)**:
-Returns the updated transaction JSON object.
+```json
+{
+  "Status": "200",
+  "Message": "Success Update",
+  "Data": {
+    "id": 1,
+    "user_id": 1,
+    "type": "income",
+    "category": "Salary",
+    "amount": 6000.00,
+    "date": "2026-04-16T15:00:00Z",
+    "description": "Updated bonus salary",
+    "created_at": "2026-04-16T14:00:00Z",
+    "updated_at": "2026-04-16T16:00:00Z"
+  }
+}
+```
 
 ---
 
@@ -135,6 +186,10 @@ Permanently delete an existing transaction.
 **Response (200 OK)**:
 ```json
 {
-  "status": "deleted"
+  "Status": "200",
+  "Message": "Success Delete",
+  "Data": {
+    "status": "deleted"
+  }
 }
 ```
