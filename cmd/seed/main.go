@@ -35,11 +35,12 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := seed.UpsertBootstrapUser(ctx, db, cfg.Seed); err != nil {
+	userID, err := seed.UpsertBootstrapUser(ctx, db, cfg.Seed)
+	if err != nil {
 		log.Fatalf("seed failed: %v", err)
 	}
 
-	if err := seed.UpsertDefaultCategories(ctx, db); err != nil {
+	if err := seed.UpsertDefaultCategories(ctx, db, userID); err != nil {
 		log.Fatalf("seed failed: %v", err)
 	}
 

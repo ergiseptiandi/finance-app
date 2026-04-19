@@ -1,6 +1,6 @@
 # Category API Documentation
 
-This module handles master data for transaction categories.
+This module handles user-specific transaction categories.
 
 **Base URL**: `/v1/categories`  
 **Authentication**: All endpoints require `Authorization: Bearer <access_token>`
@@ -17,7 +17,7 @@ This module handles master data for transaction categories.
 ## 1. Create Category
 **POST** `/v1/categories`
 
-Create a new category for income or expense transactions.
+Create a new category for income or expense transactions owned by the authenticated user.
 
 **Request Body (JSON)**:
 ```json
@@ -49,7 +49,7 @@ Create a new category for income or expense transactions.
 ## 2. List Categories
 **GET** `/v1/categories`
 
-Retrieve all categories for the authenticated user.
+Retrieve all categories owned by the authenticated user.
 
 **Query Parameters**:
 - `type` (optional, enum): `income` or `expense`
@@ -83,7 +83,7 @@ Retrieve all categories for the authenticated user.
 ## 3. Update Category
 **PATCH** `/v1/categories/{id}`
 
-Update an existing category by ID.
+Update an existing category by ID. The category must belong to the authenticated user.
 
 **Request Body (JSON)**:
 *Send only the fields you want to update.*
@@ -114,7 +114,7 @@ Update an existing category by ID.
 ## 4. Delete Category
 **DELETE** `/v1/categories/{id}`
 
-Delete a category by ID.
+Delete a category by ID. The category must belong to the authenticated user.
 
 **Response (200 OK)**:
 ```json
@@ -133,7 +133,7 @@ Delete a category by ID.
 
 The application seeds default category master data during initialization.
 
-Default categories:
+The seed command populates the bootstrap user's default categories:
 - `income`
 - `expense`
 

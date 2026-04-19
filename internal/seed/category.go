@@ -7,10 +7,10 @@ import (
 	"finance-backend/internal/category"
 )
 
-func UpsertDefaultCategories(ctx context.Context, db *sql.DB) error {
+func UpsertDefaultCategories(ctx context.Context, db *sql.DB, userID int64) error {
 	const query = `
-		INSERT INTO categories (name, type)
-		VALUES (?, ?)
+		INSERT INTO categories (user_id, name, type)
+		VALUES (?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			updated_at = CURRENT_TIMESTAMP
 	`
@@ -21,7 +21,7 @@ func UpsertDefaultCategories(ctx context.Context, db *sql.DB) error {
 	}
 
 	for _, item := range defaults {
-		if _, err := db.ExecContext(ctx, query, item.Name, item.Type); err != nil {
+		if _, err := db.ExecContext(ctx, query, userID, item.Name, item.Type); err != nil {
 			return err
 		}
 	}

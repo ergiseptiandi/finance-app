@@ -19,11 +19,11 @@ func NewMySQLCategoryRepository(db *sql.DB) *MySQLCategoryRepository {
 
 func (r *MySQLCategoryRepository) Create(ctx context.Context, item Category) (int64, error) {
 	const query = `
-		INSERT INTO categories (name, type)
-		VALUES (?, ?)
+		INSERT INTO categories (user_id, name, type)
+		VALUES (?, ?, ?)
 	`
 
-	result, err := r.db.ExecContext(ctx, query, item.Name, item.Type)
+	result, err := r.db.ExecContext(ctx, query, item.UserID, item.Name, item.Type)
 	if err != nil {
 		return 0, normalizeMySQLError(err)
 	}
@@ -31,17 +31,18 @@ func (r *MySQLCategoryRepository) Create(ctx context.Context, item Category) (in
 	return result.LastInsertId()
 }
 
-func (r *MySQLCategoryRepository) GetByID(ctx context.Context, id int64) (Category, error) {
+func (r *MySQLCategoryRepository) GetByID(ctx context.Context, userID, id int64) (Category, error) {
 	const query = `
-		SELECT id, name, type, created_at, updated_at
+		SELECT id, user_id, name, type, created_at, updated_at
 		FROM categories
-		WHERE id = ?
+		WHERE id = ? AND user_id = ?
 		LIMIT 1
 	`
 
 	var item Category
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	err := r.db.QueryRowContext(ctx, query, id, userID).Scan(
 		&item.ID,
+		&item.UserID,
 		&item.Name,
 		&item.Type,
 		&item.CreatedAt,
@@ -61,10 +62,10 @@ func (r *MySQLCategoryRepository) Update(ctx context.Context, item Category) err
 	const query = `
 		UPDATE categories
 		SET name = ?, type = ?
-		WHERE id = ?
+		WHERE id = ? AND user_id = ?
 	`
 
-	result, err := r.db.ExecContext(ctx, query, item.Name, item.Type, item.ID)
+	result, err := r.db.ExecContext(ctx, query, item.Name, item.Type, item.ID, item.UserID)
 	if err != nil {
 		return normalizeMySQLError(err)
 	}
@@ -80,10 +81,10 @@ func (r *MySQLCategoryRepository) Update(ctx context.Context, item Category) err
 	return nil
 }
 
-func (r *MySQLCategoryRepository) Delete(ctx context.Context, id int64) error {
-	const query = `DELETE FROM categories WHERE id = ?`
+func (r *MySQLCategoryRepository) Delete(ctx context.Context, userID, id int64) error {
+	const query = `DELETE FROM categories WHERE id = ? AND user_id = ?`
 
-	result, err := r.db.ExecContext(ctx, query, id)
+	result, err := r.db.ExecContext(ctx, query, id, userID)
 	if err != nil {
 		return err
 	}
@@ -99,15 +100,17 @@ func (r *MySQLCategoryRepository) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-func (r *MySQLCategoryRepository) FindAll(ctx context.Context, filter ListFilter) ([]Category, error) {
+func (r *MySQLCategoryRepository) FindAll(ctx context.Context, userID int64, filter ListFilter) ([]Category, error) {
 	query := `
-		SELECT id, name, type, created_at, updated_at
+		SELECT id, user_id, name, type, created_at, updated_at
 		FROM categories
+		WHERE user_id = ?
 	`
 
-	args := make([]any, 0, 1)
+	args := make([]any, 0, 2)
+	args = append(args, userID)
 	if filter.Type != nil && *filter.Type != "" {
-		query += " WHERE type = ?"
+		query += " AND type = ?"
 		args = append(args, *filter.Type)
 	}
 
@@ -122,7 +125,7 @@ func (r *MySQLCategoryRepository) FindAll(ctx context.Context, filter ListFilter
 	items := make([]Category, 0)
 	for rows.Next() {
 		var item Category
-		if err := rows.Scan(&item.ID, &item.Name, &item.Type, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.ID, &item.UserID, &item.Name, &item.Type, &item.CreatedAt, &item.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, item)

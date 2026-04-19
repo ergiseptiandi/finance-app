@@ -20,10 +20,11 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) Create(ctx context.Context, input CreateInput) (Category, error) {
+func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (Category, error) {
 	item := Category{
-		Name: strings.TrimSpace(input.Name),
-		Type: input.Type,
+		UserID: userID,
+		Name:   strings.TrimSpace(input.Name),
+		Type:   input.Type,
 	}
 
 	if err := validateCategory(item.Name, item.Type); err != nil {
@@ -35,11 +36,11 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Category, erro
 		return Category{}, err
 	}
 
-	return s.repo.GetByID(ctx, id)
+	return s.repo.GetByID(ctx, userID, id)
 }
 
-func (s *Service) Update(ctx context.Context, id int64, input UpdateInput) (Category, error) {
-	item, err := s.repo.GetByID(ctx, id)
+func (s *Service) Update(ctx context.Context, userID, id int64, input UpdateInput) (Category, error) {
+	item, err := s.repo.GetByID(ctx, userID, id)
 	if err != nil {
 		return Category{}, err
 	}
@@ -59,19 +60,19 @@ func (s *Service) Update(ctx context.Context, id int64, input UpdateInput) (Cate
 		return Category{}, err
 	}
 
-	return s.repo.GetByID(ctx, id)
+	return s.repo.GetByID(ctx, userID, id)
 }
 
-func (s *Service) Delete(ctx context.Context, id int64) error {
-	return s.repo.Delete(ctx, id)
+func (s *Service) Delete(ctx context.Context, userID, id int64) error {
+	return s.repo.Delete(ctx, userID, id)
 }
 
-func (s *Service) List(ctx context.Context, filter ListFilter) ([]Category, error) {
+func (s *Service) List(ctx context.Context, userID int64, filter ListFilter) ([]Category, error) {
 	if filter.Type != nil && !isValidType(*filter.Type) {
 		return nil, errors.New("invalid category type")
 	}
 
-	return s.repo.FindAll(ctx, filter)
+	return s.repo.FindAll(ctx, userID, filter)
 }
 
 func validateCategory(name string, categoryType Type) error {

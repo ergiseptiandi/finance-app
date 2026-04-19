@@ -8,10 +8,10 @@ import (
 	"finance-backend/internal/config"
 )
 
-func UpsertBootstrapUser(ctx context.Context, db *sql.DB, cfg config.SeedConfig) error {
+func UpsertBootstrapUser(ctx context.Context, db *sql.DB, cfg config.SeedConfig) (int64, error) {
 	passwordHash, err := auth.HashPassword(cfg.UserPassword)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	const query = `
@@ -23,6 +23,14 @@ func UpsertBootstrapUser(ctx context.Context, db *sql.DB, cfg config.SeedConfig)
 			updated_at = CURRENT_TIMESTAMP
 	`
 
-	_, err = db.ExecContext(ctx, query, cfg.UserName, cfg.UserEmail, passwordHash)
-	return err
+	if _, err = db.ExecContext(ctx, query, cfg.UserName, cfg.UserEmail, passwordHash); err != nil {
+		return 0, err
+	}
+
+	var userID int64
+	if err := db.QueryRowContext(ctx, `SELECT id FROM users WHERE email = ? LIMIT 1`, cfg.UserEmail).Scan(&userID); err != nil {
+		return 0, err
+	}
+
+	return userID, nil
 }

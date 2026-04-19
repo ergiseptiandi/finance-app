@@ -11,6 +11,7 @@ const (
 
 type Category struct {
 	ID        int64     `json:"id"`
+	UserID    int64     `json:"-"`
 	Name      string    `json:"name"`
 	Type      Type      `json:"type"`
 	CreatedAt time.Time `json:"created_at"`

@@ -3,8 +3,10 @@ package category
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
+	"finance-backend/internal/auth"
 	"finance-backend/internal/server/routeinfo"
 
 	"github.com/go-chi/chi/v5"
@@ -12,6 +14,7 @@ import (
 
 type Middleware interface {
 	RequireAuth(next http.Handler) http.Handler
+	GetAccessClaims(r *http.Request) (auth.AccessTokenClaims, bool)
 }
 
 type HandlerDependencies struct {
@@ -49,13 +52,19 @@ func RegisterRoutes(r chi.Router, deps HandlerDependencies) {
 }
 
 func (h handler) create(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.userID(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	input, err := decodeCreateInput(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	item, err := h.svc.Create(r.Context(), input)
+	item, err := h.svc.Create(r.Context(), userID, input)
 	if err != nil {
 		writeCategoryError(w, err)
 		return
@@ -65,6 +74,12 @@ func (h handler) create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) update(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.userID(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	id, err := parseCategoryID(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid category id")
@@ -82,7 +97,7 @@ func (h handler) update(w http.ResponseWriter, r *http.Request) {
 		input.Name = &trimmed
 	}
 
-	item, err := h.svc.Update(r.Context(), id, input)
+	item, err := h.svc.Update(r.Context(), userID, id, input)
 	if err != nil {
 		writeCategoryError(w, err)
 		return
@@ -92,13 +107,19 @@ func (h handler) update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) delete(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.userID(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	id, err := parseCategoryID(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid category id")
 		return
 	}
 
-	if err := h.svc.Delete(r.Context(), id); err != nil {
+	if err := h.svc.Delete(r.Context(), userID, id); err != nil {
 		writeCategoryError(w, err)
 		return
 	}
@@ -107,9 +128,15 @@ func (h handler) delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h handler) list(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.userID(r)
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
 	filter := parseListFilter(r)
 
-	items, err := h.svc.List(r.Context(), filter)
+	items, err := h.svc.List(r.Context(), userID, filter)
 	if err != nil {
 		writeCategoryError(w, err)
 		return
@@ -132,4 +159,18 @@ func writeCategoryError(w http.ResponseWriter, err error) {
 
 		writeError(w, http.StatusInternalServerError, "internal server error")
 	}
+}
+
+func (h handler) userID(r *http.Request) (int64, bool) {
+	claims, ok := h.authMiddleware.GetAccessClaims(r)
+	if !ok {
+		return 0, false
+	}
+
+	id, err := strconv.ParseInt(strings.TrimSpace(claims.Subject), 10, 64)
+	if err != nil || id <= 0 {
+		return 0, false
+	}
+
+	return id, true
 }
