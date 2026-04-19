@@ -1,0 +1,1466 @@
+﻿{
+    "variable":  [
+                     {
+                         "key":  "base_url",
+                         "value":  "http://localhost:8080"
+                     },
+                     {
+                         "key":  "access_token",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "refresh_token",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "token_type",
+                         "value":  "Bearer"
+                     },
+                     {
+                         "key":  "user_id",
+                         "value":  ""
+                     },
+                     {
+                         "key":  "transaction_id",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "category_id",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "salary_id",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "debt_id",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "payment_id",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "installment_id",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "alert_id",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "notification_id",
+                         "value":  "1"
+                     },
+                     {
+                         "key":  "media_path",
+                         "value":  "/uploads/general/example.jpg"
+                     }
+                 ],
+    "info":  {
+                 "description":  "Collection untuk semua fitur finance-backend. Login request sudah otomatis menyimpan token.",
+                 "name":  "Finance Backend API",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+                 "_postman_id":  "2656b908-8ff9-43a2-bec6-441d1572426e"
+             },
+    "item":  [
+                 {
+                     "name":  "Core",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/",
+                                                      "header":  [
+
+                                                                 ]
+                                                  },
+                                      "name":  "Root",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/health",
+                                                      "header":  [
+
+                                                                 ]
+                                                  },
+                                      "name":  "Health",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/routes",
+                                                      "header":  [
+
+                                                                 ]
+                                                  },
+                                      "name":  "Routes",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/openapi.json",
+                                                      "header":  [
+
+                                                                 ]
+                                                  },
+                                      "name":  "OpenAPI JSON",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/docs",
+                                                      "header":  [
+
+                                                                 ]
+                                                  },
+                                      "name":  "Swagger Docs Redirect",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Auth",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"supersecretpassword\",\n  \"device_name\": \"Postman\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/auth/register",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Register",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"email\": \"john@example.com\",\n  \"password\": \"supersecretpassword\",\n  \"device_name\": \"Postman\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/auth/login",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Login",
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\u0027Login success status code\u0027, function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "",
+                                                                                    "let jsonData = {};",
+                                                                                    "try {",
+                                                                                    "  jsonData = pm.response.json();",
+                                                                                    "} catch (e) {",
+                                                                                    "  console.log(\u0027Invalid JSON response\u0027, e);",
+                                                                                    "}",
+                                                                                    "",
+                                                                                    "const token = (jsonData \u0026\u0026 jsonData.Data \u0026\u0026 jsonData.Data.token) ? jsonData.Data.token : {};",
+                                                                                    "const user = (jsonData \u0026\u0026 jsonData.Data \u0026\u0026 jsonData.Data.user) ? jsonData.Data.user : {};",
+                                                                                    "",
+                                                                                    "if (token.access_token) {",
+                                                                                    "  pm.collectionVariables.set(\u0027access_token\u0027, token.access_token);",
+                                                                                    "  pm.environment.set(\u0027access_token\u0027, token.access_token);",
+                                                                                    "}",
+                                                                                    "if (token.refresh_token) {",
+                                                                                    "  pm.collectionVariables.set(\u0027refresh_token\u0027, token.refresh_token);",
+                                                                                    "  pm.environment.set(\u0027refresh_token\u0027, token.refresh_token);",
+                                                                                    "}",
+                                                                                    "if (token.token_type) {",
+                                                                                    "  pm.collectionVariables.set(\u0027token_type\u0027, token.token_type);",
+                                                                                    "  pm.environment.set(\u0027token_type\u0027, token.token_type);",
+                                                                                    "}",
+                                                                                    "if (user.id) {",
+                                                                                    "  pm.collectionVariables.set(\u0027user_id\u0027, String(user.id));",
+                                                                                    "  pm.environment.set(\u0027user_id\u0027, String(user.id));",
+                                                                                    "}",
+                                                                                    "console.log(\u0027Token saved to environment and collection variables\u0027);"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ],
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"refresh_token\": \"{{refresh_token}}\",\n  \"device_name\": \"Postman\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/auth/refresh",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Refresh Token",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/auth/logout",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Logout",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"email\": \"john@example.com\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/auth/forgot-password",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Forgot Password",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"token\": \"replace_with_reset_token\",\n  \"new_password\": \"new_supersecretpassword\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/auth/reset-password",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Reset Password",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/auth/me",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Me",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"name\": \"John Updated\",\n  \"email\": \"john.updated@example.com\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/auth/profile",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Update Profile",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"old_password\": \"supersecretpassword\",\n  \"new_password\": \"new_supersecretpassword\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/auth/password",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Change Password",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Transaction",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"type\": \"expense\",\n  \"category\": \"Food\",\n  \"amount\": 25000,\n  \"date\": \"2026-04-19T10:00:00Z\",\n  \"description\": \"Lunch\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/transactions",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Create Transaction",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/transactions?page=1\u0026per_page=10",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "List Transactions",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/transactions/summary",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Transaction Summary",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/transactions/{{transaction_id}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Get Transaction Detail",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"amount\": 30000,\n  \"description\": \"Updated lunch\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/transactions/{{transaction_id}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Update Transaction",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "url":  "{{base_url}}/v1/transactions/{{transaction_id}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Delete Transaction",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Category",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"name\": \"Transport\",\n  \"type\": \"expense\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/categories",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Create Category",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/categories",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "List Categories",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"name\": \"Transportation\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/categories/{{category_id}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Update Category",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "url":  "{{base_url}}/v1/categories/{{category_id}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Delete Category",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Salary",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"amount\": 10000000,\n  \"effective_date\": \"2026-04-01T00:00:00Z\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/salaries",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Create Salary",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/salaries",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Get Salary History",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/salaries/current",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Get Current Salary",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"amount\": 11000000\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/salaries/{{salary_id}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Update Salary",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "url":  "{{base_url}}/v1/salaries/{{salary_id}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Delete Salary",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"salary_day\": 25\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/salaries/schedule",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Set Salary Schedule",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Debt",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"name\": \"Motorcycle Loan\",\n  \"total_amount\": 12000000,\n  \"monthly_installment\": 1000000,\n  \"due_date\": \"2026-04-16T00:00:00Z\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/debts",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Create Debt",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/debts",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Get Debt List",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/debts/{{debt_id}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Get Debt Detail",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"name\": \"Motorcycle Loan Revised\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/debts/{{debt_id}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Update Debt",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "url":  "{{base_url}}/v1/debts/{{debt_id}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Delete Debt",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "amount",
+                                                                                        "type":  "text",
+                                                                                        "value":  "1000000"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "payment_date",
+                                                                                        "type":  "text",
+                                                                                        "value":  "2026-04-19T10:00:00Z"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "proof_image",
+                                                                                        "type":  "file",
+                                                                                        "src":  ""
+                                                                                    }
+                                                                                ],
+                                                                   "mode":  "formdata"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/debts/{{debt_id}}/payments",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Create Debt Payment",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "amount",
+                                                                                        "type":  "text",
+                                                                                        "value":  "1000000"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "payment_date",
+                                                                                        "type":  "text",
+                                                                                        "value":  "2026-04-20T10:00:00Z"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "proof_image",
+                                                                                        "type":  "file",
+                                                                                        "src":  ""
+                                                                                    }
+                                                                                ],
+                                                                   "mode":  "formdata"
+                                                               },
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/debts/{{debt_id}}/payments/{{payment_id}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Update Debt Payment",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/debts/{{debt_id}}/payments",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Get Payment History",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/debts/{{debt_id}}/installments",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Get Installments",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"paid_at\": \"2026-04-19T10:00:00Z\"\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/debts/{{debt_id}}/installments/{{installment_id}}/paid",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Mark Installment Paid",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Dashboard",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/dashboard/summary",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Summary",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/dashboard/daily-spending",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Daily Spending",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/dashboard/monthly-spending",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Monthly Spending",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/dashboard/comparison",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Comparison",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/dashboard/expense-vs-salary",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Expense vs Salary",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Reports",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/reports/expense-by-category",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Expense by Category",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/reports/spending-trends",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Spending Trends",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/reports/highest-spending-category",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Highest Spending Category",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/reports/average-daily-spending",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Average Daily Spending",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/reports/remaining-balance",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Remaining Balance",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Alerts",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/alerts",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "List Alerts",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"month\": 4,\n  \"year\": 2026\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/alerts/evaluate",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Evaluate Alerts",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/alerts/{{alert_id}}/read",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Mark Alert Read",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Notifications",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/notifications",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "List Notifications",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/notifications/settings",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Get Notification Settings",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "raw":  "{\n  \"enable_push\": true,\n  \"enable_email\": false,\n  \"notification_day\": 25\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               },
+                                                                   "mode":  "raw"
+                                                               },
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/notifications/settings",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     },
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Update Notification Settings",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/notifications/generate",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Generate Notifications",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "PATCH",
+                                                      "url":  "{{base_url}}/v1/notifications/{{notification_id}}/read",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Mark Notification Read",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Media",
+                     "item":  [
+                                  {
+                                      "request":  {
+                                                      "body":  {
+                                                                   "formdata":  [
+                                                                                    {
+                                                                                        "key":  "dir",
+                                                                                        "type":  "text",
+                                                                                        "value":  "general"
+                                                                                    },
+                                                                                    {
+                                                                                        "key":  "file",
+                                                                                        "type":  "file",
+                                                                                        "src":  ""
+                                                                                    }
+                                                                                ],
+                                                                   "mode":  "formdata"
+                                                               },
+                                                      "method":  "POST",
+                                                      "url":  "{{base_url}}/v1/media/upload",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Upload Media",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/media/url?path={{media_path}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Get Media URL",
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "url":  "{{base_url}}/v1/media?path={{media_path}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "Delete Media",
+                                      "response":  [
+
+                                                   ]
+                                  }
+                              ]
+                 }
+             ]
+}
