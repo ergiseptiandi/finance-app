@@ -58,12 +58,37 @@ Create a new income or expense transaction.
 Retrieve transactions tied to the authenticated user.
 
 **Query Parameters**:
-- `start_date` (optional, format: `YYYY-MM-DD`): Filter by starting date.
-- `end_date` (optional, format: `YYYY-MM-DD`): Filter by ending date.
+- `month` (optional, format: `YYYY-MM`): Filter 1 full month. Example: `2026-04`.
+- `start_date` (optional, format: `YYYY-MM-DD`): Custom range start date. Must be sent together with `end_date`.
+- `end_date` (optional, format: `YYYY-MM-DD`): Custom range end date. Must be sent together with `start_date`.
 - `category` (optional, string): Exact match on category name.
 - `type` (optional, enum): `income` or `expense`.
 - `page` (optional, integer): Defaults to 1.
 - `per_page` (optional, integer): Defaults to 10.
+
+**Filter Rules**:
+- Use **either** `month` **or** `start_date` + `end_date`.
+- `month` cannot be combined with `start_date` or `end_date`.
+- If `month`, `start_date`, and `end_date` are not sent, the API defaults to the current month.
+- Custom date range is inclusive and can span a maximum of 2 months.
+- `end_date` must be greater than or equal to `start_date`.
+
+**Examples**:
+
+Filter by month:
+```http
+GET /v1/transactions?month=2026-04&page=1&per_page=10
+```
+
+Without date filter, defaults to current month:
+```http
+GET /v1/transactions?type=expense
+```
+
+Filter by custom range:
+```http
+GET /v1/transactions?start_date=2026-04-01&end_date=2026-05-31&type=expense
+```
 
 **Response (200 OK)**:
 ```json
@@ -91,6 +116,14 @@ Retrieve transactions tied to the authenticated user.
   }
 }
 ```
+
+**Error Cases**:
+- `400 Bad Request`: If `month` format is invalid.
+- `400 Bad Request`: If `start_date` or `end_date` format is invalid.
+- `400 Bad Request`: If `month` is combined with `start_date` or `end_date`.
+- `400 Bad Request`: If only one of `start_date` or `end_date` is sent.
+- `400 Bad Request`: If custom date range is more than 2 months.
+- `400 Bad Request`: If `end_date` is earlier than `start_date`.
 
 ---
 

@@ -111,8 +111,8 @@ func (r *MySQLTransactionRepository) FindAll(ctx context.Context, userID int64, 
 		args = append(args, filter.StartDate)
 	}
 	if filter.EndDate != nil {
-		queryBuilder.WriteString(" AND date <= ?")
-		args = append(args, filter.EndDate)
+		queryBuilder.WriteString(" AND date < ?")
+		args = append(args, filter.EndDate.AddDate(0, 0, 1))
 	}
 	if filter.Category != nil && *filter.Category != "" {
 		queryBuilder.WriteString(" AND category = ?")

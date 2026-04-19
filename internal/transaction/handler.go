@@ -170,10 +170,18 @@ func (h handler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filter := parseListFilter(r)
+	filter, err := parseListFilter(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
 
 	list, err := h.svc.List(r.Context(), userID, filter)
 	if err != nil {
+		if errors.Is(err, ErrInvalidInput) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

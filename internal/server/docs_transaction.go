@@ -99,3 +99,84 @@ func transactionResponseSchemas(route routeinfo.RouteInfo) map[string]any {
 		return nil
 	}
 }
+
+func transactionParameterSchemas(route routeinfo.RouteInfo) []map[string]any {
+	switch route.Method + " " + route.Path {
+	case "GET /v1/transactions":
+		return []map[string]any{
+			{
+				"name":        "month",
+				"in":          "query",
+				"required":    false,
+				"description": "Filter one full month using YYYY-MM. Cannot be combined with start_date or end_date. If omitted together with start_date and end_date, the API uses the current month.",
+				"schema": map[string]any{
+					"type":    "string",
+					"pattern": "^\\d{4}-\\d{2}$",
+					"example": "2026-04",
+				},
+			},
+			{
+				"name":        "start_date",
+				"in":          "query",
+				"required":    false,
+				"description": "Inclusive custom range start date using YYYY-MM-DD. Must be sent together with end_date. Maximum range is 2 months.",
+				"schema": map[string]any{
+					"type":    "string",
+					"format":  "date",
+					"example": "2026-04-01",
+				},
+			},
+			{
+				"name":        "end_date",
+				"in":          "query",
+				"required":    false,
+				"description": "Inclusive custom range end date using YYYY-MM-DD. Must be sent together with start_date. Maximum range is 2 months.",
+				"schema": map[string]any{
+					"type":    "string",
+					"format":  "date",
+					"example": "2026-05-31",
+				},
+			},
+			{
+				"name":        "category",
+				"in":          "query",
+				"required":    false,
+				"description": "Filter by exact category name.",
+				"schema": map[string]any{
+					"type": "string",
+				},
+			},
+			{
+				"name":        "type",
+				"in":          "query",
+				"required":    false,
+				"description": "Filter by transaction type.",
+				"schema": map[string]any{
+					"$ref": "#/components/schemas/TransactionType",
+				},
+			},
+			{
+				"name":        "page",
+				"in":          "query",
+				"required":    false,
+				"description": "Pagination page number. Defaults to 1.",
+				"schema": map[string]any{
+					"type":    "integer",
+					"example": 1,
+				},
+			},
+			{
+				"name":        "per_page",
+				"in":          "query",
+				"required":    false,
+				"description": "Items per page. Defaults to 10.",
+				"schema": map[string]any{
+					"type":    "integer",
+					"example": 10,
+				},
+			},
+		}
+	default:
+		return nil
+	}
+}

@@ -40,6 +40,10 @@ func buildOpenAPISpec(routes []routeinfo.RouteInfo) map[string]any {
 			operation["responses"] = responses
 		}
 
+		if parameters := parameterSchemas(route); parameters != nil {
+			operation["parameters"] = parameters
+		}
+
 		pathItem[methodName(route.Method)] = operation
 	}
 
@@ -196,6 +200,14 @@ func responseSchemas(route routeinfo.RouteInfo) map[string]any {
 	}
 	if responses := mediaResponseSchemas(route); responses != nil {
 		return responses
+	}
+
+	return nil
+}
+
+func parameterSchemas(route routeinfo.RouteInfo) []map[string]any {
+	if parameters := transactionParameterSchemas(route); parameters != nil {
+		return parameters
 	}
 
 	return nil

@@ -3,11 +3,14 @@ package transaction
 import (
 	"context"
 	"errors"
+	"fmt"
+	"time"
 )
 
 var (
-	ErrNotFound      = errors.New("transaction not found")
-	ErrInvalidInput  = errors.New("invalid transaction input")
+	ErrNotFound     = errors.New("transaction not found")
+	ErrInvalidInput = errors.New("invalid transaction input")
+	nowFunc         = time.Now
 )
 
 type Service struct {
@@ -25,7 +28,7 @@ func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (
 	if input.Type != TypeIncome && input.Type != TypeExpense {
 		return Transaction{}, errors.New("invalid transaction type")
 	}
-	
+
 	txn := Transaction{
 		UserID:      userID,
 		Type:        input.Type,
@@ -80,7 +83,7 @@ func (s *Service) Update(ctx context.Context, id int64, userID int64, input Upda
 	if err != nil {
 		return Transaction{}, err
 	}
-	
+
 	return s.repo.GetByID(ctx, id, userID)
 }
 
@@ -89,6 +92,34 @@ func (s *Service) Delete(ctx context.Context, id int64, userID int64) error {
 }
 
 func (s *Service) List(ctx context.Context, userID int64, filter ListFilter) (PaginatedList, error) {
+	if (filter.StartDate == nil) != (filter.EndDate == nil) {
+		return PaginatedList{}, fmt.Errorf("%w: start_date and end_date must be provided together", ErrInvalidInput)
+	}
+
+	if filter.StartDate == nil && filter.EndDate == nil {
+		now := nowFunc()
+		startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		endOfMonth := startOfMonth.AddDate(0, 1, 0).AddDate(0, 0, -1)
+
+		filter.StartDate = &startOfMonth
+		filter.EndDate = &endOfMonth
+	}
+
+	if filter.StartDate != nil && filter.EndDate != nil {
+		if filter.EndDate.Before(*filter.StartDate) {
+			return PaginatedList{}, fmt.Errorf("%w: end_date must be greater than or equal to start_date", ErrInvalidInput)
+		}
+
+		maxEndDate := filter.StartDate.AddDate(0, 2, 0)
+		if filter.EndDate.After(maxEndDate) {
+			return PaginatedList{}, fmt.Errorf("%w: date range cannot exceed 2 months", ErrInvalidInput)
+		}
+	}
+
+	if filter.Type != nil && *filter.Type != TypeIncome && *filter.Type != TypeExpense {
+		return PaginatedList{}, fmt.Errorf("%w: invalid transaction type", ErrInvalidInput)
+	}
+
 	if filter.Page <= 0 {
 		filter.Page = 1
 	}

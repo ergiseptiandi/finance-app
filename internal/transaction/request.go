@@ -2,8 +2,10 @@ package transaction
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -51,37 +53,73 @@ func decodeUpdateInput(r *http.Request) (UpdateInput, error) {
 	return input, nil
 }
 
-func parseListFilter(r *http.Request) ListFilter {
+func parseListFilter(r *http.Request) (ListFilter, error) {
 	q := r.URL.Query()
 	var filter ListFilter
 
-	if s := q.Get("start_date"); s != "" {
-		if t, err := time.Parse("2006-01-02", s); err == nil {
-			filter.StartDate = &t
+	month := strings.TrimSpace(q.Get("month"))
+	startDate := strings.TrimSpace(q.Get("start_date"))
+	endDate := strings.TrimSpace(q.Get("end_date"))
+
+	if month != "" {
+		if startDate != "" || endDate != "" {
+			return ListFilter{}, errors.New("month cannot be combined with start_date or end_date")
 		}
+
+		parsedMonth, err := time.Parse("2006-01", month)
+		if err != nil {
+			return ListFilter{}, errors.New("month must use format YYYY-MM")
+		}
+
+		startOfMonth := time.Date(parsedMonth.Year(), parsedMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
+		endOfMonth := startOfMonth.AddDate(0, 1, 0).AddDate(0, 0, -1)
+
+		filter.StartDate = &startOfMonth
+		filter.EndDate = &endOfMonth
 	}
-	if s := q.Get("end_date"); s != "" {
-		if t, err := time.Parse("2006-01-02", s); err == nil {
-			filter.EndDate = &t
+
+	if month == "" && (startDate != "" || endDate != "") {
+		if startDate == "" || endDate == "" {
+			return ListFilter{}, errors.New("start_date and end_date must be provided together")
 		}
+
+		parsedStartDate, err := time.Parse("2006-01-02", startDate)
+		if err != nil {
+			return ListFilter{}, errors.New("start_date must use format YYYY-MM-DD")
+		}
+
+		parsedEndDate, err := time.Parse("2006-01-02", endDate)
+		if err != nil {
+			return ListFilter{}, errors.New("end_date must use format YYYY-MM-DD")
+		}
+
+		filter.StartDate = &parsedStartDate
+		filter.EndDate = &parsedEndDate
 	}
 	if s := q.Get("category"); s != "" {
 		filter.Category = &s
 	}
 	if s := q.Get("type"); s != "" {
 		t := Type(s)
+		if t != TypeIncome && t != TypeExpense {
+			return ListFilter{}, errors.New("type must be either income or expense")
+		}
 		filter.Type = &t
 	}
 	if pageStr := q.Get("page"); pageStr != "" {
-		if p, err := strconv.Atoi(pageStr); err == nil {
-			filter.Page = p
+		p, err := strconv.Atoi(pageStr)
+		if err != nil {
+			return ListFilter{}, errors.New("page must be a number")
 		}
+		filter.Page = p
 	}
 	if perPageStr := q.Get("per_page"); perPageStr != "" {
-		if pp, err := strconv.Atoi(perPageStr); err == nil {
-			filter.PerPage = pp
+		pp, err := strconv.Atoi(perPageStr)
+		if err != nil {
+			return ListFilter{}, errors.New("per_page must be a number")
 		}
+		filter.PerPage = pp
 	}
 
-	return filter
+	return filter, nil
 }
