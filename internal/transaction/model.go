@@ -12,6 +12,7 @@ const (
 type Transaction struct {
 	ID          int64     `json:"id"`
 	UserID      int64     `json:"user_id"`
+	WalletID    int64     `json:"wallet_id"`
 	Type        Type      `json:"type"`
 	Category    string    `json:"category"`
 	Amount      float64   `json:"amount"`

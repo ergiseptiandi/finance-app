@@ -195,6 +195,7 @@ Create a payment record and upload proof image.
 **Request Type**: `multipart/form-data`
 
 **Form Fields**:
+- `wallet_id` (optional, number): Wallet used to pay the debt. If omitted, the API uses the user's default wallet (`Main`).
 - `amount` (required, number)
 - `payment_date` (required, RFC3339 datetime)
 - `proof_image` (required, file)
@@ -207,6 +208,7 @@ Create a payment record and upload proof image.
   "Data": {
     "id": 10,
     "debt_id": 1,
+    "wallet_id": 2,
     "installment_id": 3,
     "amount": 1000000,
     "payment_date": "2026-04-16T00:00:00Z",
@@ -227,6 +229,7 @@ Update payment metadata and optionally replace the proof image.
 **Request Type**: `multipart/form-data`
 
 **Form Fields**:
+- `wallet_id` (optional, number)
 - `amount` (optional, number)
 - `payment_date` (optional, RFC3339 datetime)
 - `proof_image` (optional, file)

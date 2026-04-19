@@ -5,14 +5,17 @@ import (
 	"math"
 	"sort"
 	"time"
+
+	"finance-backend/internal/wallet"
 )
 
 type Service struct {
-	repo Repository
+	repo     Repository
+	balances wallet.BalanceProvider
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, balances wallet.BalanceProvider) *Service {
+	return &Service{repo: repo, balances: balances}
 }
 
 func (s *Service) ExpenseByCategory(ctx context.Context, userID int64) ([]CategoryExpense, error) {
@@ -109,10 +112,19 @@ func (s *Service) RemainingBalance(ctx context.Context, userID int64) (Remaining
 		return RemainingBalance{}, err
 	}
 
+	remainingBalance := income - expense
+	if s.balances != nil {
+		if balance, err := s.balances.TotalBalance(ctx, userID); err == nil {
+			remainingBalance = balance
+		} else {
+			return RemainingBalance{}, err
+		}
+	}
+
 	return RemainingBalance{
 		TotalIncome:      income,
 		TotalExpense:     expense,
-		RemainingBalance: income - expense,
+		RemainingBalance: remainingBalance,
 	}, nil
 }
 

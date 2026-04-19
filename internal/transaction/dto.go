@@ -3,6 +3,7 @@ package transaction
 import "time"
 
 type CreateInput struct {
+	WalletID    *int64    `json:"wallet_id,omitempty"`
 	Type        Type      `json:"type"`
 	Category    string    `json:"category"`
 	Amount      float64   `json:"amount"`
@@ -11,6 +12,7 @@ type CreateInput struct {
 }
 
 type UpdateInput struct {
+	WalletID    *int64     `json:"wallet_id,omitempty"`
 	Type        *Type      `json:"type,omitempty"`
 	Category    *string    `json:"category,omitempty"`
 	Amount      *float64   `json:"amount,omitempty"`
@@ -21,6 +23,7 @@ type UpdateInput struct {
 type ListFilter struct {
 	StartDate *time.Time
 	EndDate   *time.Time
+	WalletID  *int64
 	Category  *string
 	Type      *Type
 	Page      int

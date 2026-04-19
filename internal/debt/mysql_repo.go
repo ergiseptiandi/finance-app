@@ -237,7 +237,7 @@ func (r *MySQLDebtRepository) GetInstallments(ctx context.Context, userID, debtI
 
 func (r *MySQLDebtRepository) GetPayments(ctx context.Context, userID, debtID int64) ([]Payment, error) {
 	const query = `
-		SELECT p.id, p.debt_id, p.installment_id, p.amount, p.payment_date, p.proof_image, p.created_at, p.updated_at
+		SELECT p.id, p.debt_id, p.wallet_id, p.installment_id, p.amount, p.payment_date, p.proof_image, p.created_at, p.updated_at
 		FROM debt_payments p
 		JOIN debts d ON d.id = p.debt_id
 		WHERE d.id = ? AND d.user_id = ?
@@ -257,6 +257,7 @@ func (r *MySQLDebtRepository) GetPayments(ctx context.Context, userID, debtID in
 		if err := rows.Scan(
 			&item.ID,
 			&item.DebtID,
+			&item.WalletID,
 			&installmentID,
 			&item.Amount,
 			&item.PaymentDate,
@@ -282,7 +283,7 @@ func (r *MySQLDebtRepository) GetPayments(ctx context.Context, userID, debtID in
 
 func (r *MySQLDebtRepository) GetPaymentByID(ctx context.Context, userID, debtID, paymentID int64) (Payment, error) {
 	const query = `
-		SELECT p.id, p.debt_id, p.installment_id, p.amount, p.payment_date, p.proof_image, p.created_at, p.updated_at
+		SELECT p.id, p.debt_id, p.wallet_id, p.installment_id, p.amount, p.payment_date, p.proof_image, p.created_at, p.updated_at
 		FROM debt_payments p
 		JOIN debts d ON d.id = p.debt_id
 		WHERE d.id = ? AND d.user_id = ? AND p.id = ?
@@ -294,6 +295,7 @@ func (r *MySQLDebtRepository) GetPaymentByID(ctx context.Context, userID, debtID
 	err := r.db.QueryRowContext(ctx, query, debtID, userID, paymentID).Scan(
 		&payment.ID,
 		&payment.DebtID,
+		&payment.WalletID,
 		&installmentID,
 		&payment.Amount,
 		&payment.PaymentDate,
@@ -383,10 +385,10 @@ func (r *MySQLDebtRepository) CreatePaymentAndMarkInstallment(ctx context.Contex
 	defer rollback(tx)
 
 	const insertPayment = `
-		INSERT INTO debt_payments (debt_id, installment_id, amount, payment_date, proof_image)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO debt_payments (debt_id, wallet_id, installment_id, amount, payment_date, proof_image)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`
-	res, err := tx.ExecContext(ctx, insertPayment, payment.DebtID, installmentID, payment.Amount, payment.PaymentDate, payment.ProofImage)
+	res, err := tx.ExecContext(ctx, insertPayment, payment.DebtID, payment.WalletID, installmentID, payment.Amount, payment.PaymentDate, payment.ProofImage)
 	if err != nil {
 		return Payment{}, err
 	}
@@ -415,11 +417,11 @@ func (r *MySQLDebtRepository) CreatePaymentAndMarkInstallment(ctx context.Contex
 func (r *MySQLDebtRepository) UpdatePayment(ctx context.Context, payment Payment) error {
 	const query = `
 		UPDATE debt_payments
-		SET amount = ?, payment_date = ?, proof_image = ?
+		SET wallet_id = ?, amount = ?, payment_date = ?, proof_image = ?
 		WHERE id = ? AND debt_id = ?
 	`
 
-	result, err := r.db.ExecContext(ctx, query, payment.Amount, payment.PaymentDate, payment.ProofImage, payment.ID, payment.DebtID)
+	result, err := r.db.ExecContext(ctx, query, payment.WalletID, payment.Amount, payment.PaymentDate, payment.ProofImage, payment.ID, payment.DebtID)
 	if err != nil {
 		return err
 	}
@@ -634,7 +636,7 @@ func normalizeMySQLError(err error) error {
 
 func (r *MySQLDebtRepository) loadPaymentByDebtAndID(ctx context.Context, debtID, paymentID int64) (Payment, error) {
 	const query = `
-		SELECT id, debt_id, installment_id, amount, payment_date, proof_image, created_at, updated_at
+		SELECT id, debt_id, wallet_id, installment_id, amount, payment_date, proof_image, created_at, updated_at
 		FROM debt_payments
 		WHERE id = ? AND debt_id = ?
 		LIMIT 1
@@ -645,6 +647,7 @@ func (r *MySQLDebtRepository) loadPaymentByDebtAndID(ctx context.Context, debtID
 	if err := r.db.QueryRowContext(ctx, query, paymentID, debtID).Scan(
 		&payment.ID,
 		&payment.DebtID,
+		&payment.WalletID,
 		&installmentID,
 		&payment.Amount,
 		&payment.PaymentDate,

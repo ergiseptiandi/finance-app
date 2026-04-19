@@ -39,6 +39,7 @@ type Installment struct {
 type Payment struct {
 	ID            int64     `json:"id"`
 	DebtID        int64     `json:"debt_id"`
+	WalletID      int64     `json:"wallet_id"`
 	InstallmentID *int64    `json:"installment_id,omitempty"`
 	Amount        float64   `json:"amount"`
 	PaymentDate   time.Time `json:"payment_date"`

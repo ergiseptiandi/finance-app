@@ -22,6 +22,7 @@ Create a new income or expense transaction.
 **Request Body (JSON)**:
 ```json
 {
+  "wallet_id": 1,
   "type": "income",      
   "category": "Salary",
   "amount": 5500.00,
@@ -29,7 +30,7 @@ Create a new income or expense transaction.
   "description": "Monthly salary"
 }
 ```
-*Note: `type` must be either `income` or `expense`.*
+*Note: `wallet_id` is optional. If omitted, the API uses the user's default wallet (`Main`). `type` must be either `income` or `expense`.*
 
 **Response (201 Created)**:
 ```json
@@ -39,6 +40,7 @@ Create a new income or expense transaction.
   "Data": {
     "id": 1,
     "user_id": 1,
+    "wallet_id": 2,
     "type": "income",
     "category": "Salary",
     "amount": 5500.00,
@@ -61,6 +63,7 @@ Retrieve transactions tied to the authenticated user.
 - `month` (optional, format: `YYYY-MM`): Filter 1 full month. Example: `2026-04`.
 - `start_date` (optional, format: `YYYY-MM-DD`): Custom range start date. Must be sent together with `end_date`.
 - `end_date` (optional, format: `YYYY-MM-DD`): Custom range end date. Must be sent together with `start_date`.
+- `wallet_id` (optional, integer): Filter by wallet.
 - `category` (optional, string): Exact match on category name.
 - `type` (optional, enum): `income` or `expense`.
 - `page` (optional, integer): Defaults to 1.
@@ -100,6 +103,7 @@ GET /v1/transactions?start_date=2026-04-01&end_date=2026-05-31&type=expense
       {
         "id": 1,
         "user_id": 1,
+        "wallet_id": 2,
         "type": "income",
         "category": "Salary",
         "amount": 5500.00,
@@ -157,10 +161,11 @@ Retrieve full details of a specific transaction by its ID.
 {
   "Status": "200",
   "Message": "Success Get",
-  "Data": {
-    "id": 1,
-    "user_id": 1,
-    "type": "income",
+    "Data": {
+      "id": 1,
+      "user_id": 1,
+      "wallet_id": 2,
+      "type": "income",
     "category": "Salary",
     "amount": 5500.00,
     "date": "2026-04-16T15:00:00Z",
@@ -185,6 +190,7 @@ Partially update a transaction matching the given ID.
 *Send only the fields you wish to update.*
 ```json
 {
+  "wallet_id": 2,
   "amount": 6000.00,
   "description": "Updated bonus salary"
 }

@@ -14,6 +14,7 @@ import (
 	"finance-backend/internal/notifications"
 	"finance-backend/internal/reports"
 	"finance-backend/internal/transaction"
+	"finance-backend/internal/wallet"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
@@ -23,7 +24,7 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
-func NewRouter(authService *auth.Service, txService *transaction.Service, categoryService *category.Service, debtService *debt.Service, dashboardService *dashboard.Service, reportsService *reports.Service, alertsService *alerts.Service, notificationsService *notifications.Service, mediaService *media.Service, debtStorage debt.FileStorage, uploadDir string) http.Handler {
+func NewRouter(authService *auth.Service, txService *transaction.Service, walletService *wallet.Service, categoryService *category.Service, debtService *debt.Service, dashboardService *dashboard.Service, reportsService *reports.Service, alertsService *alerts.Service, notificationsService *notifications.Service, mediaService *media.Service, debtStorage debt.FileStorage, uploadDir string) http.Handler {
 	router := chi.NewRouter()
 	catalog := newRouteCatalog()
 	router.Use(chimiddleware.RequestID)
@@ -35,6 +36,7 @@ func NewRouter(authService *auth.Service, txService *transaction.Service, catego
 	router.Route("/v1", func(r chi.Router) {
 		registerAuthRoutes(r, catalog, authService)
 		registerTransactionRoutes(r, catalog, authService, txService)
+		registerWalletRoutes(r, catalog, authService, walletService)
 		registerCategoryRoutes(r, catalog, authService, categoryService)
 		registerDebtRoutes(r, catalog, authService, debtService, debtStorage)
 		registerDashboardRoutes(r, catalog, authService, dashboardService)

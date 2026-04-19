@@ -96,6 +96,13 @@ func parseListFilter(r *http.Request) (ListFilter, error) {
 		filter.StartDate = &parsedStartDate
 		filter.EndDate = &parsedEndDate
 	}
+	if walletIDStr := strings.TrimSpace(q.Get("wallet_id")); walletIDStr != "" {
+		walletID, err := strconv.ParseInt(walletIDStr, 10, 64)
+		if err != nil || walletID <= 0 {
+			return ListFilter{}, errors.New("wallet_id must be a positive number")
+		}
+		filter.WalletID = &walletID
+	}
 	if s := q.Get("category"); s != "" {
 		filter.Category = &s
 	}

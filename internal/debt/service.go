@@ -6,6 +6,8 @@ import (
 	"math"
 	"strings"
 	"time"
+
+	"finance-backend/internal/wallet"
 )
 
 var (
@@ -15,11 +17,12 @@ var (
 )
 
 type Service struct {
-	repo Repository
+	repo    Repository
+	wallets wallet.Resolver
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, wallets wallet.Resolver) *Service {
+	return &Service{repo: repo, wallets: wallets}
 }
 
 func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (DebtDetail, error) {
@@ -171,6 +174,11 @@ func (s *Service) CreatePayment(ctx context.Context, userID, debtID int64, input
 		return Payment{}, err
 	}
 
+	walletID, err := s.resolveWalletID(ctx, userID, input.WalletID)
+	if err != nil {
+		return Payment{}, err
+	}
+
 	nextInstallment, err := s.repo.GetNextUnpaidInstallment(ctx, debtID)
 	if err != nil {
 		return Payment{}, err
@@ -181,6 +189,7 @@ func (s *Service) CreatePayment(ctx context.Context, userID, debtID int64, input
 
 	payment := Payment{
 		DebtID:      debtID,
+		WalletID:    walletID,
 		Amount:      input.Amount,
 		PaymentDate: input.PaymentDate,
 		ProofImage:  input.ProofImage,
@@ -215,6 +224,13 @@ func (s *Service) UpdatePayment(ctx context.Context, userID, debtID, paymentID i
 		}
 		payment.PaymentDate = *input.PaymentDate
 	}
+	if input.WalletID != nil {
+		walletID, err := s.resolveWalletID(ctx, userID, input.WalletID)
+		if err != nil {
+			return Payment{}, err
+		}
+		payment.WalletID = walletID
+	}
 	if input.ProofImage != nil {
 		payment.ProofImage = *input.ProofImage
 	}
@@ -224,6 +240,30 @@ func (s *Service) UpdatePayment(ctx context.Context, userID, debtID, paymentID i
 	}
 
 	return s.repo.GetPaymentByID(ctx, userID, debtID, paymentID)
+}
+
+func (s *Service) resolveWalletID(ctx context.Context, userID int64, walletID *int64) (int64, error) {
+	if s.wallets == nil {
+		return 0, errors.New("wallet service is required")
+	}
+
+	if walletID != nil {
+		if *walletID <= 0 {
+			return 0, errors.New("wallet_id must be a positive number")
+		}
+		item, err := s.wallets.GetByID(ctx, userID, *walletID)
+		if err != nil {
+			return 0, err
+		}
+		return item.ID, nil
+	}
+
+	item, err := s.wallets.DefaultWallet(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+
+	return item.ID, nil
 }
 
 func (s *Service) PaymentHistory(ctx context.Context, userID, debtID int64) ([]Payment, error) {

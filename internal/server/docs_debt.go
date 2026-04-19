@@ -44,6 +44,7 @@ func debtOpenAPIComponents() map[string]any {
 				"properties": map[string]any{
 					"id":             map[string]any{"type": "integer"},
 					"debt_id":        map[string]any{"type": "integer"},
+					"wallet_id":      map[string]any{"type": "integer"},
 					"installment_id": map[string]any{"type": "integer", "nullable": true},
 					"amount":         map[string]any{"type": "number"},
 					"payment_date":   map[string]any{"type": "string", "format": "date-time"},
@@ -93,6 +94,7 @@ func debtOpenAPIComponents() map[string]any {
 			"CreatePaymentRequest": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
+					"wallet_id":    map[string]any{"type": "integer"},
 					"amount":       map[string]any{"type": "number"},
 					"payment_date": map[string]any{"type": "string", "format": "date-time"},
 					"proof_image":  map[string]any{"type": "string", "format": "binary"},
@@ -101,6 +103,7 @@ func debtOpenAPIComponents() map[string]any {
 			"UpdatePaymentRequest": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
+					"wallet_id":    map[string]any{"type": "integer"},
 					"amount":       map[string]any{"type": "number"},
 					"payment_date": map[string]any{"type": "string", "format": "date-time"},
 					"proof_image":  map[string]any{"type": "string", "format": "binary"},

@@ -95,6 +95,15 @@ func parseCreatePaymentMultipart(r *http.Request) (CreatePaymentInput, *multipar
 		return CreatePaymentInput{}, nil, err
 	}
 
+	var walletID *int64
+	if walletIDStr := strings.TrimSpace(r.FormValue("wallet_id")); walletIDStr != "" {
+		parsed, err := strconv.ParseInt(walletIDStr, 10, 64)
+		if err != nil {
+			return CreatePaymentInput{}, nil, err
+		}
+		walletID = &parsed
+	}
+
 	file, fileHeader, err := r.FormFile("proof_image")
 	if err != nil {
 		return CreatePaymentInput{}, nil, err
@@ -102,6 +111,7 @@ func parseCreatePaymentMultipart(r *http.Request) (CreatePaymentInput, *multipar
 	defer file.Close()
 
 	return CreatePaymentInput{
+		WalletID:    walletID,
 		Amount:      amount,
 		PaymentDate: paymentDate,
 	}, fileHeader, nil
@@ -126,6 +136,13 @@ func parseUpdatePaymentMultipart(r *http.Request) (UpdatePaymentInput, *multipar
 			return UpdatePaymentInput{}, nil, err
 		}
 		input.PaymentDate = &paymentDate
+	}
+	if walletIDStr := strings.TrimSpace(r.FormValue("wallet_id")); walletIDStr != "" {
+		walletID, err := strconv.ParseInt(walletIDStr, 10, 64)
+		if err != nil {
+			return UpdatePaymentInput{}, nil, err
+		}
+		input.WalletID = &walletID
 	}
 
 	file, fileHeader, err := r.FormFile("proof_image")

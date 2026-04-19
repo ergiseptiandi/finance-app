@@ -23,6 +23,7 @@ import (
 	"finance-backend/internal/server"
 	"finance-backend/internal/storage"
 	"finance-backend/internal/transaction"
+	"finance-backend/internal/wallet"
 
 	"github.com/joho/godotenv"
 )
@@ -74,14 +75,17 @@ func main() {
 
 	authService := auth.NewService(authRepo, authRepo, passwordResetRepo, tokenManager, mailer)
 
+	walletRepo := wallet.NewMySQLWalletRepository(db)
+	walletService := wallet.NewService(walletRepo)
+
 	categoryRepo := category.NewMySQLCategoryRepository(db)
 	categoryService := category.NewService(categoryRepo)
 
 	debtRepo := debt.NewMySQLDebtRepository(db)
-	debtService := debt.NewService(debtRepo)
+	debtService := debt.NewService(debtRepo, walletService)
 
 	dashboardRepo := dashboard.NewMySQLDashboardRepository(db)
-	dashboardService := dashboard.NewService(dashboardRepo)
+	dashboardService := dashboard.NewService(dashboardRepo, walletService)
 
 	notificationsRepo := notifications.NewMySQLNotificationsRepository(db)
 	var pushSender notifications.PushSender
@@ -99,13 +103,13 @@ func main() {
 	alertsService := alerts.NewService(alertsRepo)
 
 	reportsRepo := reports.NewMySQLReportsRepository(db)
-	reportsService := reports.NewService(reportsRepo)
+	reportsService := reports.NewService(reportsRepo, walletService)
 
 	fileStorage := storage.NewLocalStorage(cfg.Storage.UploadDir)
 	mediaService := media.NewService(fileStorage)
 
 	txRepo := transaction.NewMySQLTransactionRepository(db)
-	txService := transaction.NewService(txRepo)
+	txService := transaction.NewService(txRepo, walletService, walletService)
 
 	if cfg.Runtime.Mode == "worker" || os.Getenv("APP_MODE") == "worker" {
 		worker := notifications.NewWorker(notificationsService, notificationsRepo, cfg.Runtime.NotificationCronSpec)
@@ -120,7 +124,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
-		Handler: server.NewRouter(authService, txService, categoryService, debtService, dashboardService, reportsService, alertsService, notificationsService, mediaService, fileStorage, cfg.Storage.UploadDir),
+		Handler: server.NewRouter(authService, txService, walletService, categoryService, debtService, dashboardService, reportsService, alertsService, notificationsService, mediaService, fileStorage, cfg.Storage.UploadDir),
 	}
 
 	log.Printf("server listening on :%s", cfg.Server.Port)

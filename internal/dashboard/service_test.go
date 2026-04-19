@@ -92,7 +92,7 @@ func TestSummaryDefaultsToCurrentMonth(t *testing.T) {
 	var receivedEnd time.Time
 
 	svc := NewService(dashboardRepoStub{
-		allTimeIncomeFn: func(context.Context, int64) (float64, error) { return 15000000, nil },
+		allTimeIncomeFn:  func(context.Context, int64) (float64, error) { return 15000000, nil },
 		allTimeExpenseFn: func(context.Context, int64) (float64, error) { return 3000000, nil },
 		incomeBetweenFn: func(_ context.Context, _ int64, start, end time.Time) (float64, error) {
 			receivedStart = start
@@ -102,7 +102,7 @@ func TestSummaryDefaultsToCurrentMonth(t *testing.T) {
 		expenseBetweenFn: func(context.Context, int64, time.Time, time.Time) (float64, error) {
 			return 3000000, nil
 		},
-	})
+	}, nil)
 
 	_, err := svc.Summary(context.Background(), 1, DashboardFilter{})
 	if err != nil {
@@ -119,7 +119,7 @@ func TestSummaryDefaultsToCurrentMonth(t *testing.T) {
 }
 
 func TestSummaryRejectsRangeLongerThanThreeMonths(t *testing.T) {
-	svc := NewService(dashboardRepoStub{})
+	svc := NewService(dashboardRepoStub{}, nil)
 
 	startDate := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, time.April, 2, 0, 0, 0, 0, time.UTC)

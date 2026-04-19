@@ -17,12 +17,14 @@ type UpdateInput struct {
 }
 
 type CreatePaymentInput struct {
+	WalletID    *int64    `json:"wallet_id,omitempty"`
 	Amount      float64   `json:"amount"`
 	PaymentDate time.Time `json:"payment_date"`
 	ProofImage  string    `json:"-"`
 }
 
 type UpdatePaymentInput struct {
+	WalletID    *int64     `json:"wallet_id,omitempty"`
 	Amount      *float64   `json:"amount,omitempty"`
 	PaymentDate *time.Time `json:"payment_date,omitempty"`
 	ProofImage  *string    `json:"-"`

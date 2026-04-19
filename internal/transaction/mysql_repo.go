@@ -18,10 +18,10 @@ func NewMySQLTransactionRepository(db *sql.DB) *MySQLTransactionRepository {
 
 func (r *MySQLTransactionRepository) Create(ctx context.Context, txn Transaction) (int64, error) {
 	const query = `
-		INSERT INTO transactions (user_id, type, category, amount, date, description)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO transactions (user_id, wallet_id, type, category, amount, date, description)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
-	result, err := r.db.ExecContext(ctx, query, txn.UserID, txn.Type, txn.Category, txn.Amount, txn.Date, txn.Description)
+	result, err := r.db.ExecContext(ctx, query, txn.UserID, txn.WalletID, txn.Type, txn.Category, txn.Amount, txn.Date, txn.Description)
 	if err != nil {
 		return 0, err
 	}
@@ -30,7 +30,7 @@ func (r *MySQLTransactionRepository) Create(ctx context.Context, txn Transaction
 
 func (r *MySQLTransactionRepository) GetByID(ctx context.Context, id int64, userID int64) (Transaction, error) {
 	const query = `
-		SELECT id, user_id, type, category, amount, date, description, created_at, updated_at
+		SELECT id, user_id, wallet_id, type, category, amount, date, description, created_at, updated_at
 		FROM transactions
 		WHERE id = ? AND user_id = ?
 		LIMIT 1;
@@ -42,6 +42,7 @@ func (r *MySQLTransactionRepository) GetByID(ctx context.Context, id int64, user
 	err := r.db.QueryRowContext(ctx, query, id, userID).Scan(
 		&txn.ID,
 		&txn.UserID,
+		&txn.WalletID,
 		&txn.Type,
 		&txn.Category,
 		&txn.Amount,
@@ -67,10 +68,10 @@ func (r *MySQLTransactionRepository) GetByID(ctx context.Context, id int64, user
 func (r *MySQLTransactionRepository) Update(ctx context.Context, txn Transaction) error {
 	const query = `
 		UPDATE transactions
-		SET type = ?, category = ?, amount = ?, date = ?, description = ?
+		SET wallet_id = ?, type = ?, category = ?, amount = ?, date = ?, description = ?
 		WHERE id = ? AND user_id = ?
 	`
-	res, err := r.db.ExecContext(ctx, query, txn.Type, txn.Category, txn.Amount, txn.Date, txn.Description, txn.ID, txn.UserID)
+	res, err := r.db.ExecContext(ctx, query, txn.WalletID, txn.Type, txn.Category, txn.Amount, txn.Date, txn.Description, txn.ID, txn.UserID)
 	if err != nil {
 		return err
 	}
@@ -114,6 +115,10 @@ func (r *MySQLTransactionRepository) FindAll(ctx context.Context, userID int64, 
 		queryBuilder.WriteString(" AND date < ?")
 		args = append(args, filter.EndDate.AddDate(0, 0, 1))
 	}
+	if filter.WalletID != nil && *filter.WalletID > 0 {
+		queryBuilder.WriteString(" AND wallet_id = ?")
+		args = append(args, *filter.WalletID)
+	}
 	if filter.Category != nil && *filter.Category != "" {
 		queryBuilder.WriteString(" AND category = ?")
 		args = append(args, *filter.Category)
@@ -132,7 +137,7 @@ func (r *MySQLTransactionRepository) FindAll(ctx context.Context, userID int64, 
 		return PaginatedList{}, err
 	}
 
-	selectQuery := "SELECT id, user_id, type, category, amount, date, description, created_at, updated_at " +
+	selectQuery := "SELECT id, user_id, wallet_id, type, category, amount, date, description, created_at, updated_at " +
 		whereClause + " ORDER BY date DESC, id DESC LIMIT ? OFFSET ?"
 
 	offset := (filter.Page - 1) * filter.PerPage
@@ -149,7 +154,7 @@ func (r *MySQLTransactionRepository) FindAll(ctx context.Context, userID int64, 
 		var txn Transaction
 		var desc sql.NullString
 		if err := rows.Scan(
-			&txn.ID, &txn.UserID, &txn.Type, &txn.Category, &txn.Amount, &txn.Date, &desc, &txn.CreatedAt, &txn.UpdatedAt,
+			&txn.ID, &txn.UserID, &txn.WalletID, &txn.Type, &txn.Category, &txn.Amount, &txn.Date, &desc, &txn.CreatedAt, &txn.UpdatedAt,
 		); err != nil {
 			return PaginatedList{}, err
 		}

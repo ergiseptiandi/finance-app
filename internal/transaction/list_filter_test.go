@@ -82,7 +82,7 @@ func TestParseListFilterRejectsMixedMonthAndCustomRange(t *testing.T) {
 }
 
 func TestServiceListRejectsRangeOverTwoMonths(t *testing.T) {
-	svc := NewService(listRepositoryStub{})
+	svc := NewService(listRepositoryStub{}, nil, nil)
 
 	startDate := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, time.April, 2, 0, 0, 0, 0, time.UTC)
@@ -101,7 +101,7 @@ func TestServiceListRejectsRangeOverTwoMonths(t *testing.T) {
 }
 
 func TestServiceListRejectsIncompleteCustomRange(t *testing.T) {
-	svc := NewService(listRepositoryStub{})
+	svc := NewService(listRepositoryStub{}, nil, nil)
 
 	startDate := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 
@@ -125,7 +125,7 @@ func TestServiceListAppliesDefaultPagination(t *testing.T) {
 			received = filter
 			return PaginatedList{}, nil
 		},
-	})
+	}, nil, nil)
 
 	startDate := time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, time.April, 30, 0, 0, 0, 0, time.UTC)
@@ -163,7 +163,7 @@ func TestServiceListDefaultsDateRangeToCurrentMonth(t *testing.T) {
 			received = filter
 			return PaginatedList{}, nil
 		},
-	})
+	}, nil, nil)
 
 	_, err := svc.List(context.Background(), 1, ListFilter{})
 	if err != nil {

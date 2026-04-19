@@ -14,6 +14,7 @@ func transactionOpenAPIComponents() map[string]any {
 				"properties": map[string]any{
 					"id":          map[string]any{"type": "integer"},
 					"user_id":     map[string]any{"type": "integer"},
+					"wallet_id":   map[string]any{"type": "integer"},
 					"type":        map[string]any{"$ref": "#/components/schemas/TransactionType"},
 					"category":    map[string]any{"type": "string"},
 					"amount":      map[string]any{"type": "number"},
@@ -32,6 +33,7 @@ func transactionOpenAPIComponents() map[string]any {
 					"date",
 				},
 				"properties": map[string]any{
+					"wallet_id":   map[string]any{"type": "integer"},
 					"type":        map[string]any{"$ref": "#/components/schemas/TransactionType"},
 					"category":    map[string]any{"type": "string"},
 					"amount":      map[string]any{"type": "number"},
@@ -42,6 +44,7 @@ func transactionOpenAPIComponents() map[string]any {
 			"UpdateTransactionRequest": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
+					"wallet_id":   map[string]any{"type": "integer"},
 					"type":        map[string]any{"$ref": "#/components/schemas/TransactionType"},
 					"category":    map[string]any{"type": "string"},
 					"amount":      map[string]any{"type": "number"},
@@ -153,6 +156,16 @@ func transactionParameterSchemas(route routeinfo.RouteInfo) []map[string]any {
 				"description": "Filter by transaction type.",
 				"schema": map[string]any{
 					"$ref": "#/components/schemas/TransactionType",
+				},
+			},
+			{
+				"name":        "wallet_id",
+				"in":          "query",
+				"required":    false,
+				"description": "Filter by wallet ID.",
+				"schema": map[string]any{
+					"type":    "integer",
+					"example": 1,
 				},
 			},
 			{

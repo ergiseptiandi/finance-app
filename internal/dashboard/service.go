@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"time"
+
+	"finance-backend/internal/wallet"
 )
 
 var (
@@ -16,11 +18,12 @@ var (
 var nowFunc = time.Now
 
 type Service struct {
-	repo Repository
+	repo     Repository
+	balances wallet.BalanceProvider
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, balances wallet.BalanceProvider) *Service {
+	return &Service{repo: repo, balances: balances}
 }
 
 func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFilter) (Summary, error) {
@@ -46,8 +49,17 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 		return Summary{}, err
 	}
 
+	totalBalance := allIncome - allExpense
+	if s.balances != nil {
+		if balance, err := s.balances.TotalBalance(ctx, userID); err == nil {
+			totalBalance = balance
+		} else {
+			return Summary{}, err
+		}
+	}
+
 	return Summary{
-		TotalBalance:   allIncome - allExpense,
+		TotalBalance:   totalBalance,
 		MonthlyIncome:  monthlyIncome,
 		MonthlyExpense: monthlyExpense,
 	}, nil

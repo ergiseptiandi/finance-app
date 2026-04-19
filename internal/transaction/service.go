@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"finance-backend/internal/wallet"
 )
 
 var (
@@ -14,11 +16,13 @@ var (
 )
 
 type Service struct {
-	repo Repository
+	repo     Repository
+	wallets  wallet.Resolver
+	balances wallet.BalanceProvider
 }
 
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, wallets wallet.Resolver, balances wallet.BalanceProvider) *Service {
+	return &Service{repo: repo, wallets: wallets, balances: balances}
 }
 
 func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (Transaction, error) {
@@ -29,8 +33,14 @@ func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (
 		return Transaction{}, errors.New("invalid transaction type")
 	}
 
+	walletID, err := s.resolveWalletID(ctx, userID, input.WalletID)
+	if err != nil {
+		return Transaction{}, err
+	}
+
 	txn := Transaction{
 		UserID:      userID,
+		WalletID:    walletID,
 		Type:        input.Type,
 		Category:    input.Category,
 		Amount:      input.Amount,
@@ -55,6 +65,14 @@ func (s *Service) Update(ctx context.Context, id int64, userID int64, input Upda
 	txn, err := s.repo.GetByID(ctx, id, userID)
 	if err != nil {
 		return Transaction{}, err
+	}
+
+	if input.WalletID != nil {
+		walletID, err := s.resolveWalletID(ctx, userID, input.WalletID)
+		if err != nil {
+			return Transaction{}, err
+		}
+		txn.WalletID = walletID
 	}
 
 	if input.Type != nil {
@@ -120,6 +138,10 @@ func (s *Service) List(ctx context.Context, userID int64, filter ListFilter) (Pa
 		return PaginatedList{}, fmt.Errorf("%w: invalid transaction type", ErrInvalidInput)
 	}
 
+	if filter.WalletID != nil && *filter.WalletID <= 0 {
+		return PaginatedList{}, fmt.Errorf("%w: wallet_id must be a positive number", ErrInvalidInput)
+	}
+
 	if filter.Page <= 0 {
 		filter.Page = 1
 	}
@@ -130,5 +152,46 @@ func (s *Service) List(ctx context.Context, userID int64, filter ListFilter) (Pa
 }
 
 func (s *Service) Summary(ctx context.Context, userID int64) (Summary, error) {
-	return s.repo.GetSummary(ctx, userID)
+	summary, err := s.repo.GetSummary(ctx, userID)
+	if err != nil {
+		return Summary{}, err
+	}
+
+	if s.balances == nil {
+		return summary, nil
+	}
+
+	balance, err := s.balances.TotalBalance(ctx, userID)
+	if err != nil {
+		return Summary{}, err
+	}
+
+	summary.Balance = balance
+	return summary, nil
+}
+
+func (s *Service) resolveWalletID(ctx context.Context, userID int64, walletID *int64) (int64, error) {
+	if walletID != nil {
+		if *walletID <= 0 {
+			return 0, errors.New("wallet_id must be a positive number")
+		}
+		if s.wallets == nil {
+			return 0, errors.New("wallet service is required")
+		}
+		item, err := s.wallets.GetByID(ctx, userID, *walletID)
+		if err != nil {
+			return 0, err
+		}
+		return item.ID, nil
+	}
+
+	if s.wallets == nil {
+		return 0, errors.New("wallet service is required")
+	}
+
+	item, err := s.wallets.DefaultWallet(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	return item.ID, nil
 }

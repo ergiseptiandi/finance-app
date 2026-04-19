@@ -80,7 +80,7 @@ func (r repositoryStub) RefreshUserDebtStatuses(ctx context.Context, userID int6
 func TestListReturnsEmptySliceWhenRepositoryReturnsNil(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(repositoryStub{})
+	svc := NewService(repositoryStub{}, nil)
 
 	items, err := svc.List(context.Background(), 1)
 	if err != nil {
@@ -97,7 +97,7 @@ func TestListReturnsEmptySliceWhenRepositoryReturnsNil(t *testing.T) {
 func TestPaymentHistoryReturnsEmptySliceWhenRepositoryReturnsNil(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(repositoryStub{})
+	svc := NewService(repositoryStub{}, nil)
 
 	items, err := svc.PaymentHistory(context.Background(), 1, 10)
 	if err != nil {
@@ -114,7 +114,7 @@ func TestPaymentHistoryReturnsEmptySliceWhenRepositoryReturnsNil(t *testing.T) {
 func TestInstallmentsReturnsEmptySliceWhenRepositoryReturnsNil(t *testing.T) {
 	t.Parallel()
 
-	svc := NewService(repositoryStub{})
+	svc := NewService(repositoryStub{}, nil)
 
 	items, err := svc.Installments(context.Background(), 1, 10)
 	if err != nil {
@@ -143,7 +143,7 @@ func TestDetailReturnsEmptyNestedSlicesWhenRepositoryReturnsNil(t *testing.T) {
 				Status:             StatusPending,
 			}, nil
 		},
-	})
+	}, nil)
 
 	detail, err := svc.Detail(context.Background(), 1, 10)
 	if err != nil {
