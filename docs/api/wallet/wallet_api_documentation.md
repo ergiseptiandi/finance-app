@@ -2,6 +2,10 @@
 
 This module handles user wallets/tabungan and internal wallet transfers.
 
+`Main` is a system wallet:
+- income transactions are always stored in `Main`
+- `Main` cannot be renamed, deleted, or have its opening balance edited
+
 **Base URL**: `/v1/wallets` and `/v1/wallet-transfers`  
 **Authentication**: All endpoints require `Authorization: Bearer <access_token>`
 
@@ -101,3 +105,4 @@ Return transfer history for the current user.
 ## Default Wallet Behavior
 - If a transaction or debt payment is created without `wallet_id`, the API uses the user's default wallet named `Main`.
 - If `Main` does not exist yet, it is created automatically.
+- `Main` is locked and managed by the system.

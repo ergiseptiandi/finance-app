@@ -33,7 +33,7 @@ func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (
 		return Transaction{}, errors.New("invalid transaction type")
 	}
 
-	walletID, err := s.resolveWalletID(ctx, userID, input.WalletID)
+	walletID, err := s.resolveWalletID(ctx, userID, input.Type, input.WalletID)
 	if err != nil {
 		return Transaction{}, err
 	}
@@ -67,20 +67,26 @@ func (s *Service) Update(ctx context.Context, id int64, userID int64, input Upda
 		return Transaction{}, err
 	}
 
-	if input.WalletID != nil {
-		walletID, err := s.resolveWalletID(ctx, userID, input.WalletID)
-		if err != nil {
-			return Transaction{}, err
-		}
-		txn.WalletID = walletID
-	}
-
 	if input.Type != nil {
 		if *input.Type != TypeIncome && *input.Type != TypeExpense {
 			return Transaction{}, errors.New("invalid transaction type")
 		}
 		txn.Type = *input.Type
 	}
+	if txn.Type == TypeIncome {
+		walletID, err := s.resolveWalletID(ctx, userID, TypeIncome, nil)
+		if err != nil {
+			return Transaction{}, err
+		}
+		txn.WalletID = walletID
+	} else if input.WalletID != nil {
+		walletID, err := s.resolveWalletID(ctx, userID, txn.Type, input.WalletID)
+		if err != nil {
+			return Transaction{}, err
+		}
+		txn.WalletID = walletID
+	}
+
 	if input.Category != nil {
 		txn.Category = *input.Category
 	}
@@ -170,7 +176,20 @@ func (s *Service) Summary(ctx context.Context, userID int64) (Summary, error) {
 	return summary, nil
 }
 
-func (s *Service) resolveWalletID(ctx context.Context, userID int64, walletID *int64) (int64, error) {
+func (s *Service) resolveWalletID(ctx context.Context, userID int64, txnType Type, walletID *int64) (int64, error) {
+	if txnType == TypeIncome {
+		if s.wallets == nil {
+			return 0, errors.New("wallet service is required")
+		}
+
+		item, err := s.wallets.DefaultWallet(ctx, userID)
+		if err != nil {
+			return 0, err
+		}
+
+		return item.ID, nil
+	}
+
 	if walletID != nil {
 		if *walletID <= 0 {
 			return 0, errors.New("wallet_id must be a positive number")

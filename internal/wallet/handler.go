@@ -249,7 +249,7 @@ func writeWalletError(w http.ResponseWriter, err error) {
 	case errors.Is(err, ErrConflict):
 		writeError(w, http.StatusConflict, err.Error())
 	default:
-		if strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "positive number") || strings.Contains(err.Error(), "greater than zero") || strings.Contains(err.Error(), "greater than or equal to zero") || strings.Contains(err.Error(), "must be different") {
+		if strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "positive number") || strings.Contains(err.Error(), "greater than zero") || strings.Contains(err.Error(), "greater than or equal to zero") || strings.Contains(err.Error(), "must be different") || strings.Contains(err.Error(), "cannot be edited") || strings.Contains(err.Error(), "cannot be deleted") {
 			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}

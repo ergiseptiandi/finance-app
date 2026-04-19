@@ -21,11 +21,11 @@ func NewMySQLWalletRepository(db *sql.DB) *MySQLWalletRepository {
 
 func (r *MySQLWalletRepository) Create(ctx context.Context, item Wallet) (int64, error) {
 	const query = `
-		INSERT INTO wallets (user_id, name, opening_balance)
-		VALUES (?, ?, ?)
+		INSERT INTO wallets (user_id, name, opening_balance, is_locked)
+		VALUES (?, ?, ?, ?)
 	`
 
-	result, err := r.db.ExecContext(ctx, query, item.UserID, item.Name, item.OpeningBalance)
+	result, err := r.db.ExecContext(ctx, query, item.UserID, item.Name, item.OpeningBalance, item.IsLocked)
 	if err != nil {
 		return 0, normalizeMySQLError(err)
 	}
@@ -90,6 +90,7 @@ func (r *MySQLWalletRepository) FindAll(ctx context.Context, userID int64) ([]Wa
 			w.user_id,
 			w.name,
 			w.opening_balance,
+			w.is_locked,
 			w.created_at,
 			w.updated_at,
 			w.opening_balance +
@@ -137,6 +138,7 @@ func (r *MySQLWalletRepository) FindAll(ctx context.Context, userID int64) ([]Wa
 			&item.UserID,
 			&item.Name,
 			&item.OpeningBalance,
+			&item.IsLocked,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 			&item.Balance,
@@ -248,6 +250,7 @@ func (r *MySQLWalletRepository) loadWallet(ctx context.Context, where string, ar
 			w.user_id,
 			w.name,
 			w.opening_balance,
+			w.is_locked,
 			w.created_at,
 			w.updated_at,
 			w.opening_balance +
@@ -290,6 +293,7 @@ func (r *MySQLWalletRepository) loadWallet(ctx context.Context, where string, ar
 		&item.UserID,
 		&item.Name,
 		&item.OpeningBalance,
+		&item.IsLocked,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 		&item.Balance,

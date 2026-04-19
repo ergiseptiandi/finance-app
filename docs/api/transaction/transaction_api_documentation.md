@@ -30,7 +30,7 @@ Create a new income or expense transaction.
   "description": "Monthly salary"
 }
 ```
-*Note: `wallet_id` is optional. If omitted, the API uses the user's default wallet (`Main`). `type` must be either `income` or `expense`.*
+*Note: `wallet_id` is optional. If omitted, the API uses the user's default wallet (`Main`). For `income`, the backend always stores it in `Main` even if another `wallet_id` is sent. `type` must be either `income` or `expense`.*
 
 **Response (201 Created)**:
 ```json

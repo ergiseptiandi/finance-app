@@ -11,6 +11,7 @@ func walletOpenAPIComponents() map[string]any {
 					"id":              map[string]any{"type": "integer"},
 					"name":            map[string]any{"type": "string"},
 					"opening_balance": map[string]any{"type": "number"},
+					"is_locked":       map[string]any{"type": "boolean"},
 					"balance":         map[string]any{"type": "number"},
 					"created_at":      map[string]any{"type": "string", "format": "date-time"},
 					"updated_at":      map[string]any{"type": "string", "format": "date-time"},

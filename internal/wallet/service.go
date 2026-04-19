@@ -24,10 +24,12 @@ func NewService(repo Repository) *Service {
 }
 
 func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (Wallet, error) {
+	name := strings.TrimSpace(input.Name)
 	item := Wallet{
 		UserID:         userID,
-		Name:           strings.TrimSpace(input.Name),
+		Name:           name,
 		OpeningBalance: input.OpeningBalance,
+		IsLocked:       strings.EqualFold(name, defaultWalletName),
 	}
 
 	if err := validateWallet(item.Name, item.OpeningBalance); err != nil {
@@ -52,6 +54,10 @@ func (s *Service) Update(ctx context.Context, userID, id int64, input UpdateInpu
 		return Wallet{}, err
 	}
 
+	if item.IsLocked && (input.Name != nil || input.OpeningBalance != nil) {
+		return Wallet{}, errors.New("main wallet cannot be edited")
+	}
+
 	if input.Name != nil {
 		item.Name = strings.TrimSpace(*input.Name)
 	}
@@ -71,6 +77,14 @@ func (s *Service) Update(ctx context.Context, userID, id int64, input UpdateInpu
 }
 
 func (s *Service) Delete(ctx context.Context, userID, id int64) error {
+	item, err := s.repo.GetByID(ctx, userID, id)
+	if err != nil {
+		return err
+	}
+	if item.IsLocked {
+		return errors.New("main wallet cannot be deleted")
+	}
+
 	return s.repo.Delete(ctx, userID, id)
 }
 
@@ -123,6 +137,7 @@ func (s *Service) DefaultWallet(ctx context.Context, userID int64) (Wallet, erro
 		UserID:         userID,
 		Name:           defaultWalletName,
 		OpeningBalance: 0,
+		IsLocked:       true,
 	})
 	if err != nil {
 		if errors.Is(err, ErrAlreadyExists) {
