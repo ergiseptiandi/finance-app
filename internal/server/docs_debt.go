@@ -152,12 +152,28 @@ func debtResponseSchemas(route routeinfo.RouteInfo) map[string]any {
 	case "POST /v1/debts", "GET /v1/debts/{id}":
 		return authResponses("#/components/schemas/SuccessResponse")
 	case "GET /v1/debts":
-		return authResponses("#/components/schemas/SuccessResponse")
+		return debtAuthResponsesWithSuccessDescription(
+			"#/components/schemas/SuccessResponse",
+			"Success (returns empty array in Data when no debts are available)",
+		)
 	case "PATCH /v1/debts/{id}", "DELETE /v1/debts/{id}":
 		return authResponses("#/components/schemas/SuccessResponse")
-	case "POST /v1/debts/{id}/payments", "PATCH /v1/debts/{id}/payments/{paymentId}", "GET /v1/debts/{id}/payments", "GET /v1/debts/{id}/installments", "PATCH /v1/debts/{id}/installments/{installmentId}/paid":
+	case "GET /v1/debts/{id}/payments", "GET /v1/debts/{id}/installments":
+		return debtAuthResponsesWithSuccessDescription(
+			"#/components/schemas/SuccessResponse",
+			"Success (returns empty array in Data when no records are available)",
+		)
+	case "POST /v1/debts/{id}/payments", "PATCH /v1/debts/{id}/payments/{paymentId}", "PATCH /v1/debts/{id}/installments/{installmentId}/paid":
 		return authResponses("#/components/schemas/SuccessResponse")
 	default:
 		return nil
 	}
+}
+
+func debtAuthResponsesWithSuccessDescription(schemaRef, description string) map[string]any {
+	responses := authResponses(schemaRef)
+	if success, ok := responses["200"].(map[string]any); ok {
+		success["description"] = description
+	}
+	return responses
 }

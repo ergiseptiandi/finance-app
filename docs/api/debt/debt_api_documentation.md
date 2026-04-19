@@ -11,6 +11,8 @@ This module handles debt management, payment proof uploads, and recurring instal
 >
 > Semua error response memakai:
 > `{ "Status": "...", "Message": "..." }`
+>
+> Untuk endpoint list/history (`GET`), jika data kosong tetap mengembalikan HTTP `200` dengan `Data: []`.
 
 Uploaded proof images are served from the local upload directory under `/uploads/...`.
 
@@ -83,6 +85,15 @@ Return all debts for the current user.
       "overdue_installments": 0
     }
   ]
+}
+```
+
+**Response saat data kosong (200 OK)**:
+```json
+{
+  "Status": "200",
+  "Message": "Success Get",
+  "Data": []
 }
 ```
 
@@ -227,12 +238,30 @@ Update payment metadata and optionally replace the proof image.
 
 Return payment records for the debt.
 
+**Response (200 OK)**:
+```json
+{
+  "Status": "200",
+  "Message": "Success Get",
+  "Data": []
+}
+```
+
 ---
 
 ## 9. Get Installments
 **GET** `/v1/debts/{id}/installments`
 
 Return paid, pending, and overdue installments.
+
+**Response (200 OK)**:
+```json
+{
+  "Status": "200",
+  "Message": "Success Get",
+  "Data": []
+}
+```
 
 ---
 

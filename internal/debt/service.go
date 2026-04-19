@@ -110,7 +110,12 @@ func (s *Service) List(ctx context.Context, userID int64) ([]DebtSummary, error)
 		return nil, err
 	}
 
-	return s.repo.ListDebts(ctx, userID)
+	items, err := s.repo.ListDebts(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	return ensureDebtSummarySlice(items), nil
 }
 
 func (s *Service) Detail(ctx context.Context, userID, debtID int64) (DebtDetail, error) {
@@ -140,8 +145,8 @@ func (s *Service) Detail(ctx context.Context, userID, debtID int64) (DebtDetail,
 			UnpaidInstallments:  countInstallmentsByStatus(installments, StatusPending) + countInstallmentsByStatus(installments, StatusOverdue),
 			OverdueInstallments: countInstallmentsByStatus(installments, StatusOverdue),
 		},
-		Installments: installments,
-		Payments:     payments,
+		Installments: ensureInstallmentSlice(installments),
+		Payments:     ensurePaymentSlice(payments),
 	}
 
 	return detail, nil
@@ -222,7 +227,12 @@ func (s *Service) UpdatePayment(ctx context.Context, userID, debtID, paymentID i
 }
 
 func (s *Service) PaymentHistory(ctx context.Context, userID, debtID int64) ([]Payment, error) {
-	return s.repo.GetPayments(ctx, userID, debtID)
+	items, err := s.repo.GetPayments(ctx, userID, debtID)
+	if err != nil {
+		return nil, err
+	}
+
+	return ensurePaymentSlice(items), nil
 }
 
 func (s *Service) Installments(ctx context.Context, userID, debtID int64) ([]Installment, error) {
@@ -230,7 +240,12 @@ func (s *Service) Installments(ctx context.Context, userID, debtID int64) ([]Ins
 		return nil, err
 	}
 
-	return s.repo.GetInstallments(ctx, userID, debtID)
+	items, err := s.repo.GetInstallments(ctx, userID, debtID)
+	if err != nil {
+		return nil, err
+	}
+
+	return ensureInstallmentSlice(items), nil
 }
 
 func (s *Service) MarkInstallmentPaid(ctx context.Context, userID, debtID, installmentID int64, paidAt *time.Time) (Installment, error) {
@@ -323,4 +338,25 @@ func countInstallmentsByStatus(items []Installment, status Status) int64 {
 		}
 	}
 	return count
+}
+
+func ensureDebtSummarySlice(items []DebtSummary) []DebtSummary {
+	if items == nil {
+		return []DebtSummary{}
+	}
+	return items
+}
+
+func ensureInstallmentSlice(items []Installment) []Installment {
+	if items == nil {
+		return []Installment{}
+	}
+	return items
+}
+
+func ensurePaymentSlice(items []Payment) []Payment {
+	if items == nil {
+		return []Payment{}
+	}
+	return items
 }
