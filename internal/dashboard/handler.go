@@ -30,7 +30,6 @@ func Definitions() []routeinfo.RouteInfo {
 		{Method: http.MethodGet, Path: "/v1/dashboard/daily-spending", Summary: "Get daily spending data", Protected: true},
 		{Method: http.MethodGet, Path: "/v1/dashboard/monthly-spending", Summary: "Get monthly spending data", Protected: true},
 		{Method: http.MethodGet, Path: "/v1/dashboard/comparison", Summary: "Get dashboard comparison", Protected: true},
-		{Method: http.MethodGet, Path: "/v1/dashboard/expense-vs-salary", Summary: "Get expense percentage vs salary", Protected: true},
 	}
 }
 
@@ -46,7 +45,6 @@ func RegisterRoutes(r chi.Router, deps HandlerDependencies) {
 		r.Get("/daily-spending", h.dailySpending)
 		r.Get("/monthly-spending", h.monthlySpending)
 		r.Get("/comparison", h.comparison)
-		r.Get("/expense-vs-salary", h.expenseVsSalary)
 	})
 }
 
@@ -61,7 +59,13 @@ func (h handler) summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.svc.Summary(r.Context(), userID)
+	filter, err := parseDashboardFilter(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	item, err := h.svc.Summary(r.Context(), userID, filter)
 	if err != nil {
 		writeDashboardError(w, err)
 		return
@@ -77,7 +81,13 @@ func (h handler) dailySpending(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, err := h.svc.DailySpending(r.Context(), userID)
+	filter, err := parseDashboardFilter(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	items, err := h.svc.DailySpending(r.Context(), userID, filter)
 	if err != nil {
 		writeDashboardError(w, err)
 		return
@@ -93,7 +103,13 @@ func (h handler) monthlySpending(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, err := h.svc.MonthlySpending(r.Context(), userID)
+	filter, err := parseDashboardFilter(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	items, err := h.svc.MonthlySpending(r.Context(), userID, filter)
 	if err != nil {
 		writeDashboardError(w, err)
 		return
@@ -110,22 +126,6 @@ func (h handler) comparison(w http.ResponseWriter, r *http.Request) {
 	}
 
 	item, err := h.svc.Comparison(r.Context(), userID)
-	if err != nil {
-		writeDashboardError(w, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, "Success Get", item)
-}
-
-func (h handler) expenseVsSalary(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.userID(r)
-	if !ok {
-		writeError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	item, err := h.svc.ExpenseVsSalary(r.Context(), userID)
 	if err != nil {
 		writeDashboardError(w, err)
 		return

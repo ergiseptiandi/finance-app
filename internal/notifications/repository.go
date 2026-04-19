@@ -15,5 +15,4 @@ type Repository interface {
 	UpsertNotification(ctx context.Context, item Notification) (Notification, error)
 	FindNotificationByDedupeKey(ctx context.Context, userID int64, dedupeKey string) (*Notification, error)
 	DebtReminderSummary(ctx context.Context, userID int64, cutoff time.Time) (ReminderSummary, error)
-	SalaryReminderDay(ctx context.Context, userID int64) (*int, error)
 }

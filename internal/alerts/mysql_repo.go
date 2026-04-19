@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 )
@@ -157,26 +156,6 @@ func (r *MySQLAlertsRepository) TodayExpense(ctx context.Context, userID int64) 
 		return 0, err
 	}
 	return value, nil
-}
-
-func (r *MySQLAlertsRepository) LatestSalaryAmount(ctx context.Context, userID int64) (float64, error) {
-	const query = `
-		SELECT amount
-		FROM salary_records
-		WHERE user_id = ?
-		ORDER BY paid_at DESC, id DESC
-		LIMIT 1
-	`
-
-	var amount float64
-	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&amount); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, nil
-		}
-		return 0, fmt.Errorf("latest salary amount: %w", err)
-	}
-
-	return amount, nil
 }
 
 func (r *MySQLAlertsRepository) getAlertByID(ctx context.Context, userID, alertID int64) (Alert, error) {

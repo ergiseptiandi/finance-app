@@ -3,8 +3,6 @@ package dashboard
 import (
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 	"time"
 )
 
@@ -19,15 +17,12 @@ func NewMySQLDashboardRepository(db *sql.DB) *MySQLDashboardRepository {
 func (r *MySQLDashboardRepository) AllTimeIncome(ctx context.Context, userID int64) (float64, error) {
 	const query = `
 		SELECT COALESCE(SUM(amount), 0)
-		FROM (
-			SELECT amount FROM transactions WHERE user_id = ? AND type = 'income'
-			UNION ALL
-			SELECT amount FROM salary_records WHERE user_id = ?
-		) sources
+		FROM transactions
+		WHERE user_id = ? AND type = 'income'
 	`
 
 	var value float64
-	if err := r.db.QueryRowContext(ctx, query, userID, userID).Scan(&value); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&value); err != nil {
 		return 0, err
 	}
 	return value, nil
@@ -56,17 +51,12 @@ func (r *MySQLDashboardRepository) AllTimeExpense(ctx context.Context, userID in
 func (r *MySQLDashboardRepository) IncomeBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error) {
 	const query = `
 		SELECT COALESCE(SUM(amount), 0)
-		FROM (
-			SELECT amount FROM transactions
-			WHERE user_id = ? AND type = 'income' AND date >= ? AND date < ?
-			UNION ALL
-			SELECT amount FROM salary_records
-			WHERE user_id = ? AND paid_at >= ? AND paid_at < ?
-		) sources
+		FROM transactions
+		WHERE user_id = ? AND type = 'income' AND date >= ? AND date < ?
 	`
 
 	var value float64
-	if err := r.db.QueryRowContext(ctx, query, userID, start, end, userID, start, end).Scan(&value); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, userID, start, end).Scan(&value); err != nil {
 		return 0, err
 	}
 	return value, nil
@@ -165,24 +155,4 @@ func (r *MySQLDashboardRepository) ExpenseByMonth(ctx context.Context, userID in
 		return nil, err
 	}
 	return values, nil
-}
-
-func (r *MySQLDashboardRepository) LatestSalaryAmount(ctx context.Context, userID int64) (float64, error) {
-	const query = `
-		SELECT amount
-		FROM salary_records
-		WHERE user_id = ?
-		ORDER BY paid_at DESC, id DESC
-		LIMIT 1
-	`
-
-	var amount float64
-	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&amount); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return 0, nil
-		}
-		return 0, fmt.Errorf("latest salary amount: %w", err)
-	}
-
-	return amount, nil
 }

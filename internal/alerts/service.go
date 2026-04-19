@@ -21,14 +21,6 @@ func NewService(repo Repository) *Service {
 }
 
 func (s *Service) Evaluate(ctx context.Context, userID int64, input EvaluateInput) ([]Alert, error) {
-	thresholdPercent := 80.0
-	if input.ExpenseThresholdPercent != nil {
-		if *input.ExpenseThresholdPercent <= 0 {
-			return nil, ErrInvalidInput
-		}
-		thresholdPercent = *input.ExpenseThresholdPercent
-	}
-
 	spikeMultiplier := 1.5
 	if input.DailySpikeMultiplier != nil {
 		if *input.DailySpikeMultiplier <= 0 {
@@ -47,38 +39,7 @@ func (s *Service) Evaluate(ctx context.Context, userID int64, input EvaluateInpu
 	if err != nil {
 		return nil, err
 	}
-	salaryAmount, err := s.repo.LatestSalaryAmount(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	alerts := make([]Alert, 0, 2)
-	if salaryAmount > 0 {
-		thresholdValue := salaryAmount * (thresholdPercent / 100)
-		if monthExpense > thresholdValue {
-			severity := AlertSeverityWarning
-			if monthExpense >= salaryAmount {
-				severity = AlertSeverityCritical
-			}
-
-			alert := Alert{
-				UserID:         userID,
-				Type:           AlertTypeExpenseThreshold,
-				Title:          "Expense threshold exceeded",
-				Message:        fmt.Sprintf("Monthly expense %.2f exceeds %.2f%% of salary %.2f.", monthExpense, thresholdPercent, salaryAmount),
-				Severity:       severity,
-				MetricValue:    monthExpense,
-				ThresholdValue: thresholdValue,
-				DedupeKey:      fmt.Sprintf("expense-threshold:%s", now.Format("2006-01")),
-			}
-
-			stored, err := s.repo.UpsertAlert(ctx, alert)
-			if err != nil {
-				return nil, err
-			}
-			alerts = append(alerts, stored)
-		}
-	}
+	alerts := make([]Alert, 0, 1)
 
 	daysElapsed := float64(now.Day())
 	if daysElapsed < 1 {

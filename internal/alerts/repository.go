@@ -8,5 +8,4 @@ type Repository interface {
 	MarkAlertRead(ctx context.Context, userID, alertID int64, isRead bool) (Alert, error)
 	CurrentMonthExpense(ctx context.Context, userID int64) (float64, error)
 	TodayExpense(ctx context.Context, userID int64) (float64, error)
-	LatestSalaryAmount(ctx context.Context, userID int64) (float64, error)
 }

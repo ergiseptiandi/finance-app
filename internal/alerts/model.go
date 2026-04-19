@@ -5,7 +5,6 @@ import "time"
 type AlertType string
 
 const (
-	AlertTypeExpenseThreshold   AlertType = "expense_threshold"
 	AlertTypeDailySpendingSpike AlertType = "daily_spending_spike"
 )
 
@@ -38,6 +37,5 @@ type AlertListFilter struct {
 }
 
 type EvaluateInput struct {
-	ExpenseThresholdPercent *float64 `json:"expense_threshold_percent,omitempty"`
-	DailySpikeMultiplier    *float64 `json:"daily_spike_multiplier,omitempty"`
+	DailySpikeMultiplier *float64 `json:"daily_spike_multiplier,omitempty"`
 }

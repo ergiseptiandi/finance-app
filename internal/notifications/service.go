@@ -68,18 +68,6 @@ func (s *Service) UpdateSettings(ctx context.Context, userID int64, input Update
 		}
 		updated.DebtPaymentReminderDaysBefore = *input.DebtPaymentReminderDaysBefore
 	}
-	if input.SalaryReminderEnabled != nil {
-		updated.SalaryReminderEnabled = *input.SalaryReminderEnabled
-	}
-	if input.SalaryReminderTime != nil {
-		updated.SalaryReminderTime = normalizeClock(*input.SalaryReminderTime, updated.SalaryReminderTime)
-	}
-	if input.SalaryReminderDaysBefore != nil {
-		if *input.SalaryReminderDaysBefore < 0 {
-			return Settings{}, ErrInvalidInput
-		}
-		updated.SalaryReminderDaysBefore = *input.SalaryReminderDaysBefore
-	}
 	if input.PushToken != nil {
 		updated.PushToken = strings.TrimSpace(*input.PushToken)
 	}
@@ -117,14 +105,6 @@ func (s *Service) Generate(ctx context.Context, userID int64) ([]Notification, e
 
 	if settings.DebtPaymentReminderEnabled {
 		if item, err := s.generateDebtReminder(ctx, userID, settings, now); err != nil {
-			return nil, err
-		} else if item != nil {
-			items = append(items, *item)
-		}
-	}
-
-	if settings.SalaryReminderEnabled {
-		if item, err := s.generateSalaryReminder(ctx, userID, settings, now); err != nil {
 			return nil, err
 		} else if item != nil {
 			items = append(items, *item)
@@ -208,47 +188,6 @@ func (s *Service) generateDebtReminder(ctx context.Context, userID int64, settin
 	return s.storeAndPush(ctx, settings, item)
 }
 
-func (s *Service) generateSalaryReminder(ctx context.Context, userID int64, settings Settings, now time.Time) (*Notification, error) {
-	salaryDay, err := s.repo.SalaryReminderDay(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	if salaryDay == nil || *salaryDay <= 0 {
-		return nil, nil
-	}
-
-	targetDate := salaryReminderDate(now, *salaryDay, settings.SalaryReminderDaysBefore)
-	if targetDate == nil || !sameDay(*targetDate, now) {
-		return nil, nil
-	}
-
-	dedupeKey := fmt.Sprintf("salary-reminder:%s:%d", now.Format("2006-01-02"), *salaryDay)
-	existing, err := s.repo.FindNotificationByDedupeKey(ctx, userID, dedupeKey)
-	if err != nil {
-		return nil, err
-	}
-	if existing != nil {
-		return nil, nil
-	}
-
-	scheduledFor := combineDateAndClock(*targetDate, settings.SalaryReminderTime)
-	if now.Before(scheduledFor) {
-		return nil, nil
-	}
-
-	item := Notification{
-		UserID:         userID,
-		Kind:           ReminderKindSalary,
-		Title:          "Salary reminder",
-		Message:        fmt.Sprintf("Gaji diperkirakan masuk pada tanggal %d.", *salaryDay),
-		DeliveryStatus: DeliveryStatusPending,
-		ScheduledFor:   scheduledFor,
-		DedupeKey:      dedupeKey,
-	}
-
-	return s.storeAndPush(ctx, settings, item)
-}
-
 func (s *Service) storeAndPush(ctx context.Context, settings Settings, item Notification) (*Notification, error) {
 	token := strings.TrimSpace(settings.PushToken)
 	if token == "" {
@@ -287,9 +226,6 @@ func validateSettings(item Settings) error {
 	if _, err := parseClock(item.DebtPaymentReminderTime); err != nil {
 		return ErrInvalidInput
 	}
-	if _, err := parseClock(item.SalaryReminderTime); err != nil {
-		return ErrInvalidInput
-	}
 	return nil
 }
 
@@ -302,9 +238,6 @@ func defaultSettings(userID int64) Settings {
 		DebtPaymentReminderEnabled:    true,
 		DebtPaymentReminderTime:       "09:00",
 		DebtPaymentReminderDaysBefore: 3,
-		SalaryReminderEnabled:         true,
-		SalaryReminderTime:            "08:00",
-		SalaryReminderDaysBefore:      1,
 	}
 }
 
@@ -345,20 +278,4 @@ func combineDateAndClock(date time.Time, clock string) time.Time {
 func startOfDay(t time.Time) time.Time {
 	y, m, d := t.Date()
 	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
-}
-
-func salaryReminderDate(now time.Time, salaryDay int, daysBefore int) *time.Time {
-	target := time.Date(now.Year(), now.Month(), salaryDay, 0, 0, 0, 0, now.Location())
-	if target.Month() != now.Month() {
-		lastDay := time.Date(now.Year(), now.Month()+1, 0, 0, 0, 0, 0, now.Location()).Day()
-		target = time.Date(now.Year(), now.Month(), lastDay, 0, 0, 0, 0, now.Location())
-	}
-	target = target.AddDate(0, 0, -daysBefore)
-	return &target
-}
-
-func sameDay(a, b time.Time) bool {
-	ay, am, ad := a.Date()
-	by, bm, bd := b.Date()
-	return ay == by && am == bm && ad == bd
 }

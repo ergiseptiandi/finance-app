@@ -9,7 +9,7 @@ func alertsOpenAPIComponents() map[string]any {
 				"type": "object",
 				"properties": map[string]any{
 					"id":              map[string]any{"type": "integer"},
-					"type":            map[string]any{"type": "string", "enum": []string{"expense_threshold", "daily_spending_spike"}},
+					"type":            map[string]any{"type": "string", "enum": []string{"daily_spending_spike"}},
 					"title":           map[string]any{"type": "string"},
 					"message":         map[string]any{"type": "string"},
 					"severity":        map[string]any{"type": "string", "enum": []string{"info", "warning", "critical"}},
@@ -24,8 +24,7 @@ func alertsOpenAPIComponents() map[string]any {
 			"EvaluateAlertRequest": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"expense_threshold_percent": map[string]any{"type": "number"},
-					"daily_spike_multiplier":    map[string]any{"type": "number"},
+					"daily_spike_multiplier": map[string]any{"type": "number"},
 				},
 			},
 		},

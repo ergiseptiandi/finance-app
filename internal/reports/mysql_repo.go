@@ -95,15 +95,12 @@ func (r *MySQLReportsRepository) ExpenseTrendByMonth(ctx context.Context, userID
 func (r *MySQLReportsRepository) AllTimeIncome(ctx context.Context, userID int64) (float64, error) {
 	const query = `
 		SELECT COALESCE(SUM(amount), 0)
-		FROM (
-			SELECT amount FROM transactions WHERE user_id = ? AND type = 'income'
-			UNION ALL
-			SELECT amount FROM salary_records WHERE user_id = ?
-		) sources
+		FROM transactions
+		WHERE user_id = ? AND type = 'income'
 	`
 
 	var value float64
-	if err := r.db.QueryRowContext(ctx, query, userID, userID).Scan(&value); err != nil {
+	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&value); err != nil {
 		return 0, err
 	}
 	return value, nil

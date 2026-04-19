@@ -72,7 +72,6 @@ func openAPIComponents() map[string]any {
 	mergeOpenAPIComponents(components, authOpenAPIComponents())
 	mergeOpenAPIComponents(components, transactionOpenAPIComponents())
 	mergeOpenAPIComponents(components, categoryOpenAPIComponents())
-	mergeOpenAPIComponents(components, salaryOpenAPIComponents())
 	mergeOpenAPIComponents(components, debtOpenAPIComponents())
 	mergeOpenAPIComponents(components, dashboardOpenAPIComponents())
 	mergeOpenAPIComponents(components, reportsOpenAPIComponents())
@@ -142,9 +141,6 @@ func requestBodySchema(route routeinfo.RouteInfo) map[string]any {
 	if requestBody := categoryRequestBodySchema(route); requestBody != nil {
 		return requestBody
 	}
-	if requestBody := salaryRequestBodySchema(route); requestBody != nil {
-		return requestBody
-	}
 	if requestBody := debtRequestBodySchema(route); requestBody != nil {
 		return requestBody
 	}
@@ -180,9 +176,6 @@ func responseSchemas(route routeinfo.RouteInfo) map[string]any {
 	if responses := categoryResponseSchemas(route); responses != nil {
 		return responses
 	}
-	if responses := salaryResponseSchemas(route); responses != nil {
-		return responses
-	}
 	if responses := debtResponseSchemas(route); responses != nil {
 		return responses
 	}
@@ -207,6 +200,9 @@ func responseSchemas(route routeinfo.RouteInfo) map[string]any {
 
 func parameterSchemas(route routeinfo.RouteInfo) []map[string]any {
 	if parameters := transactionParameterSchemas(route); parameters != nil {
+		return parameters
+	}
+	if parameters := dashboardParameterSchemas(route); parameters != nil {
 		return parameters
 	}
 

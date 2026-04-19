@@ -20,7 +20,7 @@ This module handles smart alert generation and alert history.
 Returns alert history ordered from newest to oldest.
 
 Optional query params:
-- `type=expense_threshold`
+- `type=daily_spending_spike`
 - `read=true|false`
 
 ---
@@ -33,13 +33,11 @@ Generates alerts based on current financial data and stores them in history.
 Request body:
 ```json
 {
-  "expense_threshold_percent": 80,
   "daily_spike_multiplier": 1.5
 }
 ```
 
 Default values:
-- `expense_threshold_percent` = `80`
 - `daily_spike_multiplier` = `1.5`
 
 ---

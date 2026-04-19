@@ -12,5 +12,4 @@ type Repository interface {
 	ExpenseBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error)
 	ExpenseByDay(ctx context.Context, userID int64, start, end time.Time) (map[string]float64, error)
 	ExpenseByMonth(ctx context.Context, userID int64, start, end time.Time) (map[string]float64, error)
-	LatestSalaryAmount(ctx context.Context, userID int64) (float64, error)
 }

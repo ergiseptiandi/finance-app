@@ -13,6 +13,36 @@ This document outlines the API endpoints available under `/v1/auth` for user man
 > Semua error response memakai:
 > `{ "Status": "...", "Message": "..." }`
 
+## Authentication Model
+
+This API does not use server-side HTTP sessions or cookies. Authentication is token-based:
+
+- `access_token` is sent on every protected request using `Authorization: Bearer <access_token>`
+- `refresh_token` is used only to call `/v1/auth/refresh`
+
+## Token Lifetime and Session Behavior
+
+Current default runtime values:
+
+- `access_token` TTL: `15 minutes`
+- `refresh_token` TTL: `30 days` (`720h`)
+
+Important behavior:
+
+- every successful login or register returns a new `access_token` and `refresh_token`
+- every successful refresh returns a new `access_token` and also rotates the `refresh_token`
+- after refresh succeeds, the previous `refresh_token` is revoked and can no longer be used
+- clients must always replace the stored refresh token with the latest value returned by the API
+- as long as the client keeps refreshing with the latest valid refresh token, the login session can continue beyond the original 30-day window because a new refresh token with a new expiry is issued on each refresh
+- logout revokes the submitted refresh token; any already-issued access token may still work until its own expiry time unless the client discards it immediately
+
+Recommended client behavior:
+
+- use the `access_token` for normal API calls
+- when the API returns `401` because the access token expired, call `/v1/auth/refresh`
+- if refresh succeeds, store both the new `access_token` and the new `refresh_token`
+- if refresh fails with `401`, force the user to log in again
+
 ---
 
 ## 1. Register a New User
@@ -105,7 +135,7 @@ Authenticates an existing user and returns a token bundle.
 
 ## 3. Refresh Token
 
-Issues a new `access_token` and rolls the `refresh_token` before the background session expires. Mobile apps should call this silently in the background when getting a 401 Unauthorized before forcing a logout.
+Issues a new `access_token` and rotates the `refresh_token`. The old refresh token becomes invalid immediately after a successful refresh. Mobile apps should call this silently when the current access token expires before forcing a logout.
 
 - **URL:** `/v1/auth/refresh`
 - **Method:** `POST`
@@ -118,6 +148,8 @@ Issues a new `access_token` and rolls the `refresh_token` before the background 
   "device_name": "iPhone 15 Pro"
 }
 ```
+
+`device_name` is optional. If omitted, the API keeps the previous device name associated with the refresh token record.
 
 ### Success Response (200 OK)
 ```json
@@ -136,18 +168,21 @@ Issues a new `access_token` and rolls the `refresh_token` before the background 
       "access_token": "eyJhbG...",
       "access_token_expires_at": "2026-04-16T10:15:00Z",
       "refresh_token": "def456hex...",
-      "refresh_token_expires_at": "2026-05-16T10:00:00Z",
+      "refresh_token_expires_at": "2026-05-16T10:15:00Z",
       "token_type": "Bearer"
     }
   }
 }
 ```
 
+> [!IMPORTANT]
+> After a successful refresh, the client must overwrite the previously stored `refresh_token`.
+
 ---
 
 ## 4. Logout
 
-Revokes the refresh token effectively logging out the device.
+Revokes the submitted refresh token, effectively logging out that device/session chain.
 
 - **URL:** `/v1/auth/logout`
 - **Method:** `POST`
@@ -159,6 +194,9 @@ Revokes the refresh token effectively logging out the device.
   "refresh_token": "abc123hex..."
 }
 ```
+
+> [!NOTE]
+> Logout does not invalidate other refresh tokens belonging to other devices, and it does not retroactively revoke an access token that was already issued.
 
 ### Success Response (200 OK)
 ```json

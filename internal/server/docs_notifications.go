@@ -7,7 +7,7 @@ func notificationsOpenAPIComponents() map[string]any {
 		"schemas": map[string]any{
 			"NotificationKind": map[string]any{
 				"type": "string",
-				"enum": []string{"daily_expense_input", "debt_payment", "salary_reminder"},
+				"enum": []string{"daily_expense_input", "debt_payment"},
 			},
 			"DeliveryStatus": map[string]any{
 				"type": "string",
@@ -39,9 +39,6 @@ func notificationsOpenAPIComponents() map[string]any {
 					"debt_payment_reminder_enabled":     map[string]any{"type": "boolean"},
 					"debt_payment_reminder_time":        map[string]any{"type": "string"},
 					"debt_payment_reminder_days_before": map[string]any{"type": "integer"},
-					"salary_reminder_enabled":           map[string]any{"type": "boolean"},
-					"salary_reminder_time":              map[string]any{"type": "string"},
-					"salary_reminder_days_before":       map[string]any{"type": "integer"},
 					"push_token":                        map[string]any{"type": "string"},
 				},
 			},
@@ -54,9 +51,6 @@ func notificationsOpenAPIComponents() map[string]any {
 					"debt_payment_reminder_enabled":     map[string]any{"type": "boolean"},
 					"debt_payment_reminder_time":        map[string]any{"type": "string"},
 					"debt_payment_reminder_days_before": map[string]any{"type": "integer"},
-					"salary_reminder_enabled":           map[string]any{"type": "boolean"},
-					"salary_reminder_time":              map[string]any{"type": "string"},
-					"salary_reminder_days_before":       map[string]any{"type": "integer"},
 					"push_token":                        map[string]any{"type": "string"},
 				},
 			},

@@ -1,5 +1,12 @@
 package dashboard
 
+import "time"
+
+type DashboardFilter struct {
+	StartDate *time.Time
+	EndDate   *time.Time
+}
+
 type Summary struct {
 	TotalBalance   float64 `json:"total_balance"`
 	MonthlyIncome  float64 `json:"monthly_income"`
@@ -26,10 +33,4 @@ type ComparisonMetric struct {
 type Comparison struct {
 	TodayVsYesterday     ComparisonMetric `json:"today_vs_yesterday"`
 	ThisMonthVsLastMonth ComparisonMetric `json:"this_month_vs_last_month"`
-}
-
-type ExpenseVsSalary struct {
-	MonthlyExpense float64 `json:"monthly_expense"`
-	CurrentSalary  float64 `json:"current_salary"`
-	Percentage     float64 `json:"percentage"`
 }

@@ -90,9 +90,6 @@ Contoh body lengkap:
   "debt_payment_reminder_enabled": true,
   "debt_payment_reminder_time": "09:00",
   "debt_payment_reminder_days_before": 3,
-  "salary_reminder_enabled": true,
-  "salary_reminder_time": "08:00",
-  "salary_reminder_days_before": 1,
   "push_token": "fcm-device-token"
 }
 ```
@@ -112,13 +109,11 @@ Contoh body lengkap:
 
 - `daily_expense_input`
 - `debt_payment`
-- `salary_reminder`
 
 Rekomendasi perilaku UI:
 
 - `daily_expense_input` -> buka input pengeluaran
 - `debt_payment` -> buka detail debt atau halaman pembayaran
-- `salary_reminder` -> buka halaman salary history atau input salary
 
 ## Environment Backend Yang Terkait
 
@@ -145,4 +140,3 @@ Kalau disederhanakan:
 - ambil FCM token dari mobile
 - kirim token ke backend
 - backend simpan token dan kirim push
-

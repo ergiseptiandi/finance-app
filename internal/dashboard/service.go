@@ -2,9 +2,18 @@ package dashboard
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"math"
 	"time"
 )
+
+var (
+	ErrNotFound     = errors.New("dashboard data not found")
+	ErrInvalidInput = errors.New("invalid dashboard input")
+)
+
+var nowFunc = time.Now
 
 type Service struct {
 	repo Repository
@@ -14,10 +23,11 @@ func NewService(repo Repository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) Summary(ctx context.Context, userID int64) (Summary, error) {
-	now := time.Now()
-	monthStart := startOfMonth(now)
-	nextMonthStart := monthStart.AddDate(0, 1, 0)
+func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFilter) (Summary, error) {
+	start, end, err := s.resolveRange(filter)
+	if err != nil {
+		return Summary{}, err
+	}
 
 	allIncome, err := s.repo.AllTimeIncome(ctx, userID)
 	if err != nil {
@@ -27,11 +37,11 @@ func (s *Service) Summary(ctx context.Context, userID int64) (Summary, error) {
 	if err != nil {
 		return Summary{}, err
 	}
-	monthlyIncome, err := s.repo.IncomeBetween(ctx, userID, monthStart, nextMonthStart)
+	monthlyIncome, err := s.repo.IncomeBetween(ctx, userID, start, end)
 	if err != nil {
 		return Summary{}, err
 	}
-	monthlyExpense, err := s.repo.ExpenseBetween(ctx, userID, monthStart, nextMonthStart)
+	monthlyExpense, err := s.repo.ExpenseBetween(ctx, userID, start, end)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -43,23 +53,28 @@ func (s *Service) Summary(ctx context.Context, userID int64) (Summary, error) {
 	}, nil
 }
 
-func (s *Service) DailySpending(ctx context.Context, userID int64) ([]SpendingPoint, error) {
-	now := time.Now()
-	monthStart := startOfMonth(now)
-	todayStart := startOfDay(now)
-	tomorrowStart := todayStart.AddDate(0, 0, 1)
+func (s *Service) DailySpending(ctx context.Context, userID int64, filter DashboardFilter) ([]SpendingPoint, error) {
+	start, end, err := s.resolveRange(filter)
+	if err != nil {
+		return nil, err
+	}
 
-	values, err := s.repo.ExpenseByDay(ctx, userID, monthStart, tomorrowStart)
+	now := nowFunc()
+	todayStart := startOfDay(now)
+	visibleEnd := end
+	todayEnd := todayStart.AddDate(0, 0, 1)
+	if visibleEnd.After(todayEnd) {
+		visibleEnd = todayEnd
+	}
+
+	values, err := s.repo.ExpenseByDay(ctx, userID, start, end)
 	if err != nil {
 		return nil, err
 	}
 
 	points := make([]SpendingPoint, 0)
-	for day := monthStart; day.Before(tomorrowStart); day = day.AddDate(0, 0, 1) {
+	for day := start; day.Before(visibleEnd); day = day.AddDate(0, 0, 1) {
 		key := day.Format("2006-01-02")
-		if day.After(todayStart) {
-			break
-		}
 		points = append(points, SpendingPoint{
 			Date:   key,
 			Amount: values[key],
@@ -69,18 +84,20 @@ func (s *Service) DailySpending(ctx context.Context, userID int64) ([]SpendingPo
 	return points, nil
 }
 
-func (s *Service) MonthlySpending(ctx context.Context, userID int64) ([]MonthlySpendingPoint, error) {
-	now := time.Now()
-	end := startOfMonth(now).AddDate(0, 1, 0)
-	start := startOfMonth(now).AddDate(0, -11, 0)
+func (s *Service) MonthlySpending(ctx context.Context, userID int64, filter DashboardFilter) ([]MonthlySpendingPoint, error) {
+	start, end, err := s.resolveRange(filter)
+	if err != nil {
+		return nil, err
+	}
 
 	values, err := s.repo.ExpenseByMonth(ctx, userID, start, end)
 	if err != nil {
 		return nil, err
 	}
 
-	points := make([]MonthlySpendingPoint, 0, 12)
-	for month := start; month.Before(end); month = month.AddDate(0, 1, 0) {
+	monthLimit := startOfMonth(end.AddDate(0, 0, -1)).AddDate(0, 1, 0)
+	points := make([]MonthlySpendingPoint, 0)
+	for month := startOfMonth(start); month.Before(monthLimit); month = month.AddDate(0, 1, 0) {
 		key := month.Format("2006-01")
 		points = append(points, MonthlySpendingPoint{
 			Month:  key,
@@ -92,7 +109,7 @@ func (s *Service) MonthlySpending(ctx context.Context, userID int64) ([]MonthlyS
 }
 
 func (s *Service) Comparison(ctx context.Context, userID int64) (Comparison, error) {
-	now := time.Now()
+	now := nowFunc()
 	todayStart := startOfDay(now)
 	tomorrowStart := todayStart.AddDate(0, 0, 1)
 	yesterdayStart := todayStart.AddDate(0, 0, -1)
@@ -134,30 +151,30 @@ func (s *Service) Comparison(ctx context.Context, userID int64) (Comparison, err
 	}, nil
 }
 
-func (s *Service) ExpenseVsSalary(ctx context.Context, userID int64) (ExpenseVsSalary, error) {
-	now := time.Now()
-	monthStart := startOfMonth(now)
-	nextMonthStart := monthStart.AddDate(0, 1, 0)
-
-	expense, err := s.repo.ExpenseBetween(ctx, userID, monthStart, nextMonthStart)
-	if err != nil {
-		return ExpenseVsSalary{}, err
-	}
-	salaryAmount, err := s.repo.LatestSalaryAmount(ctx, userID)
-	if err != nil {
-		return ExpenseVsSalary{}, err
+func (s *Service) resolveRange(filter DashboardFilter) (time.Time, time.Time, error) {
+	if (filter.StartDate == nil) != (filter.EndDate == nil) {
+		return time.Time{}, time.Time{}, fmt.Errorf("%w: start_date and end_date must be provided together", ErrInvalidInput)
 	}
 
-	percentage := 0.0
-	if salaryAmount > 0 {
-		percentage = math.Round((expense/salaryAmount)*10000) / 100
+	if filter.StartDate == nil && filter.EndDate == nil {
+		now := nowFunc()
+		start := startOfMonth(now)
+		end := start.AddDate(0, 1, 0)
+		return start, end, nil
 	}
 
-	return ExpenseVsSalary{
-		MonthlyExpense: expense,
-		CurrentSalary:  salaryAmount,
-		Percentage:     percentage,
-	}, nil
+	if filter.EndDate.Before(*filter.StartDate) {
+		return time.Time{}, time.Time{}, fmt.Errorf("%w: end_date must be greater than or equal to start_date", ErrInvalidInput)
+	}
+
+	maxEndDate := filter.StartDate.AddDate(0, 3, 0)
+	if filter.EndDate.After(maxEndDate) {
+		return time.Time{}, time.Time{}, fmt.Errorf("%w: date range cannot exceed 3 months", ErrInvalidInput)
+	}
+
+	start := startOfDay(*filter.StartDate)
+	end := startOfDay(filter.EndDate.AddDate(0, 0, 1))
+	return start, end, nil
 }
 
 func startOfDay(t time.Time) time.Time {

@@ -20,7 +20,6 @@ import (
 	"finance-backend/internal/media"
 	"finance-backend/internal/notifications"
 	"finance-backend/internal/reports"
-	"finance-backend/internal/salary"
 	"finance-backend/internal/server"
 	"finance-backend/internal/storage"
 	"finance-backend/internal/transaction"
@@ -78,9 +77,6 @@ func main() {
 	categoryRepo := category.NewMySQLCategoryRepository(db)
 	categoryService := category.NewService(categoryRepo)
 
-	salaryRepo := salary.NewMySQLSalaryRepository(db)
-	salaryService := salary.NewService(salaryRepo)
-
 	debtRepo := debt.NewMySQLDebtRepository(db)
 	debtService := debt.NewService(debtRepo)
 
@@ -124,7 +120,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
-		Handler: server.NewRouter(authService, txService, categoryService, salaryService, debtService, dashboardService, reportsService, alertsService, notificationsService, mediaService, fileStorage, cfg.Storage.UploadDir),
+		Handler: server.NewRouter(authService, txService, categoryService, debtService, dashboardService, reportsService, alertsService, notificationsService, mediaService, fileStorage, cfg.Storage.UploadDir),
 	}
 
 	log.Printf("server listening on :%s", cfg.Server.Port)
