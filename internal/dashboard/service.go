@@ -32,6 +32,10 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 		return Summary{}, err
 	}
 
+	if err := s.repo.RefreshUserDebtStatuses(ctx, userID); err != nil {
+		return Summary{}, err
+	}
+
 	allIncome, err := s.repo.AllTimeIncome(ctx, userID)
 	if err != nil {
 		return Summary{}, err
@@ -49,6 +53,11 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 		return Summary{}, err
 	}
 
+	debtOverview, err := s.repo.DebtOverview(ctx, userID, start, end)
+	if err != nil {
+		return Summary{}, err
+	}
+
 	totalBalance := allIncome - allExpense
 	if s.balances != nil {
 		if balance, err := s.balances.TotalBalance(ctx, userID); err == nil {
@@ -58,10 +67,20 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 		}
 	}
 
+	netCashflow := monthlyIncome - monthlyExpense
+
+	debtOverview.DebtToIncomeRatio = percentageOf(debtOverview.RemainingDebt, monthlyIncome)
+	debtOverview.DebtToBalanceRatio = percentageOf(debtOverview.RemainingDebt, totalBalance)
+	debtOverview.CompletionRate = percentageOf(debtOverview.PaidDebt, debtOverview.TotalDebt)
+
 	return Summary{
 		TotalBalance:   totalBalance,
 		MonthlyIncome:  monthlyIncome,
 		MonthlyExpense: monthlyExpense,
+		NetCashflow:    netCashflow,
+		SavingsRate:    percentageOf(netCashflow, monthlyIncome),
+		ExpenseRatio:   percentageOf(monthlyExpense, monthlyIncome),
+		Debt:           debtOverview,
 	}, nil
 }
 
@@ -208,4 +227,12 @@ func percentageChange(current, previous float64) float64 {
 	}
 
 	return math.Round(((current-previous)/previous)*10000) / 100
+}
+
+func percentageOf(part, whole float64) float64 {
+	if whole <= 0 {
+		return 0
+	}
+
+	return math.Round((part/whole)*10000) / 100
 }
