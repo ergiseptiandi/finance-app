@@ -208,6 +208,10 @@ func TestSummaryDefaultsToCurrentMonth(t *testing.T) {
 		t.Fatalf("unexpected net cashflow: %v", summary.NetCashflow)
 	}
 
+	if summary.PeriodBalance != 9000000 {
+		t.Fatalf("unexpected period balance: %v", summary.PeriodBalance)
+	}
+
 	if summary.SavingsRate != 75 {
 		t.Fatalf("unexpected savings rate: %v", summary.SavingsRate)
 	}
@@ -245,6 +249,46 @@ func TestSummaryRejectsRangeLongerThanThreeMonths(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "date range cannot exceed 3 months") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestSummaryUsesPeriodBalanceWhileKeepingTotalBalanceRunning(t *testing.T) {
+	startDate := time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(2026, time.March, 31, 0, 0, 0, 0, time.UTC)
+
+	svc := NewService(dashboardRepoStub{
+		refreshUserDebtStatusesFn: func(context.Context, int64) error { return nil },
+		allTimeIncomeFn:           func(context.Context, int64) (float64, error) { return 4582000, nil },
+		allTimeExpenseFn:          func(context.Context, int64) (float64, error) { return 2000000, nil },
+		incomeBetweenFn: func(_ context.Context, _ int64, start, end time.Time) (float64, error) {
+			if start.Format("2006-01-02") != "2026-03-01" || end.Format("2006-01-02") != "2026-04-01" {
+				t.Fatalf("unexpected period range: %s - %s", start.Format("2006-01-02"), end.Format("2006-01-02"))
+			}
+			return 0, nil
+		},
+		expenseBetweenFn: func(context.Context, int64, time.Time, time.Time) (float64, error) { return 0, nil },
+		debtOverviewFn: func(context.Context, int64, time.Time, time.Time) (DebtOverview, error) {
+			return DebtOverview{RemainingDebt: 0, TotalDebt: 0, PaidDebt: 0}, nil
+		},
+	}, balanceProviderStub{
+		totalBalanceFn: func(context.Context, int64) (float64, error) { return 2582000, nil },
+	}, nil)
+
+	summary, err := svc.Summary(context.Background(), 1, DashboardFilter{StartDate: &startDate, EndDate: &endDate})
+	if err != nil {
+		t.Fatalf("Summary returned error: %v", err)
+	}
+
+	if summary.TotalBalance != 2582000 {
+		t.Fatalf("unexpected total balance: %v", summary.TotalBalance)
+	}
+
+	if summary.PeriodBalance != 0 {
+		t.Fatalf("unexpected period balance: %v", summary.PeriodBalance)
+	}
+
+	if summary.NetCashflow != 0 {
+		t.Fatalf("unexpected net cashflow: %v", summary.NetCashflow)
 	}
 }
 

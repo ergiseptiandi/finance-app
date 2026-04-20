@@ -9,6 +9,7 @@ func dashboardOpenAPIComponents() map[string]any {
 				"type": "object",
 				"properties": map[string]any{
 					"total_balance":   map[string]any{"type": "number"},
+					"period_balance":  map[string]any{"type": "number"},
 					"monthly_income":  map[string]any{"type": "number"},
 					"monthly_expense": map[string]any{"type": "number"},
 					"net_cashflow":    map[string]any{"type": "number"},

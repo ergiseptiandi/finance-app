@@ -75,6 +75,7 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 	}
 
 	netCashflow := monthlyIncome - monthlyExpense
+	periodBalance := netCashflow
 
 	debtOverview.DebtToIncomeRatio = percentageOf(debtOverview.RemainingDebt, monthlyIncome)
 	debtOverview.DebtToBalanceRatio = percentageOf(debtOverview.RemainingDebt, totalBalance)
@@ -82,6 +83,7 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 
 	return Summary{
 		TotalBalance:   totalBalance,
+		PeriodBalance:  periodBalance,
 		MonthlyIncome:  monthlyIncome,
 		MonthlyExpense: monthlyExpense,
 		NetCashflow:    netCashflow,

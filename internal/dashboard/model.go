@@ -25,6 +25,7 @@ type DebtOverview struct {
 
 type Summary struct {
 	TotalBalance   float64      `json:"total_balance"`
+	PeriodBalance  float64      `json:"period_balance"`
 	MonthlyIncome  float64      `json:"monthly_income"`
 	MonthlyExpense float64      `json:"monthly_expense"`
 	NetCashflow    float64      `json:"net_cashflow"`
