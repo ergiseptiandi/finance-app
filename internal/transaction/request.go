@@ -66,12 +66,12 @@ func parseListFilter(r *http.Request) (ListFilter, error) {
 			return ListFilter{}, errors.New("month cannot be combined with start_date or end_date")
 		}
 
-		parsedMonth, err := time.Parse("2006-01", month)
+		parsedMonth, err := time.ParseInLocation("2006-01", month, time.Local)
 		if err != nil {
 			return ListFilter{}, errors.New("month must use format YYYY-MM")
 		}
 
-		startOfMonth := time.Date(parsedMonth.Year(), parsedMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
+		startOfMonth := time.Date(parsedMonth.Year(), parsedMonth.Month(), 1, 0, 0, 0, 0, time.Local)
 		endOfMonth := startOfMonth.AddDate(0, 1, 0).AddDate(0, 0, -1)
 
 		filter.StartDate = &startOfMonth
@@ -83,12 +83,12 @@ func parseListFilter(r *http.Request) (ListFilter, error) {
 			return ListFilter{}, errors.New("start_date and end_date must be provided together")
 		}
 
-		parsedStartDate, err := time.Parse("2006-01-02", startDate)
+		parsedStartDate, err := time.ParseInLocation("2006-01-02", startDate, time.Local)
 		if err != nil {
 			return ListFilter{}, errors.New("start_date must use format YYYY-MM-DD")
 		}
 
-		parsedEndDate, err := time.Parse("2006-01-02", endDate)
+		parsedEndDate, err := time.ParseInLocation("2006-01-02", endDate, time.Local)
 		if err != nil {
 			return ListFilter{}, errors.New("end_date must use format YYYY-MM-DD")
 		}

@@ -196,7 +196,13 @@ func (h handler) summary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summary, err := h.svc.Summary(r.Context(), userID)
+	filter, err := parseListFilter(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	summary, err := h.svc.Summary(r.Context(), userID, filter)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

@@ -106,27 +106,7 @@ func (r *MySQLTransactionRepository) FindAll(ctx context.Context, userID int64, 
 	queryBuilder.WriteString("FROM transactions WHERE user_id = ?")
 
 	args := []interface{}{userID}
-
-	if filter.StartDate != nil {
-		queryBuilder.WriteString(" AND date >= ?")
-		args = append(args, filter.StartDate)
-	}
-	if filter.EndDate != nil {
-		queryBuilder.WriteString(" AND date < ?")
-		args = append(args, filter.EndDate.AddDate(0, 0, 1))
-	}
-	if filter.WalletID != nil && *filter.WalletID > 0 {
-		queryBuilder.WriteString(" AND wallet_id = ?")
-		args = append(args, *filter.WalletID)
-	}
-	if filter.Category != nil && *filter.Category != "" {
-		queryBuilder.WriteString(" AND category = ?")
-		args = append(args, *filter.Category)
-	}
-	if filter.Type != nil && *filter.Type != "" {
-		queryBuilder.WriteString(" AND type = ?")
-		args = append(args, *filter.Type)
-	}
+	applyTransactionFilters(&queryBuilder, &args, filter)
 
 	whereClause := queryBuilder.String()
 
@@ -182,14 +162,15 @@ func (r *MySQLTransactionRepository) FindAll(ctx context.Context, userID int64, 
 	}, nil
 }
 
-func (r *MySQLTransactionRepository) GetSummary(ctx context.Context, userID int64) (Summary, error) {
-	const query = `
-		SELECT type, SUM(amount)
-		FROM transactions
-		WHERE user_id = ?
-		GROUP BY type
-	`
-	rows, err := r.db.QueryContext(ctx, query, userID)
+func (r *MySQLTransactionRepository) GetSummary(ctx context.Context, userID int64, filter ListFilter) (Summary, error) {
+	queryBuilder := strings.Builder{}
+	queryBuilder.WriteString("SELECT type, COALESCE(SUM(amount), 0) FROM transactions WHERE user_id = ?")
+
+	args := []interface{}{userID}
+	applyTransactionFilters(&queryBuilder, &args, filter)
+	queryBuilder.WriteString(" GROUP BY type")
+
+	rows, err := r.db.QueryContext(ctx, queryBuilder.String(), args...)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -214,4 +195,27 @@ func (r *MySQLTransactionRepository) GetSummary(ctx context.Context, userID int6
 
 	sum.Balance = sum.TotalIncome - sum.TotalExpense
 	return sum, nil
+}
+
+func applyTransactionFilters(queryBuilder *strings.Builder, args *[]interface{}, filter ListFilter) {
+	if filter.StartDate != nil {
+		queryBuilder.WriteString(" AND date >= ?")
+		*args = append(*args, *filter.StartDate)
+	}
+	if filter.EndDate != nil {
+		queryBuilder.WriteString(" AND date < ?")
+		*args = append(*args, filter.EndDate.AddDate(0, 0, 1))
+	}
+	if filter.WalletID != nil && *filter.WalletID > 0 {
+		queryBuilder.WriteString(" AND wallet_id = ?")
+		*args = append(*args, *filter.WalletID)
+	}
+	if filter.Category != nil && *filter.Category != "" {
+		queryBuilder.WriteString(" AND category = ?")
+		*args = append(*args, *filter.Category)
+	}
+	if filter.Type != nil && *filter.Type != "" {
+		queryBuilder.WriteString(" AND type = ?")
+		*args = append(*args, *filter.Type)
+	}
 }

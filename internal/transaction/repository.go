@@ -8,5 +8,5 @@ type Repository interface {
 	Update(ctx context.Context, txn Transaction) error
 	Delete(ctx context.Context, id int64, userID int64) error
 	FindAll(ctx context.Context, userID int64, filter ListFilter) (PaginatedList, error)
-	GetSummary(ctx context.Context, userID int64) (Summary, error)
+	GetSummary(ctx context.Context, userID int64, filter ListFilter) (Summary, error)
 }

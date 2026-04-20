@@ -115,8 +115,25 @@ func (s *Service) Delete(ctx context.Context, id int64, userID int64) error {
 }
 
 func (s *Service) List(ctx context.Context, userID int64, filter ListFilter) (PaginatedList, error) {
+	filter, err := s.normalizeListFilter(filter)
+	if err != nil {
+		return PaginatedList{}, err
+	}
+	return s.repo.FindAll(ctx, userID, filter)
+}
+
+func (s *Service) Summary(ctx context.Context, userID int64, filter ListFilter) (Summary, error) {
+	filter, err := s.normalizeListFilter(filter)
+	if err != nil {
+		return Summary{}, err
+	}
+
+	return s.repo.GetSummary(ctx, userID, filter)
+}
+
+func (s *Service) normalizeListFilter(filter ListFilter) (ListFilter, error) {
 	if (filter.StartDate == nil) != (filter.EndDate == nil) {
-		return PaginatedList{}, fmt.Errorf("%w: start_date and end_date must be provided together", ErrInvalidInput)
+		return ListFilter{}, fmt.Errorf("%w: start_date and end_date must be provided together", ErrInvalidInput)
 	}
 
 	if filter.StartDate == nil && filter.EndDate == nil {
@@ -130,21 +147,21 @@ func (s *Service) List(ctx context.Context, userID int64, filter ListFilter) (Pa
 
 	if filter.StartDate != nil && filter.EndDate != nil {
 		if filter.EndDate.Before(*filter.StartDate) {
-			return PaginatedList{}, fmt.Errorf("%w: end_date must be greater than or equal to start_date", ErrInvalidInput)
+			return ListFilter{}, fmt.Errorf("%w: end_date must be greater than or equal to start_date", ErrInvalidInput)
 		}
 
 		maxEndDate := filter.StartDate.AddDate(0, 2, 0)
 		if filter.EndDate.After(maxEndDate) {
-			return PaginatedList{}, fmt.Errorf("%w: date range cannot exceed 2 months", ErrInvalidInput)
+			return ListFilter{}, fmt.Errorf("%w: date range cannot exceed 2 months", ErrInvalidInput)
 		}
 	}
 
 	if filter.Type != nil && *filter.Type != TypeIncome && *filter.Type != TypeExpense {
-		return PaginatedList{}, fmt.Errorf("%w: invalid transaction type", ErrInvalidInput)
+		return ListFilter{}, fmt.Errorf("%w: invalid transaction type", ErrInvalidInput)
 	}
 
 	if filter.WalletID != nil && *filter.WalletID <= 0 {
-		return PaginatedList{}, fmt.Errorf("%w: wallet_id must be a positive number", ErrInvalidInput)
+		return ListFilter{}, fmt.Errorf("%w: wallet_id must be a positive number", ErrInvalidInput)
 	}
 
 	if filter.Page <= 0 {
@@ -153,11 +170,8 @@ func (s *Service) List(ctx context.Context, userID int64, filter ListFilter) (Pa
 	if filter.PerPage <= 0 {
 		filter.PerPage = 10
 	}
-	return s.repo.FindAll(ctx, userID, filter)
-}
 
-func (s *Service) Summary(ctx context.Context, userID int64) (Summary, error) {
-	return s.repo.GetSummary(ctx, userID)
+	return filter, nil
 }
 
 func (s *Service) resolveWalletID(ctx context.Context, userID int64, txnType Type, walletID *int64) (int64, error) {

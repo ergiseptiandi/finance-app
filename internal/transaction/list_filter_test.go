@@ -35,7 +35,7 @@ func (r listRepositoryStub) FindAll(ctx context.Context, userID int64, filter Li
 	return PaginatedList{}, nil
 }
 
-func (r listRepositoryStub) GetSummary(ctx context.Context, userID int64) (Summary, error) {
+func (r listRepositoryStub) GetSummary(ctx context.Context, userID int64, filter ListFilter) (Summary, error) {
 	return Summary{}, nil
 }
 
@@ -180,24 +180,17 @@ func TestServiceListDefaultsDateRangeToCurrentMonth(t *testing.T) {
 }
 
 func TestServiceSummaryUsesRepositoryBalance(t *testing.T) {
-	svc := NewService(listRepositoryStub{
-		findAllFn: func(ctx context.Context, userID int64, filter ListFilter) (PaginatedList, error) {
-			return PaginatedList{}, nil
-		},
-	}, nil)
-
-	// Swap in a repo stub that returns a known balance.
-	svc.repo = listRepositoryStubWithSummary{
-		summaryFn: func(ctx context.Context, userID int64) (Summary, error) {
+	svc := NewService(listRepositoryStubWithSummary{
+		summaryFn: func(ctx context.Context, userID int64, filter ListFilter) (Summary, error) {
 			return Summary{
 				TotalIncome:  5500,
 				TotalExpense: 200,
 				Balance:      5300,
 			}, nil
 		},
-	}
+	}, nil)
 
-	summary, err := svc.Summary(context.Background(), 1)
+	summary, err := svc.Summary(context.Background(), 1, ListFilter{})
 	if err != nil {
 		t.Fatalf("Summary returned error: %v", err)
 	}
@@ -207,8 +200,38 @@ func TestServiceSummaryUsesRepositoryBalance(t *testing.T) {
 	}
 }
 
+func TestServiceSummaryAppliesDateFilter(t *testing.T) {
+	var received ListFilter
+
+	svc := NewService(listRepositoryStubWithSummary{
+		summaryFn: func(ctx context.Context, userID int64, filter ListFilter) (Summary, error) {
+			received = filter
+			return Summary{}, nil
+		},
+	}, nil)
+
+	startDate := time.Date(2026, time.March, 1, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(2026, time.March, 31, 0, 0, 0, 0, time.UTC)
+
+	_, err := svc.Summary(context.Background(), 1, ListFilter{
+		StartDate: &startDate,
+		EndDate:   &endDate,
+	})
+	if err != nil {
+		t.Fatalf("Summary returned error: %v", err)
+	}
+
+	if received.StartDate == nil || received.StartDate.Format("2006-01-02") != "2026-03-01" {
+		t.Fatalf("unexpected summary start date: %#v", received.StartDate)
+	}
+
+	if received.EndDate == nil || received.EndDate.Format("2006-01-02") != "2026-03-31" {
+		t.Fatalf("unexpected summary end date: %#v", received.EndDate)
+	}
+}
+
 type listRepositoryStubWithSummary struct {
-	summaryFn func(ctx context.Context, userID int64) (Summary, error)
+	summaryFn func(ctx context.Context, userID int64, filter ListFilter) (Summary, error)
 }
 
 func (r listRepositoryStubWithSummary) Create(ctx context.Context, txn Transaction) (int64, error) {
@@ -231,9 +254,9 @@ func (r listRepositoryStubWithSummary) FindAll(ctx context.Context, userID int64
 	return PaginatedList{}, nil
 }
 
-func (r listRepositoryStubWithSummary) GetSummary(ctx context.Context, userID int64) (Summary, error) {
+func (r listRepositoryStubWithSummary) GetSummary(ctx context.Context, userID int64, filter ListFilter) (Summary, error) {
 	if r.summaryFn != nil {
-		return r.summaryFn(ctx, userID)
+		return r.summaryFn(ctx, userID, filter)
 	}
 	return Summary{}, nil
 }

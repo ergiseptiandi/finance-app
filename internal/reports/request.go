@@ -69,12 +69,12 @@ func parseReportsFilter(r *http.Request) (ReportsFilter, error) {
 			return ReportsFilter{}, errors.New("month cannot be combined with year or start_date/end_date")
 		}
 
-		parsedMonth, err := time.Parse("2006-01", month)
+		parsedMonth, err := time.ParseInLocation("2006-01", month, time.Local)
 		if err != nil {
 			return ReportsFilter{}, errors.New("month must use format YYYY-MM")
 		}
 
-		startOfMonth := time.Date(parsedMonth.Year(), parsedMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
+		startOfMonth := time.Date(parsedMonth.Year(), parsedMonth.Month(), 1, 0, 0, 0, 0, time.Local)
 		endOfMonth := startOfMonth.AddDate(0, 1, 0)
 		filter.Mode = ReportFilterModeMonth
 		filter.StartDate = &startOfMonth
@@ -93,7 +93,7 @@ func parseReportsFilter(r *http.Request) (ReportsFilter, error) {
 			return ReportsFilter{}, errors.New("year must use format YYYY")
 		}
 
-		startOfYear := time.Date(parsedYear, time.January, 1, 0, 0, 0, 0, time.UTC)
+		startOfYear := time.Date(parsedYear, time.January, 1, 0, 0, 0, 0, time.Local)
 		endOfYear := startOfYear.AddDate(1, 0, 0)
 		filter.Mode = ReportFilterModeYear
 		filter.StartDate = &startOfYear
@@ -110,17 +110,17 @@ func parseReportsFilter(r *http.Request) (ReportsFilter, error) {
 		return ReportsFilter{}, errors.New("start_date and end_date must be provided together")
 	}
 
-	parsedStartDate, err := time.Parse("2006-01-02", startDate)
+	parsedStartDate, err := time.ParseInLocation("2006-01-02", startDate, time.Local)
 	if err != nil {
 		return ReportsFilter{}, errors.New("start_date must use format YYYY-MM-DD")
 	}
-	parsedStartDate = time.Date(parsedStartDate.Year(), parsedStartDate.Month(), parsedStartDate.Day(), 0, 0, 0, 0, time.UTC)
+	parsedStartDate = time.Date(parsedStartDate.Year(), parsedStartDate.Month(), parsedStartDate.Day(), 0, 0, 0, 0, time.Local)
 
-	parsedEndDate, err := time.Parse("2006-01-02", endDate)
+	parsedEndDate, err := time.ParseInLocation("2006-01-02", endDate, time.Local)
 	if err != nil {
 		return ReportsFilter{}, errors.New("end_date must use format YYYY-MM-DD")
 	}
-	parsedEndDate = time.Date(parsedEndDate.Year(), parsedEndDate.Month(), parsedEndDate.Day(), 0, 0, 0, 0, time.UTC)
+	parsedEndDate = time.Date(parsedEndDate.Year(), parsedEndDate.Month(), parsedEndDate.Day(), 0, 0, 0, 0, time.Local)
 
 	if parsedEndDate.Before(parsedStartDate) {
 		return ReportsFilter{}, errors.New("end_date must be greater than or equal to start_date")
