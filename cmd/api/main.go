@@ -89,6 +89,7 @@ func main() {
 	if sender, err := notifications.NewFirebaseSender(startupCtx, notifications.FirebasePushConfig{
 		ProjectID:       cfg.Push.FirebaseProjectID,
 		CredentialsJSON: cfg.Push.FirebaseCredentialsJSON,
+		CredentialsPath: cfg.Push.FirebaseCredentialsPath,
 	}); err != nil {
 		log.Printf("firebase push disabled: %v", err)
 	} else {

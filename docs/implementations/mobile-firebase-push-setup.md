@@ -122,9 +122,11 @@ Backend membaca konfigurasi berikut:
 - `APP_MODE`
 - `NOTIFICATION_CRON_SCHEDULE`
 - `FIREBASE_PROJECT_ID`
+- `FIREBASE_CREDENTIALS_PATH`
 - `FIREBASE_CREDENTIALS_JSON`
 
 Jika kredensial Firebase tidak diisi, backend tetap bisa menyimpan reminder history, tetapi push notification tidak akan terkirim.
+`google-services.json` yang Anda kirim dipakai di mobile Android. Backend butuh **service account key JSON** dari Firebase Admin SDK.
 
 ## Catatan Implementasi
 

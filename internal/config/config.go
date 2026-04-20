@@ -58,6 +58,7 @@ type SMTPConfig struct {
 type PushConfig struct {
 	FirebaseProjectID       string
 	FirebaseCredentialsJSON string
+	FirebaseCredentialsPath string
 }
 
 type RuntimeConfig struct {
@@ -136,6 +137,7 @@ func Load() (Config, error) {
 		Push: PushConfig{
 			FirebaseProjectID:       getEnv("FIREBASE_PROJECT_ID", os.Getenv("GOOGLE_CLOUD_PROJECT")),
 			FirebaseCredentialsJSON: os.Getenv("FIREBASE_CREDENTIALS_JSON"),
+			FirebaseCredentialsPath: getEnv("FIREBASE_CREDENTIALS_PATH", os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")),
 		},
 		Runtime: RuntimeConfig{
 			Mode:                 getEnv("APP_MODE", "api"),

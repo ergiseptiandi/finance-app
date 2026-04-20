@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"os"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/messaging"
@@ -27,6 +28,7 @@ func (NoopPushSender) Send(context.Context, string, PushMessage) error {
 type FirebasePushConfig struct {
 	ProjectID       string
 	CredentialsJSON string
+	CredentialsPath string
 }
 
 type FirebaseSender struct {
@@ -35,8 +37,14 @@ type FirebaseSender struct {
 
 func NewFirebaseSender(ctx context.Context, cfg FirebasePushConfig) (PushSender, error) {
 	var opts []option.ClientOption
-	if cfg.CredentialsJSON != "" {
+	if cfg.CredentialsPath != "" {
+		opts = append(opts, option.WithCredentialsFile(cfg.CredentialsPath))
+	} else if cfg.CredentialsJSON != "" {
 		opts = append(opts, option.WithCredentialsJSON([]byte(cfg.CredentialsJSON)))
+	}
+
+	if cfg.ProjectID == "" {
+		cfg.ProjectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
 	}
 
 	app, err := firebase.NewApp(ctx, &firebase.Config{ProjectID: cfg.ProjectID}, opts...)
