@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"sort"
 	"time"
 
 	"finance-backend/internal/wallet"
@@ -180,6 +181,285 @@ func (s *Service) Comparison(ctx context.Context, userID int64) (Comparison, err
 			PercentageChange: percentageChange(currentMonthExpense, lastMonthExpense),
 		},
 	}, nil
+}
+
+func (s *Service) BudgetVsActual(ctx context.Context, userID int64, filter DashboardFilter, budgetAmount *float64) (BudgetVsActual, error) {
+	summary, err := s.Summary(ctx, userID, filter)
+	if err != nil {
+		return BudgetVsActual{}, err
+	}
+
+	budget := summary.MonthlyIncome
+	if budgetAmount != nil {
+		if *budgetAmount <= 0 {
+			return BudgetVsActual{}, fmt.Errorf("%w: budget_amount must be greater than zero", ErrInvalidInput)
+		}
+		budget = *budgetAmount
+	}
+	if budget <= 0 {
+		budget = summary.MonthlyExpense
+	}
+	if budget <= 0 {
+		budget = summary.TotalBalance
+	}
+	if budget <= 0 {
+		budget = summary.MonthlyExpense
+	}
+	if budget <= 0 {
+		budget = 1
+	}
+
+	actual := summary.MonthlyExpense
+	remaining := budget - actual
+	overBudget := 0.0
+	status := "on_track"
+	switch {
+	case remaining < 0:
+		overBudget = math.Abs(remaining)
+		status = "over_budget"
+	case percentageOf(actual, budget) >= 90:
+		status = "warning"
+	case budgetAmount == nil && summary.MonthlyIncome <= 0:
+		status = "unknown"
+	}
+
+	return BudgetVsActual{
+		BudgetAmount:     budget,
+		ActualSpent:      actual,
+		RemainingBudget:  math.Round(remaining*100) / 100,
+		UsageRate:        percentageOf(actual, budget),
+		OverBudgetAmount: math.Round(overBudget*100) / 100,
+		Status:           status,
+	}, nil
+}
+
+func (s *Service) CategoryBreakdown(ctx context.Context, userID int64, filter DashboardFilter) ([]CategoryBreakdownItem, error) {
+	start, end, err := s.resolveRange(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	items, err := s.repo.ExpenseByCategory(ctx, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	total := 0.0
+	for _, item := range items {
+		total += item.Amount
+	}
+
+	for i := range items {
+		items[i].Percentage = percentageOf(items[i].Amount, total)
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Amount == items[j].Amount {
+			return items[i].Category < items[j].Category
+		}
+		return items[i].Amount > items[j].Amount
+	})
+
+	if items == nil {
+		return []CategoryBreakdownItem{}, nil
+	}
+
+	return items, nil
+}
+
+func (s *Service) UpcomingBills(ctx context.Context, userID int64, days int) ([]UpcomingBill, error) {
+	if days <= 0 {
+		return nil, fmt.Errorf("%w: days must be greater than zero", ErrInvalidInput)
+	}
+	if days > 365 {
+		return nil, fmt.Errorf("%w: days cannot exceed 365", ErrInvalidInput)
+	}
+
+	now := nowFunc()
+	start := startOfDay(now)
+	end := start.AddDate(0, 0, days)
+
+	items, err := s.repo.UpcomingBills(ctx, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	if items == nil {
+		return []UpcomingBill{}, nil
+	}
+
+	return items, nil
+}
+
+func (s *Service) TopMerchants(ctx context.Context, userID int64, filter DashboardFilter) ([]TopMerchant, error) {
+	start, end, err := s.resolveRange(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	items, err := s.repo.TopMerchants(ctx, userID, start, end, 5)
+	if err != nil {
+		return nil, err
+	}
+
+	if items == nil {
+		return []TopMerchant{}, nil
+	}
+
+	return items, nil
+}
+
+func (s *Service) Insights(ctx context.Context, userID int64, filter DashboardFilter) ([]Insight, error) {
+	summary, err := s.Summary(ctx, userID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	budget, err := s.BudgetVsActual(ctx, userID, filter, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	categoryBreakdown, err := s.CategoryBreakdown(ctx, userID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	upcomingBills, err := s.UpcomingBills(ctx, userID, 30)
+	if err != nil {
+		return nil, err
+	}
+
+	insights := make([]Insight, 0, 6)
+
+	switch {
+	case budget.OverBudgetAmount > 0:
+		insights = append(insights, Insight{
+			Type:        "budget_warning",
+			Code:        "OVER_BUDGET",
+			Title:       "Budget terlampaui",
+			Message:     fmt.Sprintf("Pengeluaran melebihi budget sebesar %.2f.", budget.OverBudgetAmount),
+			Severity:    "danger",
+			ChangeValue: budget.OverBudgetAmount,
+		})
+	case budget.UsageRate >= 90:
+		insights = append(insights, Insight{
+			Type:        "budget_warning",
+			Code:        "BUDGET_NEAR_LIMIT",
+			Title:       "Budget hampir habis",
+			Message:     fmt.Sprintf("Pengeluaran sudah mencapai %.2f%% dari budget periode ini.", budget.UsageRate),
+			Severity:    "warning",
+			ChangeValue: budget.UsageRate,
+		})
+	}
+
+	if summary.SavingsRate > 0 && summary.SavingsRate < 20 {
+		insights = append(insights, Insight{
+			Type:        "low_savings_rate",
+			Code:        "LOW_SAVINGS_RATE",
+			Title:       "Savings rate rendah",
+			Message:     fmt.Sprintf("Savings rate saat ini hanya %.2f%%.", summary.SavingsRate),
+			Severity:    "warning",
+			ChangeValue: summary.SavingsRate,
+		})
+	}
+
+	if summary.Debt.OverdueDebtCount > 0 || summary.Debt.OverdueInstallments > 0 {
+		insights = append(insights, Insight{
+			Type:        "overdue_bill",
+			Code:        "OVERDUE_DEBT",
+			Title:       "Ada tagihan terlambat",
+			Message:     fmt.Sprintf("Terdapat %d utang dan %d cicilan yang sudah overdue.", summary.Debt.OverdueDebtCount, summary.Debt.OverdueInstallments),
+			Severity:    "danger",
+			ChangeValue: float64(summary.Debt.OverdueInstallments),
+		})
+	}
+
+	if len(upcomingBills) > 0 {
+		insights = append(insights, Insight{
+			Type:        "upcoming_bill",
+			Code:        "UPCOMING_BILL",
+			Title:       "Tagihan akan segera jatuh tempo",
+			Message:     fmt.Sprintf("Ada %d tagihan yang jatuh tempo dalam 30 hari ke depan.", len(upcomingBills)),
+			Severity:    "info",
+			ChangeValue: float64(len(upcomingBills)),
+		})
+	}
+
+	if len(categoryBreakdown) > 0 && categoryBreakdown[0].Percentage >= 50 {
+		insights = append(insights, Insight{
+			Type:        "category_concentration",
+			Code:        "CATEGORY_CONCENTRATION",
+			Title:       "Belanja terkonsentrasi",
+			Message:     fmt.Sprintf("%s menyumbang %.2f%% dari total pengeluaran periode ini.", categoryBreakdown[0].Category, categoryBreakdown[0].Percentage),
+			Severity:    "info",
+			ChangeValue: categoryBreakdown[0].Percentage,
+		})
+	}
+
+	if len(insights) == 0 {
+		insights = append(insights, Insight{
+			Type:        "healthy_status",
+			Code:        "NO_ALERTS",
+			Title:       "Tidak ada insight kritis",
+			Message:     "Dashboard tidak menemukan kondisi yang perlu mendapat perhatian khusus pada periode ini.",
+			Severity:    "info",
+			ChangeValue: 0,
+		})
+	}
+
+	return insights, nil
+}
+
+func (s *Service) GoalsProgress(ctx context.Context, userID int64, filter DashboardFilter) ([]GoalProgress, error) {
+	summary, err := s.Summary(ctx, userID, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	goals := make([]GoalProgress, 0, 2)
+
+	emergencyTarget := summary.MonthlyExpense * 3
+	if emergencyTarget <= 0 {
+		emergencyTarget = summary.MonthlyIncome * 3
+	}
+	if emergencyTarget <= 0 {
+		emergencyTarget = 1
+	}
+	emergencyProgress := percentageOf(summary.TotalBalance, emergencyTarget)
+	emergencyStatus := "building"
+	if emergencyProgress >= 100 {
+		emergencyStatus = "funded"
+	}
+	goals = append(goals, GoalProgress{
+		Name:               "Emergency Fund",
+		TargetAmount:       emergencyTarget,
+		CurrentAmount:      summary.TotalBalance,
+		ProgressPercentage: emergencyProgress,
+		Status:             emergencyStatus,
+	})
+
+	debtTarget := summary.Debt.TotalDebt
+	if debtTarget > 0 {
+		debtProgress := percentageOf(summary.Debt.PaidDebt, debtTarget)
+		debtStatus := "active"
+		if summary.Debt.RemainingDebt <= 0 {
+			debtStatus = "completed"
+		}
+		goals = append(goals, GoalProgress{
+			Name:               "Debt Freedom",
+			TargetAmount:       debtTarget,
+			CurrentAmount:      summary.Debt.PaidDebt,
+			ProgressPercentage: debtProgress,
+			Status:             debtStatus,
+		})
+	}
+
+	if goals == nil {
+		return []GoalProgress{}, nil
+	}
+
+	return goals, nil
 }
 
 func (s *Service) resolveRange(filter DashboardFilter) (time.Time, time.Time, error) {

@@ -17,6 +17,9 @@ type dashboardRepoStub struct {
 	expenseByDayFn            func(context.Context, int64, time.Time, time.Time) (map[string]float64, error)
 	expenseByMonthFn          func(context.Context, int64, time.Time, time.Time) (map[string]float64, error)
 	debtOverviewFn            func(context.Context, int64, time.Time, time.Time) (DebtOverview, error)
+	expenseByCategoryFn       func(context.Context, int64, time.Time, time.Time) ([]CategoryBreakdownItem, error)
+	upcomingBillsFn           func(context.Context, int64, time.Time, time.Time) ([]UpcomingBill, error)
+	topMerchantsFn            func(context.Context, int64, time.Time, time.Time, int) ([]TopMerchant, error)
 }
 
 type balanceProviderStub struct {
@@ -84,6 +87,27 @@ func (r dashboardRepoStub) DebtOverview(ctx context.Context, userID int64, start
 		return r.debtOverviewFn(ctx, userID, start, end)
 	}
 	return DebtOverview{}, nil
+}
+
+func (r dashboardRepoStub) ExpenseByCategory(ctx context.Context, userID int64, start, end time.Time) ([]CategoryBreakdownItem, error) {
+	if r.expenseByCategoryFn != nil {
+		return r.expenseByCategoryFn(ctx, userID, start, end)
+	}
+	return []CategoryBreakdownItem{}, nil
+}
+
+func (r dashboardRepoStub) UpcomingBills(ctx context.Context, userID int64, start, end time.Time) ([]UpcomingBill, error) {
+	if r.upcomingBillsFn != nil {
+		return r.upcomingBillsFn(ctx, userID, start, end)
+	}
+	return []UpcomingBill{}, nil
+}
+
+func (r dashboardRepoStub) TopMerchants(ctx context.Context, userID int64, start, end time.Time, limit int) ([]TopMerchant, error) {
+	if r.topMerchantsFn != nil {
+		return r.topMerchantsFn(ctx, userID, start, end, limit)
+	}
+	return []TopMerchant{}, nil
 }
 
 func TestParseDashboardFilterDefaultsToCurrentMonth(t *testing.T) {
@@ -208,5 +232,160 @@ func TestSummaryRejectsRangeLongerThanThreeMonths(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "date range cannot exceed 3 months") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestBudgetVsActualUsesExplicitBudgetAmount(t *testing.T) {
+	originalNowFunc := nowFunc
+	nowFunc = func() time.Time {
+		return time.Date(2026, time.April, 19, 10, 30, 0, 0, time.FixedZone("WIB", 7*60*60))
+	}
+	defer func() { nowFunc = originalNowFunc }()
+
+	svc := NewService(dashboardRepoStub{
+		refreshUserDebtStatusesFn: func(context.Context, int64) error { return nil },
+		allTimeIncomeFn:           func(context.Context, int64) (float64, error) { return 15000000, nil },
+		allTimeExpenseFn:          func(context.Context, int64) (float64, error) { return 3000000, nil },
+		incomeBetweenFn:           func(context.Context, int64, time.Time, time.Time) (float64, error) { return 12000000, nil },
+		expenseBetweenFn:          func(context.Context, int64, time.Time, time.Time) (float64, error) { return 3000000, nil },
+		debtOverviewFn: func(context.Context, int64, time.Time, time.Time) (DebtOverview, error) {
+			return DebtOverview{}, nil
+		},
+	}, balanceProviderStub{
+		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
+	})
+
+	budget := 5000000.0
+	result, err := svc.BudgetVsActual(context.Background(), 1, DashboardFilter{}, &budget)
+	if err != nil {
+		t.Fatalf("BudgetVsActual returned error: %v", err)
+	}
+
+	if result.BudgetAmount != 5000000 {
+		t.Fatalf("unexpected budget amount: %v", result.BudgetAmount)
+	}
+
+	if result.UsageRate != 60 {
+		t.Fatalf("unexpected usage rate: %v", result.UsageRate)
+	}
+
+	if result.RemainingBudget != 2000000 {
+		t.Fatalf("unexpected remaining budget: %v", result.RemainingBudget)
+	}
+}
+
+func TestCategoryBreakdownCalculatesPercentage(t *testing.T) {
+	originalNowFunc := nowFunc
+	nowFunc = func() time.Time {
+		return time.Date(2026, time.April, 19, 10, 30, 0, 0, time.FixedZone("WIB", 7*60*60))
+	}
+	defer func() { nowFunc = originalNowFunc }()
+
+	svc := NewService(dashboardRepoStub{
+		refreshUserDebtStatusesFn: func(context.Context, int64) error { return nil },
+		allTimeIncomeFn:           func(context.Context, int64) (float64, error) { return 15000000, nil },
+		allTimeExpenseFn:          func(context.Context, int64) (float64, error) { return 3000000, nil },
+		incomeBetweenFn:           func(context.Context, int64, time.Time, time.Time) (float64, error) { return 12000000, nil },
+		expenseBetweenFn:          func(context.Context, int64, time.Time, time.Time) (float64, error) { return 3000000, nil },
+		debtOverviewFn: func(context.Context, int64, time.Time, time.Time) (DebtOverview, error) {
+			return DebtOverview{}, nil
+		},
+		expenseByCategoryFn: func(context.Context, int64, time.Time, time.Time) ([]CategoryBreakdownItem, error) {
+			return []CategoryBreakdownItem{
+				{Category: "Food", Amount: 3000000, TransactionCount: 6},
+				{Category: "Transport", Amount: 1000000, TransactionCount: 4},
+			}, nil
+		},
+	}, balanceProviderStub{
+		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
+	})
+
+	items, err := svc.CategoryBreakdown(context.Background(), 1, DashboardFilter{})
+	if err != nil {
+		t.Fatalf("CategoryBreakdown returned error: %v", err)
+	}
+
+	if len(items) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(items))
+	}
+
+	if items[0].Percentage != 75 {
+		t.Fatalf("unexpected top category percentage: %v", items[0].Percentage)
+	}
+}
+
+func TestUpcomingBillsUsesLookaheadDays(t *testing.T) {
+	originalNowFunc := nowFunc
+	nowFunc = func() time.Time {
+		return time.Date(2026, time.April, 19, 10, 30, 0, 0, time.FixedZone("WIB", 7*60*60))
+	}
+	defer func() { nowFunc = originalNowFunc }()
+
+	var receivedStart time.Time
+	var receivedEnd time.Time
+
+	svc := NewService(dashboardRepoStub{
+		upcomingBillsFn: func(_ context.Context, _ int64, start, end time.Time) ([]UpcomingBill, error) {
+			receivedStart = start
+			receivedEnd = end
+			return []UpcomingBill{
+				{BillName: "Loan installment #1", Amount: 500000, DueDate: "2026-04-25", Status: "pending", SourceType: "debt"},
+			}, nil
+		},
+	}, nil)
+
+	items, err := svc.UpcomingBills(context.Background(), 1, 7)
+	if err != nil {
+		t.Fatalf("UpcomingBills returned error: %v", err)
+	}
+
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+
+	if receivedStart.Format("2006-01-02") != "2026-04-19" {
+		t.Fatalf("unexpected start date: %s", receivedStart.Format("2006-01-02"))
+	}
+
+	if receivedEnd.Format("2006-01-02") != "2026-04-26" {
+		t.Fatalf("unexpected end date: %s", receivedEnd.Format("2006-01-02"))
+	}
+}
+
+func TestGoalsProgressReturnsDerivedGoals(t *testing.T) {
+	originalNowFunc := nowFunc
+	nowFunc = func() time.Time {
+		return time.Date(2026, time.April, 19, 10, 30, 0, 0, time.FixedZone("WIB", 7*60*60))
+	}
+	defer func() { nowFunc = originalNowFunc }()
+
+	svc := NewService(dashboardRepoStub{
+		refreshUserDebtStatusesFn: func(context.Context, int64) error { return nil },
+		allTimeIncomeFn:           func(context.Context, int64) (float64, error) { return 15000000, nil },
+		allTimeExpenseFn:          func(context.Context, int64) (float64, error) { return 3000000, nil },
+		incomeBetweenFn:           func(context.Context, int64, time.Time, time.Time) (float64, error) { return 12000000, nil },
+		expenseBetweenFn:          func(context.Context, int64, time.Time, time.Time) (float64, error) { return 3000000, nil },
+		debtOverviewFn: func(context.Context, int64, time.Time, time.Time) (DebtOverview, error) {
+			return DebtOverview{
+				TotalDebt:     10000000,
+				PaidDebt:      4000000,
+				RemainingDebt: 6000000,
+			}, nil
+		},
+	}, balanceProviderStub{
+		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
+	})
+
+	items, err := svc.GoalsProgress(context.Background(), 1, DashboardFilter{})
+	if err != nil {
+		t.Fatalf("GoalsProgress returned error: %v", err)
+	}
+
+	if len(items) != 2 {
+		t.Fatalf("expected 2 goals, got %d", len(items))
+	}
+
+	if items[0].Name != "Emergency Fund" {
+		t.Fatalf("unexpected first goal: %s", items[0].Name)
 	}
 }

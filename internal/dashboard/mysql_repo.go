@@ -267,6 +267,122 @@ func (r *MySQLDashboardRepository) DebtOverview(ctx context.Context, userID int6
 	return overview, nil
 }
 
+func (r *MySQLDashboardRepository) ExpenseByCategory(ctx context.Context, userID int64, start, end time.Time) ([]CategoryBreakdownItem, error) {
+	const query = `
+		SELECT category_name, COALESCE(SUM(amount), 0) AS amount, COUNT(*) AS transaction_count
+		FROM (
+			SELECT category AS category_name, amount
+			FROM transactions
+			WHERE user_id = ? AND type = 'expense' AND date >= ? AND date < ?
+			UNION ALL
+			SELECT 'Debt Payment' AS category_name, p.amount
+			FROM debt_payments p
+			JOIN debts d ON d.id = p.debt_id
+			WHERE d.user_id = ? AND p.payment_date >= ? AND p.payment_date < ?
+		) sources
+		GROUP BY category_name
+		ORDER BY amount DESC, category_name ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, start, end, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]CategoryBreakdownItem, 0)
+	for rows.Next() {
+		var item CategoryBreakdownItem
+		if err := rows.Scan(&item.Category, &item.Amount, &item.TransactionCount); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+func (r *MySQLDashboardRepository) UpcomingBills(ctx context.Context, userID int64, start, end time.Time) ([]UpcomingBill, error) {
+	const query = `
+		SELECT
+			CONCAT(d.name, ' installment #', di.installment_no) AS bill_name,
+			di.amount,
+			DATE_FORMAT(di.due_date, '%Y-%m-%d') AS due_date,
+			di.status,
+			'debt' AS source_type
+		FROM debt_installments di
+		JOIN debts d ON d.id = di.debt_id
+		WHERE d.user_id = ? AND di.status IN ('pending', 'overdue') AND di.due_date >= ? AND di.due_date < ?
+		ORDER BY di.due_date ASC, d.name ASC, di.installment_no ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]UpcomingBill, 0)
+	for rows.Next() {
+		var item UpcomingBill
+		if err := rows.Scan(&item.BillName, &item.Amount, &item.DueDate, &item.Status, &item.SourceType); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
+func (r *MySQLDashboardRepository) TopMerchants(ctx context.Context, userID int64, start, end time.Time, limit int) ([]TopMerchant, error) {
+	if limit <= 0 {
+		limit = 5
+	}
+
+	const query = `
+		SELECT merchant_name, COALESCE(SUM(amount), 0) AS amount, COUNT(*) AS transaction_count, DATE_FORMAT(MAX(tx_date), '%Y-%m-%d') AS last_transaction_date
+		FROM (
+			SELECT COALESCE(NULLIF(TRIM(description), ''), category) AS merchant_name, amount, date AS tx_date
+			FROM transactions
+			WHERE user_id = ? AND type = 'expense' AND date >= ? AND date < ?
+			UNION ALL
+			SELECT COALESCE(NULLIF(TRIM(d.name), ''), 'Debt Payment') AS merchant_name, p.amount, p.payment_date AS tx_date
+			FROM debt_payments p
+			JOIN debts d ON d.id = p.debt_id
+			WHERE d.user_id = ? AND p.payment_date >= ? AND p.payment_date < ?
+		) sources
+		GROUP BY merchant_name
+		ORDER BY amount DESC, transaction_count DESC, merchant_name ASC
+		LIMIT ?
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, start, end, userID, start, end, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]TopMerchant, 0)
+	for rows.Next() {
+		var item TopMerchant
+		if err := rows.Scan(&item.MerchantName, &item.Amount, &item.TransactionCount, &item.LastTransactionDate); err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
+}
+
 func rollback(tx *sql.Tx) {
 	_ = tx.Rollback()
 }

@@ -33,6 +33,55 @@ type Summary struct {
 	Debt           DebtOverview `json:"debt"`
 }
 
+type BudgetVsActual struct {
+	BudgetAmount     float64 `json:"budget_amount"`
+	ActualSpent      float64 `json:"actual_spent"`
+	RemainingBudget  float64 `json:"remaining_budget"`
+	UsageRate        float64 `json:"usage_rate"`
+	OverBudgetAmount float64 `json:"over_budget_amount"`
+	Status           string  `json:"status"`
+}
+
+type CategoryBreakdownItem struct {
+	Category         string  `json:"category"`
+	Amount           float64 `json:"amount"`
+	Percentage       float64 `json:"percentage"`
+	TransactionCount int64   `json:"transaction_count"`
+}
+
+type UpcomingBill struct {
+	BillName   string  `json:"bill_name"`
+	Amount     float64 `json:"amount"`
+	DueDate    string  `json:"due_date"`
+	Status     string  `json:"status"`
+	SourceType string  `json:"source_type"`
+}
+
+type TopMerchant struct {
+	MerchantName        string  `json:"merchant_name"`
+	Amount              float64 `json:"amount"`
+	TransactionCount    int64   `json:"transaction_count"`
+	LastTransactionDate string  `json:"last_transaction_date"`
+}
+
+type Insight struct {
+	Type        string  `json:"type"`
+	Code        string  `json:"code"`
+	Title       string  `json:"title"`
+	Message     string  `json:"message"`
+	Severity    string  `json:"severity"`
+	ChangeValue float64 `json:"change_value,omitempty"`
+}
+
+type GoalProgress struct {
+	Name               string  `json:"name"`
+	TargetAmount       float64 `json:"target_amount"`
+	CurrentAmount      float64 `json:"current_amount"`
+	ProgressPercentage float64 `json:"progress_percentage"`
+	TargetDate         string  `json:"target_date,omitempty"`
+	Status             string  `json:"status"`
+}
+
 type SpendingPoint struct {
 	Date   string  `json:"date"`
 	Amount float64 `json:"amount"`

@@ -74,3 +74,34 @@ func parseDashboardFilter(r *http.Request) (DashboardFilter, error) {
 	filter.EndDate = &parsedEndDate
 	return filter, nil
 }
+
+func parseOptionalFloatQuery(r *http.Request, key string) (*float64, error) {
+	value := strings.TrimSpace(r.URL.Query().Get(key))
+	if value == "" {
+		return nil, nil
+	}
+
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return nil, errors.New(key + " must be a number")
+	}
+
+	return &parsed, nil
+}
+
+func parsePositiveIntQuery(r *http.Request, key string, defaultValue int) (int, error) {
+	value := strings.TrimSpace(r.URL.Query().Get(key))
+	if value == "" {
+		return defaultValue, nil
+	}
+
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, errors.New(key + " must be an integer")
+	}
+	if parsed <= 0 {
+		return 0, errors.New(key + " must be greater than zero")
+	}
+
+	return parsed, nil
+}
