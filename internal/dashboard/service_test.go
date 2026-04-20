@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"finance-backend/internal/alerts"
 )
 
 type dashboardRepoStub struct {
@@ -26,11 +28,22 @@ type balanceProviderStub struct {
 	totalBalanceFn func(context.Context, int64) (float64, error)
 }
 
+type alertSourceStub struct {
+	listFn func(context.Context, int64, alerts.AlertListFilter) ([]alerts.Alert, error)
+}
+
 func (b balanceProviderStub) TotalBalance(ctx context.Context, userID int64) (float64, error) {
 	if b.totalBalanceFn != nil {
 		return b.totalBalanceFn(ctx, userID)
 	}
 	return 0, nil
+}
+
+func (a alertSourceStub) List(ctx context.Context, userID int64, filter alerts.AlertListFilter) ([]alerts.Alert, error) {
+	if a.listFn != nil {
+		return a.listFn(ctx, userID, filter)
+	}
+	return []alerts.Alert{}, nil
 }
 
 func (r dashboardRepoStub) RefreshUserDebtStatuses(ctx context.Context, userID int64) error {
@@ -176,7 +189,7 @@ func TestSummaryDefaultsToCurrentMonth(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	})
+	}, nil)
 
 	summary, err := svc.Summary(context.Background(), 1, DashboardFilter{})
 	if err != nil {
@@ -217,7 +230,7 @@ func TestSummaryDefaultsToCurrentMonth(t *testing.T) {
 }
 
 func TestSummaryRejectsRangeLongerThanThreeMonths(t *testing.T) {
-	svc := NewService(dashboardRepoStub{}, nil)
+	svc := NewService(dashboardRepoStub{}, nil, nil)
 
 	startDate := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, time.April, 2, 0, 0, 0, 0, time.UTC)
@@ -253,7 +266,7 @@ func TestBudgetVsActualUsesExplicitBudgetAmount(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	})
+	}, nil)
 
 	budget := 5000000.0
 	result, err := svc.BudgetVsActual(context.Background(), 1, DashboardFilter{}, &budget)
@@ -298,7 +311,7 @@ func TestCategoryBreakdownCalculatesPercentage(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	})
+	}, nil)
 
 	items, err := svc.CategoryBreakdown(context.Background(), 1, DashboardFilter{})
 	if err != nil {
@@ -332,7 +345,7 @@ func TestUpcomingBillsUsesLookaheadDays(t *testing.T) {
 				{BillName: "Loan installment #1", Amount: 500000, DueDate: "2026-04-25", Status: "pending", SourceType: "debt"},
 			}, nil
 		},
-	}, nil)
+	}, nil, nil)
 
 	items, err := svc.UpcomingBills(context.Background(), 1, 7)
 	if err != nil {
@@ -352,7 +365,7 @@ func TestUpcomingBillsUsesLookaheadDays(t *testing.T) {
 	}
 }
 
-func TestGoalsProgressReturnsDerivedGoals(t *testing.T) {
+func TestGoalsProgressReturnsEmptyUntilModuleExists(t *testing.T) {
 	originalNowFunc := nowFunc
 	nowFunc = func() time.Time {
 		return time.Date(2026, time.April, 19, 10, 30, 0, 0, time.FixedZone("WIB", 7*60*60))
@@ -374,18 +387,44 @@ func TestGoalsProgressReturnsDerivedGoals(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	})
+	}, nil)
 
 	items, err := svc.GoalsProgress(context.Background(), 1, DashboardFilter{})
 	if err != nil {
 		t.Fatalf("GoalsProgress returned error: %v", err)
 	}
 
-	if len(items) != 2 {
-		t.Fatalf("expected 2 goals, got %d", len(items))
+	if len(items) != 0 {
+		t.Fatalf("expected no goals until a dedicated goals module exists, got %d", len(items))
+	}
+}
+
+func TestInsightsReturnsAlerts(t *testing.T) {
+	svc := NewService(dashboardRepoStub{}, nil, alertSourceStub{
+		listFn: func(context.Context, int64, alerts.AlertListFilter) ([]alerts.Alert, error) {
+			return []alerts.Alert{
+				{
+					Type:        alerts.AlertTypeDailySpendingSpike,
+					Title:       "Daily spending spike detected",
+					Message:     "Today's spending is above threshold.",
+					Severity:    alerts.AlertSeverityWarning,
+					MetricValue: 250000,
+					DedupeKey:   "daily-spike:2026-04-19",
+				},
+			}, nil
+		},
+	})
+
+	items, err := svc.Insights(context.Background(), 1, DashboardFilter{})
+	if err != nil {
+		t.Fatalf("Insights returned error: %v", err)
 	}
 
-	if items[0].Name != "Emergency Fund" {
-		t.Fatalf("unexpected first goal: %s", items[0].Name)
+	if len(items) != 1 {
+		t.Fatalf("expected 1 insight, got %d", len(items))
+	}
+
+	if items[0].Code != "daily-spike:2026-04-19" {
+		t.Fatalf("unexpected insight code: %s", items[0].Code)
 	}
 }

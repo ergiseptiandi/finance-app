@@ -282,7 +282,7 @@ Suggested response fields:
 **GET** `/v1/dashboard/insights`
 
 Returns computed dashboard insights based on spending behavior, budget usage, debt health, and goals progress.
-The current backend generates these as derived insights from existing transactions and debt data.
+The current backend maps alert history into dashboard insights, so this endpoint reflects actual alert records instead of hardcoded messages.
 
 Suggested response fields:
 - `type`
@@ -303,7 +303,7 @@ Example insight types:
 **GET** `/v1/dashboard/goals-progress`
 
 Returns the progress of active financial goals.
-Until a dedicated goals module exists, the backend returns derived goals such as Emergency Fund and Debt Freedom.
+Until a dedicated goals module exists, the backend returns an empty array.
 
 Suggested response fields:
 - `goal_name`

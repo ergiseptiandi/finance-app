@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"finance-backend/internal/alerts"
 	"finance-backend/internal/wallet"
 )
 
@@ -19,12 +20,17 @@ var (
 var nowFunc = time.Now
 
 type Service struct {
-	repo     Repository
-	balances wallet.BalanceProvider
+	repo         Repository
+	balances     wallet.BalanceProvider
+	alertsSource AlertSource
 }
 
-func NewService(repo Repository, balances wallet.BalanceProvider) *Service {
-	return &Service{repo: repo, balances: balances}
+type AlertSource interface {
+	List(ctx context.Context, userID int64, filter alerts.AlertListFilter) ([]alerts.Alert, error)
+}
+
+func NewService(repo Repository, balances wallet.BalanceProvider, alertsSource AlertSource) *Service {
+	return &Service{repo: repo, balances: balances, alertsSource: alertsSource}
 }
 
 func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFilter) (Summary, error) {
@@ -196,20 +202,19 @@ func (s *Service) BudgetVsActual(ctx context.Context, userID int64, filter Dashb
 		}
 		budget = *budgetAmount
 	}
-	if budget <= 0 {
-		budget = summary.MonthlyExpense
-	}
-	if budget <= 0 {
-		budget = summary.TotalBalance
-	}
-	if budget <= 0 {
-		budget = summary.MonthlyExpense
-	}
-	if budget <= 0 {
-		budget = 1
-	}
 
 	actual := summary.MonthlyExpense
+	if budget <= 0 {
+		return BudgetVsActual{
+			BudgetAmount:     0,
+			ActualSpent:      actual,
+			RemainingBudget:  0,
+			UsageRate:        0,
+			OverBudgetAmount: 0,
+			Status:           "unknown",
+		}, nil
+	}
+
 	remaining := budget - actual
 	overBudget := 0.0
 	status := "on_track"
@@ -310,156 +315,39 @@ func (s *Service) TopMerchants(ctx context.Context, userID int64, filter Dashboa
 }
 
 func (s *Service) Insights(ctx context.Context, userID int64, filter DashboardFilter) ([]Insight, error) {
-	summary, err := s.Summary(ctx, userID, filter)
+	if s.alertsSource == nil {
+		return []Insight{}, nil
+	}
+
+	items, err := s.alertsSource.List(ctx, userID, alerts.AlertListFilter{})
 	if err != nil {
 		return nil, err
 	}
 
-	budget, err := s.BudgetVsActual(ctx, userID, filter, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	categoryBreakdown, err := s.CategoryBreakdown(ctx, userID, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	upcomingBills, err := s.UpcomingBills(ctx, userID, 30)
-	if err != nil {
-		return nil, err
-	}
-
-	insights := make([]Insight, 0, 6)
-
-	switch {
-	case budget.OverBudgetAmount > 0:
+	insights := make([]Insight, 0, len(items))
+	for _, item := range items {
 		insights = append(insights, Insight{
-			Type:        "budget_warning",
-			Code:        "OVER_BUDGET",
-			Title:       "Budget terlampaui",
-			Message:     fmt.Sprintf("Pengeluaran melebihi budget sebesar %.2f.", budget.OverBudgetAmount),
-			Severity:    "danger",
-			ChangeValue: budget.OverBudgetAmount,
-		})
-	case budget.UsageRate >= 90:
-		insights = append(insights, Insight{
-			Type:        "budget_warning",
-			Code:        "BUDGET_NEAR_LIMIT",
-			Title:       "Budget hampir habis",
-			Message:     fmt.Sprintf("Pengeluaran sudah mencapai %.2f%% dari budget periode ini.", budget.UsageRate),
-			Severity:    "warning",
-			ChangeValue: budget.UsageRate,
+			Type:        string(item.Type),
+			Code:        item.DedupeKey,
+			Title:       item.Title,
+			Message:     item.Message,
+			Severity:    string(item.Severity),
+			ChangeValue: item.MetricValue,
 		})
 	}
 
-	if summary.SavingsRate > 0 && summary.SavingsRate < 20 {
-		insights = append(insights, Insight{
-			Type:        "low_savings_rate",
-			Code:        "LOW_SAVINGS_RATE",
-			Title:       "Savings rate rendah",
-			Message:     fmt.Sprintf("Savings rate saat ini hanya %.2f%%.", summary.SavingsRate),
-			Severity:    "warning",
-			ChangeValue: summary.SavingsRate,
-		})
-	}
-
-	if summary.Debt.OverdueDebtCount > 0 || summary.Debt.OverdueInstallments > 0 {
-		insights = append(insights, Insight{
-			Type:        "overdue_bill",
-			Code:        "OVERDUE_DEBT",
-			Title:       "Ada tagihan terlambat",
-			Message:     fmt.Sprintf("Terdapat %d utang dan %d cicilan yang sudah overdue.", summary.Debt.OverdueDebtCount, summary.Debt.OverdueInstallments),
-			Severity:    "danger",
-			ChangeValue: float64(summary.Debt.OverdueInstallments),
-		})
-	}
-
-	if len(upcomingBills) > 0 {
-		insights = append(insights, Insight{
-			Type:        "upcoming_bill",
-			Code:        "UPCOMING_BILL",
-			Title:       "Tagihan akan segera jatuh tempo",
-			Message:     fmt.Sprintf("Ada %d tagihan yang jatuh tempo dalam 30 hari ke depan.", len(upcomingBills)),
-			Severity:    "info",
-			ChangeValue: float64(len(upcomingBills)),
-		})
-	}
-
-	if len(categoryBreakdown) > 0 && categoryBreakdown[0].Percentage >= 50 {
-		insights = append(insights, Insight{
-			Type:        "category_concentration",
-			Code:        "CATEGORY_CONCENTRATION",
-			Title:       "Belanja terkonsentrasi",
-			Message:     fmt.Sprintf("%s menyumbang %.2f%% dari total pengeluaran periode ini.", categoryBreakdown[0].Category, categoryBreakdown[0].Percentage),
-			Severity:    "info",
-			ChangeValue: categoryBreakdown[0].Percentage,
-		})
-	}
-
-	if len(insights) == 0 {
-		insights = append(insights, Insight{
-			Type:        "healthy_status",
-			Code:        "NO_ALERTS",
-			Title:       "Tidak ada insight kritis",
-			Message:     "Dashboard tidak menemukan kondisi yang perlu mendapat perhatian khusus pada periode ini.",
-			Severity:    "info",
-			ChangeValue: 0,
-		})
+	if insights == nil {
+		return []Insight{}, nil
 	}
 
 	return insights, nil
 }
 
 func (s *Service) GoalsProgress(ctx context.Context, userID int64, filter DashboardFilter) ([]GoalProgress, error) {
-	summary, err := s.Summary(ctx, userID, filter)
-	if err != nil {
-		return nil, err
-	}
-
-	goals := make([]GoalProgress, 0, 2)
-
-	emergencyTarget := summary.MonthlyExpense * 3
-	if emergencyTarget <= 0 {
-		emergencyTarget = summary.MonthlyIncome * 3
-	}
-	if emergencyTarget <= 0 {
-		emergencyTarget = 1
-	}
-	emergencyProgress := percentageOf(summary.TotalBalance, emergencyTarget)
-	emergencyStatus := "building"
-	if emergencyProgress >= 100 {
-		emergencyStatus = "funded"
-	}
-	goals = append(goals, GoalProgress{
-		Name:               "Emergency Fund",
-		TargetAmount:       emergencyTarget,
-		CurrentAmount:      summary.TotalBalance,
-		ProgressPercentage: emergencyProgress,
-		Status:             emergencyStatus,
-	})
-
-	debtTarget := summary.Debt.TotalDebt
-	if debtTarget > 0 {
-		debtProgress := percentageOf(summary.Debt.PaidDebt, debtTarget)
-		debtStatus := "active"
-		if summary.Debt.RemainingDebt <= 0 {
-			debtStatus = "completed"
-		}
-		goals = append(goals, GoalProgress{
-			Name:               "Debt Freedom",
-			TargetAmount:       debtTarget,
-			CurrentAmount:      summary.Debt.PaidDebt,
-			ProgressPercentage: debtProgress,
-			Status:             debtStatus,
-		})
-	}
-
-	if goals == nil {
-		return []GoalProgress{}, nil
-	}
-
-	return goals, nil
+	_ = ctx
+	_ = userID
+	_ = filter
+	return []GoalProgress{}, nil
 }
 
 func (s *Service) resolveRange(filter DashboardFilter) (time.Time, time.Time, error) {

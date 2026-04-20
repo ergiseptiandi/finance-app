@@ -84,9 +84,6 @@ func main() {
 	debtRepo := debt.NewMySQLDebtRepository(db)
 	debtService := debt.NewService(debtRepo, walletService)
 
-	dashboardRepo := dashboard.NewMySQLDashboardRepository(db)
-	dashboardService := dashboard.NewService(dashboardRepo, walletService)
-
 	notificationsRepo := notifications.NewMySQLNotificationsRepository(db)
 	var pushSender notifications.PushSender
 	if sender, err := notifications.NewFirebaseSender(startupCtx, notifications.FirebasePushConfig{
@@ -101,6 +98,9 @@ func main() {
 
 	alertsRepo := alerts.NewMySQLAlertsRepository(db)
 	alertsService := alerts.NewService(alertsRepo)
+
+	dashboardRepo := dashboard.NewMySQLDashboardRepository(db)
+	dashboardService := dashboard.NewService(dashboardRepo, walletService, alertsService)
 
 	reportsRepo := reports.NewMySQLReportsRepository(db)
 	reportsService := reports.NewService(reportsRepo, walletService)
