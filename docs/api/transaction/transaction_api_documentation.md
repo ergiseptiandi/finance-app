@@ -134,7 +134,8 @@ GET /v1/transactions?start_date=2026-04-01&end_date=2026-05-31&type=expense
 ## 3. Financial Summary
 **GET** `/v1/transactions/summary`
 
-Get aggregated metrics for the user's account.
+Get aggregated metrics for the user's transactions.
+`balance` here means `total_income - total_expense`, not wallet balance.
 
 **Response (200 OK)**:
 ```json

@@ -16,13 +16,12 @@ var (
 )
 
 type Service struct {
-	repo     Repository
-	wallets  wallet.Resolver
-	balances wallet.BalanceProvider
+	repo    Repository
+	wallets wallet.Resolver
 }
 
-func NewService(repo Repository, wallets wallet.Resolver, balances wallet.BalanceProvider) *Service {
-	return &Service{repo: repo, wallets: wallets, balances: balances}
+func NewService(repo Repository, wallets wallet.Resolver) *Service {
+	return &Service{repo: repo, wallets: wallets}
 }
 
 func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (Transaction, error) {
@@ -158,22 +157,7 @@ func (s *Service) List(ctx context.Context, userID int64, filter ListFilter) (Pa
 }
 
 func (s *Service) Summary(ctx context.Context, userID int64) (Summary, error) {
-	summary, err := s.repo.GetSummary(ctx, userID)
-	if err != nil {
-		return Summary{}, err
-	}
-
-	if s.balances == nil {
-		return summary, nil
-	}
-
-	balance, err := s.balances.TotalBalance(ctx, userID)
-	if err != nil {
-		return Summary{}, err
-	}
-
-	summary.Balance = balance
-	return summary, nil
+	return s.repo.GetSummary(ctx, userID)
 }
 
 func (s *Service) resolveWalletID(ctx context.Context, userID int64, txnType Type, walletID *int64) (int64, error) {

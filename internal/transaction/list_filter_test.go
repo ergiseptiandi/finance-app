@@ -82,7 +82,7 @@ func TestParseListFilterRejectsMixedMonthAndCustomRange(t *testing.T) {
 }
 
 func TestServiceListRejectsRangeOverTwoMonths(t *testing.T) {
-	svc := NewService(listRepositoryStub{}, nil, nil)
+	svc := NewService(listRepositoryStub{}, nil)
 
 	startDate := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, time.April, 2, 0, 0, 0, 0, time.UTC)
@@ -101,7 +101,7 @@ func TestServiceListRejectsRangeOverTwoMonths(t *testing.T) {
 }
 
 func TestServiceListRejectsIncompleteCustomRange(t *testing.T) {
-	svc := NewService(listRepositoryStub{}, nil, nil)
+	svc := NewService(listRepositoryStub{}, nil)
 
 	startDate := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 
@@ -125,7 +125,7 @@ func TestServiceListAppliesDefaultPagination(t *testing.T) {
 			received = filter
 			return PaginatedList{}, nil
 		},
-	}, nil, nil)
+	}, nil)
 
 	startDate := time.Date(2026, time.April, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, time.April, 30, 0, 0, 0, 0, time.UTC)
@@ -163,7 +163,7 @@ func TestServiceListDefaultsDateRangeToCurrentMonth(t *testing.T) {
 			received = filter
 			return PaginatedList{}, nil
 		},
-	}, nil, nil)
+	}, nil)
 
 	_, err := svc.List(context.Background(), 1, ListFilter{})
 	if err != nil {
@@ -177,4 +177,63 @@ func TestServiceListDefaultsDateRangeToCurrentMonth(t *testing.T) {
 	if received.EndDate == nil || received.EndDate.Format("2006-01-02") != "2026-04-30" {
 		t.Fatalf("unexpected default end date: %#v", received.EndDate)
 	}
+}
+
+func TestServiceSummaryUsesRepositoryBalance(t *testing.T) {
+	svc := NewService(listRepositoryStub{
+		findAllFn: func(ctx context.Context, userID int64, filter ListFilter) (PaginatedList, error) {
+			return PaginatedList{}, nil
+		},
+	}, nil)
+
+	// Swap in a repo stub that returns a known balance.
+	svc.repo = listRepositoryStubWithSummary{
+		summaryFn: func(ctx context.Context, userID int64) (Summary, error) {
+			return Summary{
+				TotalIncome:  5500,
+				TotalExpense: 200,
+				Balance:      5300,
+			}, nil
+		},
+	}
+
+	summary, err := svc.Summary(context.Background(), 1)
+	if err != nil {
+		t.Fatalf("Summary returned error: %v", err)
+	}
+
+	if summary.Balance != 5300 {
+		t.Fatalf("unexpected summary balance: %v", summary.Balance)
+	}
+}
+
+type listRepositoryStubWithSummary struct {
+	summaryFn func(ctx context.Context, userID int64) (Summary, error)
+}
+
+func (r listRepositoryStubWithSummary) Create(ctx context.Context, txn Transaction) (int64, error) {
+	return 0, nil
+}
+
+func (r listRepositoryStubWithSummary) GetByID(ctx context.Context, id int64, userID int64) (Transaction, error) {
+	return Transaction{}, nil
+}
+
+func (r listRepositoryStubWithSummary) Update(ctx context.Context, txn Transaction) error {
+	return nil
+}
+
+func (r listRepositoryStubWithSummary) Delete(ctx context.Context, id int64, userID int64) error {
+	return nil
+}
+
+func (r listRepositoryStubWithSummary) FindAll(ctx context.Context, userID int64, filter ListFilter) (PaginatedList, error) {
+	return PaginatedList{}, nil
+}
+
+func (r listRepositoryStubWithSummary) GetSummary(ctx context.Context, userID int64) (Summary, error) {
+	if r.summaryFn != nil {
+		return r.summaryFn(ctx, userID)
+	}
+	return Summary{}, nil
 }

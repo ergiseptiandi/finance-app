@@ -109,7 +109,7 @@ func main() {
 	mediaService := media.NewService(fileStorage)
 
 	txRepo := transaction.NewMySQLTransactionRepository(db)
-	txService := transaction.NewService(txRepo, walletService, walletService)
+	txService := transaction.NewService(txRepo, walletService)
 
 	if cfg.Runtime.Mode == "worker" || os.Getenv("APP_MODE") == "worker" {
 		worker := notifications.NewWorker(notificationsService, notificationsRepo, cfg.Runtime.NotificationCronSpec)
