@@ -212,6 +212,9 @@ func parameterSchemas(route routeinfo.RouteInfo) []map[string]any {
 	if parameters := dashboardParameterSchemas(route); parameters != nil {
 		return parameters
 	}
+	if parameters := reportsParameterSchemas(route); parameters != nil {
+		return parameters
+	}
 
 	return nil
 }

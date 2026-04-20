@@ -1,6 +1,7 @@
 package reports
 
 import (
+	"errors"
 	"net/http"
 
 	"finance-backend/internal/auth"
@@ -61,13 +62,19 @@ func (h handler) expenseByCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, err := h.svc.ExpenseByCategory(r.Context(), userID)
+	filter, err := parseReportsFilter(r)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "internal server error")
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, "Success Get", items)
+	item, err := h.svc.ExpenseByCategory(r.Context(), userID, filter)
+	if err != nil {
+		writeReportsError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, "Success Get", item)
 }
 
 func (h handler) spendingTrends(w http.ResponseWriter, r *http.Request) {
@@ -77,13 +84,19 @@ func (h handler) spendingTrends(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, err := h.svc.SpendingTrends(r.Context(), userID)
+	filter, err := parseReportsFilter(r)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "internal server error")
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, "Success Get", items)
+	item, err := h.svc.SpendingTrends(r.Context(), userID, filter)
+	if err != nil {
+		writeReportsError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, "Success Get", item)
 }
 
 func (h handler) highestSpendingCategory(w http.ResponseWriter, r *http.Request) {
@@ -93,9 +106,15 @@ func (h handler) highestSpendingCategory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	item, err := h.svc.HighestSpendingCategory(r.Context(), userID)
+	filter, err := parseReportsFilter(r)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "internal server error")
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	item, err := h.svc.HighestSpendingCategory(r.Context(), userID, filter)
+	if err != nil {
+		writeReportsError(w, err)
 		return
 	}
 
@@ -109,9 +128,15 @@ func (h handler) averageDailySpending(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.svc.AverageDailySpending(r.Context(), userID)
+	filter, err := parseReportsFilter(r)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "internal server error")
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	item, err := h.svc.AverageDailySpending(r.Context(), userID, filter)
+	if err != nil {
+		writeReportsError(w, err)
 		return
 	}
 
@@ -125,11 +150,28 @@ func (h handler) remainingBalance(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.svc.RemainingBalance(r.Context(), userID)
+	filter, err := parseReportsFilter(r)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "internal server error")
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	item, err := h.svc.RemainingBalance(r.Context(), userID, filter)
+	if err != nil {
+		writeReportsError(w, err)
 		return
 	}
 
 	writeJSON(w, http.StatusOK, "Success Get", item)
+}
+
+func writeReportsError(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, ErrInvalidInput):
+		writeError(w, http.StatusBadRequest, err.Error())
+	case errors.Is(err, ErrNotFound):
+		writeError(w, http.StatusNotFound, err.Error())
+	default:
+		writeError(w, http.StatusInternalServerError, "internal server error")
+	}
 }
