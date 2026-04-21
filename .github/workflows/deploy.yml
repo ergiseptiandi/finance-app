@@ -1,4 +1,4 @@
-name: Deploy Finance App to VPS
+name: Deploy Finance API and Worker to VPS
 
 on:
   push:
@@ -14,11 +14,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Build and Deploy using Docker Compose
+      - name: Migrate and deploy services
         run: |
-          # Menyalin file .env terpusat dari server ke folder runner jika ada
+          # Copy shared runtime env from the server into the runner workspace
           cp /home/www/finance-app/.env .env || true
           docker compose down
+          go run ./cmd/migrate up
           docker compose up -d --build
 
       - name: Refresh Nginx Proxy Manager

@@ -1,11 +1,12 @@
 services:
-  finance-app:
-    container_name: finance-app-1
+  finance-api:
+    container_name: finance-api-1
     build:
       context: .
     env_file: .env
     environment:
       - DB_HOST=mysql
+      - APP_MODE=api
     networks:
       - nginx-proxy-manager_default
       - db_net
@@ -16,8 +17,8 @@ services:
           cpus: "0.5"
           memory: 256M
 
-  finance-notification-worker:
-    container_name: finance-notification-worker-1
+  finance-worker:
+    container_name: finance-worker-1
     build:
       context: .
     env_file: .env
@@ -26,7 +27,6 @@ services:
       - APP_MODE=worker
       - NOTIFICATION_CRON_SCHEDULE=@every 1m
     networks:
-      - nginx-proxy-manager_default
       - db_net
     restart: always
     deploy:
