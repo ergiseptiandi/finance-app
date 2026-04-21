@@ -13,3 +13,6 @@ dist/
 
 # github actions runner
 actions-runner/
+
+# local secrets
+secrets/
