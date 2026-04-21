@@ -8,14 +8,13 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	mysql "github.com/go-sql-driver/mysql"
 )
 
 type MySQLNotificationsRepository struct {
 	db                 *sql.DB
-	schemaMu           sync.Mutex
-	salaryDayColumnSet bool
+	schemaMu           sync.RWMutex
+	schemaChecked      bool
+	hasSalaryDayColumn bool
 }
 
 func NewMySQLNotificationsRepository(db *sql.DB) *MySQLNotificationsRepository {
@@ -23,11 +22,12 @@ func NewMySQLNotificationsRepository(db *sql.DB) *MySQLNotificationsRepository {
 }
 
 func (r *MySQLNotificationsRepository) GetSettings(ctx context.Context, userID int64) (*Settings, error) {
-	if err := r.ensureSalaryDayColumn(ctx); err != nil {
+	hasSalaryDayColumn, err := r.detectSalaryDayColumn(ctx)
+	if err != nil {
 		return nil, err
 	}
 
-	const query = `
+	query := `
 		SELECT user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
 		       debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
 		       salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before, salary_day,
@@ -36,6 +36,17 @@ func (r *MySQLNotificationsRepository) GetSettings(ctx context.Context, userID i
 		WHERE user_id = ?
 		LIMIT 1
 	`
+	if !hasSalaryDayColumn {
+		query = `
+			SELECT user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
+			       debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
+			       salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before, 25 AS salary_day,
+			       push_token, created_at, updated_at
+			FROM notification_settings
+			WHERE user_id = ?
+			LIMIT 1
+		`
+	}
 
 	var item Settings
 	if err := r.db.QueryRowContext(ctx, query, userID).Scan(
@@ -64,11 +75,25 @@ func (r *MySQLNotificationsRepository) GetSettings(ctx context.Context, userID i
 }
 
 func (r *MySQLNotificationsRepository) UpsertSettings(ctx context.Context, settings Settings) (Settings, error) {
-	if err := r.ensureSalaryDayColumn(ctx); err != nil {
+	hasSalaryDayColumn, err := r.detectSalaryDayColumn(ctx)
+	if err != nil {
 		return Settings{}, err
 	}
 
-	const query = `
+	args := []any{
+		settings.UserID,
+		settings.Enabled,
+		settings.DailyExpenseReminderEnabled,
+		settings.DailyExpenseReminderTime,
+		settings.DebtPaymentReminderEnabled,
+		settings.DebtPaymentReminderTime,
+		settings.DebtPaymentReminderDaysBefore,
+		settings.SalaryReminderEnabled,
+		settings.SalaryReminderTime,
+		settings.SalaryReminderDaysBefore,
+	}
+
+	query := `
 		INSERT INTO notification_settings (
 			user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
 			debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
@@ -87,21 +112,32 @@ func (r *MySQLNotificationsRepository) UpsertSettings(ctx context.Context, setti
 			salary_day = VALUES(salary_day),
 			push_token = VALUES(push_token)
 	`
+	args = append(args, settings.SalaryDay, settings.PushToken)
 
-	if _, err := r.db.ExecContext(ctx, query,
-		settings.UserID,
-		settings.Enabled,
-		settings.DailyExpenseReminderEnabled,
-		settings.DailyExpenseReminderTime,
-		settings.DebtPaymentReminderEnabled,
-		settings.DebtPaymentReminderTime,
-		settings.DebtPaymentReminderDaysBefore,
-		settings.SalaryReminderEnabled,
-		settings.SalaryReminderTime,
-		settings.SalaryReminderDaysBefore,
-		settings.SalaryDay,
-		settings.PushToken,
-	); err != nil {
+	if !hasSalaryDayColumn {
+		query = `
+			INSERT INTO notification_settings (
+				user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
+				debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
+				salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before, push_token
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+				enabled = VALUES(enabled),
+				daily_expense_reminder_enabled = VALUES(daily_expense_reminder_enabled),
+				daily_expense_reminder_time = VALUES(daily_expense_reminder_time),
+				debt_payment_reminder_enabled = VALUES(debt_payment_reminder_enabled),
+				debt_payment_reminder_time = VALUES(debt_payment_reminder_time),
+				debt_payment_reminder_days_before = VALUES(debt_payment_reminder_days_before),
+				salary_reminder_enabled = VALUES(salary_reminder_enabled),
+				salary_reminder_time = VALUES(salary_reminder_time),
+				salary_reminder_days_before = VALUES(salary_reminder_days_before),
+				push_token = VALUES(push_token)
+		`
+		args = args[:10]
+		args = append(args, settings.PushToken)
+	}
+
+	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
 		return Settings{}, err
 	}
 
@@ -325,13 +361,14 @@ func (r *MySQLNotificationsRepository) DebtReminderSummary(ctx context.Context, 
 	return summary, nil
 }
 
-func (r *MySQLNotificationsRepository) ensureSalaryDayColumn(ctx context.Context) error {
-	r.schemaMu.Lock()
-	if r.salaryDayColumnSet {
-		r.schemaMu.Unlock()
-		return nil
+func (r *MySQLNotificationsRepository) detectSalaryDayColumn(ctx context.Context) (bool, error) {
+	r.schemaMu.RLock()
+	if r.schemaChecked {
+		hasColumn := r.hasSalaryDayColumn
+		r.schemaMu.RUnlock()
+		return hasColumn, nil
 	}
-	r.schemaMu.Unlock()
+	r.schemaMu.RUnlock()
 
 	const probeQuery = `
 		SELECT 1
@@ -344,36 +381,17 @@ func (r *MySQLNotificationsRepository) ensureSalaryDayColumn(ctx context.Context
 
 	var exists int
 	err := r.db.QueryRowContext(ctx, probeQuery).Scan(&exists)
-	if err == nil {
-		r.markSalaryDayColumnReady()
-		return nil
-	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
-	// Column is missing, fall through to add it.
-
-	const alterQuery = `
-		ALTER TABLE notification_settings
-		ADD COLUMN salary_day TINYINT UNSIGNED NOT NULL DEFAULT 25 AFTER salary_reminder_days_before
-	`
-
-	if _, err := r.db.ExecContext(ctx, alterQuery); err != nil {
-		if isDuplicateSalaryDayColumnError(err) {
-			r.markSalaryDayColumnReady()
-			return nil
-		}
-		return err
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, err
 	}
 
-	r.markSalaryDayColumnReady()
-	return nil
-}
-
-func (r *MySQLNotificationsRepository) markSalaryDayColumnReady() {
+	hasColumn := err == nil
 	r.schemaMu.Lock()
-	r.salaryDayColumnSet = true
+	r.schemaChecked = true
+	r.hasSalaryDayColumn = hasColumn
 	r.schemaMu.Unlock()
+
+	return hasColumn, nil
 }
 
 func scanNotification(rows *sql.Rows) (Notification, error) {
@@ -455,13 +473,4 @@ func marshalNotificationData(data map[string]string) (any, error) {
 	}
 
 	return string(raw), nil
-}
-
-func isDuplicateSalaryDayColumnError(err error) bool {
-	var mysqlErr *mysql.MySQLError
-	if errors.As(err, &mysqlErr) && mysqlErr.Number == 1060 {
-		return true
-	}
-
-	return strings.Contains(strings.ToLower(err.Error()), "duplicate column")
 }
