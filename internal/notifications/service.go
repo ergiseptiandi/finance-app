@@ -265,8 +265,15 @@ func (s *Service) storeAndPush(ctx context.Context, settings Settings, item Noti
 		Data:  item.Data,
 	}); err != nil {
 		item.DeliveryStatus = DeliveryStatusFailed
+
+		// If the token is invalid/expired, clear it so we don't keep
+		// sending to a dead token. The mobile app will sync a fresh
+		// token next time it opens.
+		if IsTokenInvalid(err) {
+			_ = s.repo.ClearPushToken(ctx, settings.UserID)
+		}
 	} else {
-		item.DeliveryStatus = DeliveryStatusSent
+		item.DeliveryStatus = DeliveryStatusDelivered
 	}
 
 	stored, err := s.repo.UpsertNotification(ctx, item)

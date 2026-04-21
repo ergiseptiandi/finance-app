@@ -3,6 +3,7 @@ package notifications
 import (
 	"context"
 	"os"
+	"strings"
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/messaging"
@@ -78,8 +79,26 @@ func (s *FirebaseSender) Send(ctx context.Context, token string, message PushMes
 			Priority: "high",
 			Notification: &messaging.AndroidNotification{
 				ChannelID: androidNotificationChannelID,
+				Sound:     "default",
+				Priority:  messaging.PriorityMax,
 			},
 		},
 	})
 	return err
+}
+
+// IsTokenInvalid checks whether an FCM error indicates the push token is
+// no longer valid (unregistered, expired, or malformed). When true the
+// caller should clear the stored token so we stop sending to it.
+func IsTokenInvalid(err error) bool {
+	if err == nil {
+		return false
+	}
+	if messaging.IsUnregistered(err) {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "NOT_FOUND") ||
+		strings.Contains(msg, "INVALID_ARGUMENT") ||
+		strings.Contains(msg, "not a valid FCM registration token")
 }

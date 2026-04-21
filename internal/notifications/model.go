@@ -13,10 +13,11 @@ const (
 type DeliveryStatus string
 
 const (
-	DeliveryStatusPending DeliveryStatus = "pending"
-	DeliveryStatusSent    DeliveryStatus = "sent"
-	DeliveryStatusFailed  DeliveryStatus = "failed"
-	DeliveryStatusSkipped DeliveryStatus = "skipped"
+	DeliveryStatusPending   DeliveryStatus = "pending"
+	DeliveryStatusSent      DeliveryStatus = "sent"
+	DeliveryStatusDelivered DeliveryStatus = "delivered"
+	DeliveryStatusFailed    DeliveryStatus = "failed"
+	DeliveryStatusSkipped   DeliveryStatus = "skipped"
 )
 
 type Settings struct {

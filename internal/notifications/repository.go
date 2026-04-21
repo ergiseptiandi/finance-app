@@ -8,6 +8,7 @@ import (
 type Repository interface {
 	GetSettings(ctx context.Context, userID int64) (*Settings, error)
 	UpsertSettings(ctx context.Context, settings Settings) (Settings, error)
+	ClearPushToken(ctx context.Context, userID int64) error
 	ListUserIDs(ctx context.Context) ([]int64, error)
 	ListNotifications(ctx context.Context, userID int64, filter NotificationFilter) ([]Notification, error)
 	GetNotificationByID(ctx context.Context, userID, id int64) (Notification, error)

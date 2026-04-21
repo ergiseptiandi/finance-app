@@ -103,6 +103,12 @@ func (r *MySQLNotificationsRepository) UpsertSettings(ctx context.Context, setti
 	return *stored, nil
 }
 
+func (r *MySQLNotificationsRepository) ClearPushToken(ctx context.Context, userID int64) error {
+	const query = `UPDATE notification_settings SET push_token = '' WHERE user_id = ?`
+	_, err := r.db.ExecContext(ctx, query, userID)
+	return err
+}
+
 func (r *MySQLNotificationsRepository) ListUserIDs(ctx context.Context) ([]int64, error) {
 	const query = `
 		SELECT id

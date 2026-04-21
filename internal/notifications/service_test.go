@@ -8,6 +8,7 @@ import (
 
 type notificationsRepoStub struct {
 	getSettingsFn         func(context.Context, int64) (*Settings, error)
+	clearPushTokenFn      func(context.Context, int64) error
 	upsertNotificationFn  func(context.Context, Notification) (Notification, error)
 	findNotificationFn    func(context.Context, int64, string) (*Notification, error)
 	debtReminderSummaryFn func(context.Context, int64, time.Time) (ReminderSummary, error)
@@ -22,6 +23,13 @@ func (r notificationsRepoStub) GetSettings(ctx context.Context, userID int64) (*
 
 func (r notificationsRepoStub) UpsertSettings(ctx context.Context, settings Settings) (Settings, error) {
 	return settings, nil
+}
+
+func (r notificationsRepoStub) ClearPushToken(ctx context.Context, userID int64) error {
+	if r.clearPushTokenFn != nil {
+		return r.clearPushTokenFn(ctx, userID)
+	}
+	return nil
 }
 
 func (r notificationsRepoStub) ListUserIDs(ctx context.Context) ([]int64, error) {
