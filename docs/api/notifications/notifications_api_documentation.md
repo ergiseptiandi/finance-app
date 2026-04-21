@@ -87,6 +87,9 @@ If you run the worker service in Docker Compose, this endpoint is called automat
 
 Note: `google-services.json` is for the mobile app. The backend needs a Firebase Admin service-account key.
 
+Inbox rows are persisted in the backend and returned by `GET /v1/notifications`.
+Each item includes `kind`, `type`, `read`, `read_at`, `created_at`, and `data` for routing.
+
 Suggested notification types handled by the app:
 - `daily_expense_input`
 - `debt_payment`
@@ -110,7 +113,37 @@ This endpoint is useful for:
 - retrying missed taps
 - showing reminder history even when push delivery failed
 
+Response item example:
+```json
+{
+  "id": 123,
+  "kind": "daily_expense_input",
+  "type": "daily_expense_input",
+  "title": "Expense Reminder",
+  "message": "Don’t forget to log today’s expenses.",
+  "read": false,
+  "read_at": null,
+  "created_at": "2026-04-21T09:00:00Z",
+  "data": {
+    "kind": "daily_expense_input",
+    "type": "daily_expense_input",
+    "route": "\/activity"
+  }
+}
+```
+
 ---
 
 ## 5. Mark Notification As Read
 **PATCH** `/v1/notifications/{id}/read`
+
+Marks the item as read and sets `read_at`.
+
+Expected success response:
+```json
+{
+  "Status": "success",
+  "Message": "read",
+  "Data": { "status": "read" }
+}
+```

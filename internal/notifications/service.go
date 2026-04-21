@@ -138,6 +138,7 @@ func (s *Service) generateDailyExpenseReminder(ctx context.Context, userID int64
 		Kind:           ReminderKindDailyExpense,
 		Title:          "Daily expense reminder",
 		Message:        "Jangan lupa input pengeluaran hari ini.",
+		Data:           notificationData(ReminderKindDailyExpense),
 		DeliveryStatus: DeliveryStatusPending,
 		ScheduledFor:   scheduledFor,
 		DedupeKey:      dedupeKey,
@@ -180,6 +181,7 @@ func (s *Service) generateDebtReminder(ctx context.Context, userID int64, settin
 		Kind:           ReminderKindDebtPayment,
 		Title:          "Debt payment reminder",
 		Message:        message,
+		Data:           notificationData(ReminderKindDebtPayment),
 		DeliveryStatus: DeliveryStatusPending,
 		ScheduledFor:   scheduledFor,
 		DedupeKey:      dedupeKey,
@@ -189,6 +191,7 @@ func (s *Service) generateDebtReminder(ctx context.Context, userID int64, settin
 }
 
 func (s *Service) storeAndPush(ctx context.Context, settings Settings, item Notification) (*Notification, error) {
+	item = normalizeNotification(item)
 	token := strings.TrimSpace(settings.PushToken)
 	if token == "" {
 		item.DeliveryStatus = DeliveryStatusSkipped
@@ -202,9 +205,7 @@ func (s *Service) storeAndPush(ctx context.Context, settings Settings, item Noti
 	if err := s.pushSender.Send(ctx, token, PushMessage{
 		Title: item.Title,
 		Body:  item.Message,
-		Data: map[string]string{
-			"kind": string(item.Kind),
-		},
+		Data:  item.Data,
 	}); err != nil {
 		item.DeliveryStatus = DeliveryStatusFailed
 	} else {
@@ -273,6 +274,39 @@ func combineDateAndClock(date time.Time, clock string) time.Time {
 		return date
 	}
 	return startOfDay(date).Add(dur)
+}
+
+func normalizeNotification(item Notification) Notification {
+	if item.Type == "" {
+		item.Type = string(item.Kind)
+	}
+	if item.Data == nil {
+		item.Data = notificationData(item.Kind)
+	}
+	item.Read = item.ReadAt != nil
+	return item
+}
+
+func notificationData(kind ReminderKind) map[string]string {
+	switch kind {
+	case ReminderKindDailyExpense:
+		return map[string]string{
+			"kind":  string(kind),
+			"type":  string(kind),
+			"route": "/activity",
+		}
+	case ReminderKindDebtPayment:
+		return map[string]string{
+			"kind":  string(kind),
+			"type":  string(kind),
+			"route": "/debts",
+		}
+	default:
+		return map[string]string{
+			"kind": string(kind),
+			"type": string(kind),
+		}
+	}
 }
 
 func startOfDay(t time.Time) time.Time {

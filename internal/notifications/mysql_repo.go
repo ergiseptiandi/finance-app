@@ -3,6 +3,7 @@ package notifications
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -119,7 +120,7 @@ func (r *MySQLNotificationsRepository) ListUserIDs(ctx context.Context) ([]int64
 func (r *MySQLNotificationsRepository) ListNotifications(ctx context.Context, userID int64, filter NotificationFilter) ([]Notification, error) {
 	builder := strings.Builder{}
 	builder.WriteString(`
-		SELECT id, user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key, created_at, updated_at
+		SELECT id, user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key, data, created_at, updated_at
 		FROM notifications
 		WHERE user_id = ?
 	`)
@@ -161,7 +162,7 @@ func (r *MySQLNotificationsRepository) ListNotifications(ctx context.Context, us
 
 func (r *MySQLNotificationsRepository) GetNotificationByID(ctx context.Context, userID, id int64) (Notification, error) {
 	const query = `
-		SELECT id, user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key, created_at, updated_at
+		SELECT id, user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key, data, created_at, updated_at
 		FROM notifications
 		WHERE id = ? AND user_id = ?
 		LIMIT 1
@@ -197,8 +198,8 @@ func (r *MySQLNotificationsRepository) MarkNotificationRead(ctx context.Context,
 func (r *MySQLNotificationsRepository) UpsertNotification(ctx context.Context, item Notification) (Notification, error) {
 	const query = `
 		INSERT INTO notifications (
-			user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key, data
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			kind = VALUES(kind),
 			title = VALUES(title),
@@ -206,7 +207,8 @@ func (r *MySQLNotificationsRepository) UpsertNotification(ctx context.Context, i
 			delivery_status = VALUES(delivery_status),
 			scheduled_for = VALUES(scheduled_for),
 			sent_at = VALUES(sent_at),
-			read_at = VALUES(read_at)
+			read_at = VALUES(read_at),
+			data = VALUES(data)
 	`
 
 	var sentAt any
@@ -216,6 +218,10 @@ func (r *MySQLNotificationsRepository) UpsertNotification(ctx context.Context, i
 	var readAt any
 	if item.ReadAt != nil {
 		readAt = *item.ReadAt
+	}
+	data, err := marshalNotificationData(item.Data)
+	if err != nil {
+		return Notification{}, err
 	}
 
 	if _, err := r.db.ExecContext(ctx, query,
@@ -228,6 +234,7 @@ func (r *MySQLNotificationsRepository) UpsertNotification(ctx context.Context, i
 		sentAt,
 		readAt,
 		item.DedupeKey,
+		data,
 	); err != nil {
 		return Notification{}, err
 	}
@@ -245,7 +252,7 @@ func (r *MySQLNotificationsRepository) UpsertNotification(ctx context.Context, i
 
 func (r *MySQLNotificationsRepository) FindNotificationByDedupeKey(ctx context.Context, userID int64, dedupeKey string) (*Notification, error) {
 	const query = `
-		SELECT id, user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key, created_at, updated_at
+		SELECT id, user_id, kind, title, message, delivery_status, scheduled_for, sent_at, read_at, dedupe_key, data, created_at, updated_at
 		FROM notifications
 		WHERE user_id = ? AND dedupe_key = ?
 		LIMIT 1
@@ -287,6 +294,7 @@ func (r *MySQLNotificationsRepository) DebtReminderSummary(ctx context.Context, 
 
 func scanNotification(rows *sql.Rows) (Notification, error) {
 	var item Notification
+	var data sql.NullString
 	if err := rows.Scan(
 		&item.ID,
 		&item.UserID,
@@ -298,16 +306,21 @@ func scanNotification(rows *sql.Rows) (Notification, error) {
 		&item.SentAt,
 		&item.ReadAt,
 		&item.DedupeKey,
+		&data,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {
 		return Notification{}, err
 	}
-	return item, nil
+	if err := applyNotificationData(&item, data); err != nil {
+		return Notification{}, err
+	}
+	return normalizeNotification(item), nil
 }
 
 func scanNotificationRow(row *sql.Row) (Notification, error) {
 	var item Notification
+	var data sql.NullString
 	if err := row.Scan(
 		&item.ID,
 		&item.UserID,
@@ -319,6 +332,7 @@ func scanNotificationRow(row *sql.Row) (Notification, error) {
 		&item.SentAt,
 		&item.ReadAt,
 		&item.DedupeKey,
+		&data,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {
@@ -327,5 +341,34 @@ func scanNotificationRow(row *sql.Row) (Notification, error) {
 		}
 		return Notification{}, err
 	}
-	return item, nil
+	if err := applyNotificationData(&item, data); err != nil {
+		return Notification{}, err
+	}
+	return normalizeNotification(item), nil
+}
+
+func applyNotificationData(item *Notification, data sql.NullString) error {
+	if !data.Valid || strings.TrimSpace(data.String) == "" {
+		return nil
+	}
+
+	var parsed map[string]string
+	if err := json.Unmarshal([]byte(data.String), &parsed); err != nil {
+		return err
+	}
+	item.Data = parsed
+	return nil
+}
+
+func marshalNotificationData(data map[string]string) (any, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	return string(raw), nil
 }

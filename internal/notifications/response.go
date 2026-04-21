@@ -14,3 +14,7 @@ func writeJSON(w http.ResponseWriter, status int, message string, payload any) {
 func writeError(w http.ResponseWriter, status int, message string) {
 	helpers.WriteJSON(w, status, helpers.ErrorResponse(message, strconv.Itoa(status)))
 }
+
+func writeReadSuccess(w http.ResponseWriter) {
+	helpers.WriteJSON(w, http.StatusOK, helpers.SuccessResponse(map[string]string{"status": "read"}, "read", "success"))
+}

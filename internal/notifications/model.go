@@ -32,18 +32,21 @@ type Settings struct {
 }
 
 type Notification struct {
-	ID             int64          `json:"id"`
-	UserID         int64          `json:"-"`
-	Kind           ReminderKind   `json:"kind"`
-	Title          string         `json:"title"`
-	Message        string         `json:"message"`
-	DeliveryStatus DeliveryStatus `json:"delivery_status"`
-	ScheduledFor   time.Time      `json:"scheduled_for"`
-	SentAt         *time.Time     `json:"sent_at,omitempty"`
-	ReadAt         *time.Time     `json:"read_at,omitempty"`
-	DedupeKey      string         `json:"dedupe_key"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
+	ID             int64             `json:"id"`
+	UserID         int64             `json:"-"`
+	Kind           ReminderKind      `json:"kind"`
+	Type           string            `json:"type,omitempty"`
+	Title          string            `json:"title"`
+	Message        string            `json:"message"`
+	Read           bool              `json:"read"`
+	DeliveryStatus DeliveryStatus    `json:"delivery_status"`
+	ScheduledFor   time.Time         `json:"scheduled_for"`
+	SentAt         *time.Time        `json:"sent_at,omitempty"`
+	ReadAt         *time.Time        `json:"read_at,omitempty"`
+	DedupeKey      string            `json:"dedupe_key"`
+	Data           map[string]string `json:"data,omitempty"`
+	CreatedAt      time.Time         `json:"created_at"`
+	UpdatedAt      time.Time         `json:"updated_at"`
 }
 
 type UpdateSettingsInput struct {

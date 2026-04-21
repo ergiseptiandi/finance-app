@@ -136,13 +136,13 @@ func (h handler) markRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, err := h.svc.MarkRead(r.Context(), userID, id)
+	_, err = h.svc.MarkRead(r.Context(), userID, id)
 	if err != nil {
 		writeNotificationError(w, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, "Success Update", item)
+	writeReadSuccess(w)
 }
 
 func writeNotificationError(w http.ResponseWriter, err error) {
