@@ -9,6 +9,10 @@ on:
 jobs:
   deploy:
     runs-on: self-hosted
+    env:
+      GOPATH: /tmp/go
+      GOMODCACHE: /tmp/go/pkg/mod
+      GOCACHE: /tmp/go-build
 
     steps:
       - name: Checkout Code
@@ -16,6 +20,7 @@ jobs:
 
       - name: Migrate and deploy services
         run: |
+          mkdir -p /tmp/go/pkg/mod /tmp/go-build
           # Copy shared runtime env from the server into the runner workspace
           cp /home/www/finance-app/.env .env || true
           docker compose down
