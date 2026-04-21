@@ -273,7 +273,9 @@ func (s *Service) storeAndPush(ctx context.Context, settings Settings, item Noti
 			_ = s.repo.ClearPushToken(ctx, settings.UserID)
 		}
 	} else {
-		item.DeliveryStatus = DeliveryStatusDelivered
+		sentAt := nowFunc()
+		item.DeliveryStatus = DeliveryStatusSent
+		item.SentAt = &sentAt
 	}
 
 	stored, err := s.repo.UpsertNotification(ctx, item)

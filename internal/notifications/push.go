@@ -2,6 +2,8 @@ package notifications
 
 import (
 	"context"
+	"encoding/json"
+	"log"
 	"os"
 	"strings"
 
@@ -35,7 +37,8 @@ type FirebasePushConfig struct {
 }
 
 type FirebaseSender struct {
-	client *messaging.Client
+	client    *messaging.Client
+	projectID string
 }
 
 func NewFirebaseSender(ctx context.Context, cfg FirebasePushConfig) (PushSender, error) {
@@ -60,7 +63,12 @@ func NewFirebaseSender(ctx context.Context, cfg FirebasePushConfig) (PushSender,
 		return nil, err
 	}
 
-	return &FirebaseSender{client: client}, nil
+	log.Printf("firebase push enabled for project %s", cfg.ProjectID)
+
+	return &FirebaseSender{
+		client:    client,
+		projectID: cfg.ProjectID,
+	}, nil
 }
 
 func (s *FirebaseSender) Send(ctx context.Context, token string, message PushMessage) error {
@@ -68,22 +76,64 @@ func (s *FirebaseSender) Send(ctx context.Context, token string, message PushMes
 		return nil
 	}
 
-	_, err := s.client.Send(ctx, &messaging.Message{
+	msg := buildFirebaseMessage(token, message)
+	logFirebaseSendRequest(s.projectID, msg)
+
+	messageID, err := s.client.Send(ctx, msg)
+	if err != nil {
+		log.Printf("fcm send response: project_id=%s error=%v", s.projectID, err)
+		return err
+	}
+
+	log.Printf("fcm send response: project_id=%s message_id=%s", s.projectID, messageID)
+	return err
+}
+
+func buildFirebaseMessage(token string, message PushMessage) *messaging.Message {
+	return &messaging.Message{
 		Token: token,
 		Notification: &messaging.Notification{
 			Title: message.Title,
 			Body:  message.Body,
 		},
-		Data: message.Data,
 		Android: &messaging.AndroidConfig{
 			Priority: "high",
 			Notification: &messaging.AndroidNotification{
 				ChannelID: androidNotificationChannelID,
-				Sound:     "default",
 			},
 		},
-	})
-	return err
+	}
+}
+
+func logFirebaseSendRequest(projectID string, msg *messaging.Message) {
+	if msg == nil {
+		return
+	}
+
+	payload := map[string]any{
+		"project_id": projectID,
+		"message": map[string]any{
+			"token": msg.Token,
+			"notification": map[string]any{
+				"title": msg.Notification.Title,
+				"body":  msg.Notification.Body,
+			},
+			"android": map[string]any{
+				"priority": msg.Android.Priority,
+				"notification": map[string]any{
+					"channel_id": msg.Android.Notification.ChannelID,
+				},
+			},
+		},
+	}
+
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		log.Printf("fcm send request: project_id=%s marshal_error=%v", projectID, err)
+		return
+	}
+
+	log.Printf("fcm send request: %s", raw)
 }
 
 // IsTokenInvalid checks whether an FCM error indicates the push token is

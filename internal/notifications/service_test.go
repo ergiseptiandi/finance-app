@@ -2,6 +2,7 @@ package notifications
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -13,6 +14,17 @@ type notificationsRepoStub struct {
 	upsertNotificationFn  func(context.Context, Notification) (Notification, error)
 	findNotificationFn    func(context.Context, int64, string) (*Notification, error)
 	debtReminderSummaryFn func(context.Context, int64, time.Time) (ReminderSummary, error)
+}
+
+type pushSenderStub struct {
+	sendFn func(context.Context, string, PushMessage) error
+}
+
+func (p pushSenderStub) Send(ctx context.Context, token string, message PushMessage) error {
+	if p.sendFn != nil {
+		return p.sendFn(ctx, token, message)
+	}
+	return nil
 }
 
 func (r notificationsRepoStub) GetSettings(ctx context.Context, userID int64) (*Settings, error) {
@@ -233,5 +245,114 @@ func TestUpdateSettingsCreatesDefaultsWhenOnlyPushTokenProvided(t *testing.T) {
 	}
 	if item.PushToken != newToken {
 		t.Fatalf("unexpected returned token: %q", item.PushToken)
+	}
+}
+
+func TestGenerateMarksSuccessfulPushAsSent(t *testing.T) {
+	originalNowFunc := nowFunc
+	nowFunc = func() time.Time {
+		return time.Date(2026, time.April, 21, 9, 30, 0, 0, time.UTC)
+	}
+	defer func() { nowFunc = originalNowFunc }()
+
+	var stored Notification
+
+	svc := NewService(notificationsRepoStub{
+		getSettingsFn: func(context.Context, int64) (*Settings, error) {
+			return &Settings{
+				UserID:                      2,
+				Enabled:                     true,
+				DailyExpenseReminderEnabled: true,
+				DailyExpenseReminderTime:    "09:00",
+				DebtPaymentReminderEnabled:  false,
+				SalaryReminderEnabled:       false,
+				PushToken:                   "valid-device-token",
+			}, nil
+		},
+		findNotificationFn: func(context.Context, int64, string) (*Notification, error) {
+			return nil, nil
+		},
+		upsertNotificationFn: func(_ context.Context, item Notification) (Notification, error) {
+			stored = item
+			return item, nil
+		},
+	}, pushSenderStub{
+		sendFn: func(_ context.Context, token string, message PushMessage) error {
+			if token != "valid-device-token" {
+				t.Fatalf("unexpected token: %s", token)
+			}
+			if message.Title != "Daily expense reminder" {
+				t.Fatalf("unexpected title: %s", message.Title)
+			}
+			return nil
+		},
+	})
+
+	items, err := svc.Generate(context.Background(), 2)
+	if err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+
+	if stored.DeliveryStatus != DeliveryStatusSent {
+		t.Fatalf("expected delivery status %s, got %s", DeliveryStatusSent, stored.DeliveryStatus)
+	}
+	if stored.SentAt == nil {
+		t.Fatal("expected sent_at to be set")
+	}
+	if !stored.SentAt.Equal(nowFunc()) {
+		t.Fatalf("unexpected sent_at: %s", stored.SentAt)
+	}
+}
+
+func TestGenerateMarksFailedPushAsFailed(t *testing.T) {
+	originalNowFunc := nowFunc
+	nowFunc = func() time.Time {
+		return time.Date(2026, time.April, 21, 9, 30, 0, 0, time.UTC)
+	}
+	defer func() { nowFunc = originalNowFunc }()
+
+	var stored Notification
+
+	svc := NewService(notificationsRepoStub{
+		getSettingsFn: func(context.Context, int64) (*Settings, error) {
+			return &Settings{
+				UserID:                      2,
+				Enabled:                     true,
+				DailyExpenseReminderEnabled: true,
+				DailyExpenseReminderTime:    "09:00",
+				DebtPaymentReminderEnabled:  false,
+				SalaryReminderEnabled:       false,
+				PushToken:                   "bad-device-token",
+			}, nil
+		},
+		findNotificationFn: func(context.Context, int64, string) (*Notification, error) {
+			return nil, nil
+		},
+		upsertNotificationFn: func(_ context.Context, item Notification) (Notification, error) {
+			stored = item
+			return item, nil
+		},
+	}, pushSenderStub{
+		sendFn: func(_ context.Context, token string, message PushMessage) error {
+			return errors.New("fcm send failed")
+		},
+	})
+
+	items, err := svc.Generate(context.Background(), 2)
+	if err != nil {
+		t.Fatalf("Generate returned error: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected 1 item, got %d", len(items))
+	}
+
+	if stored.DeliveryStatus != DeliveryStatusFailed {
+		t.Fatalf("expected delivery status %s, got %s", DeliveryStatusFailed, stored.DeliveryStatus)
+	}
+	if stored.SentAt != nil {
+		t.Fatal("expected sent_at to stay nil on failed push")
 	}
 }
