@@ -7,6 +7,7 @@ services:
     environment:
       - DB_HOST=mysql
       - APP_MODE=api
+      - TZ=Asia/Jakarta
     networks:
       - nginx-proxy-manager_default
       - db_net
@@ -26,6 +27,7 @@ services:
       - DB_HOST=mysql
       - APP_MODE=worker
       - NOTIFICATION_CRON_SCHEDULE=@every 1m
+      - TZ=Asia/Jakarta
     networks:
       - db_net
     restart: always
