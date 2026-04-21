@@ -140,6 +140,40 @@ Jalankan seluruh test:
 go test ./...
 ```
 
+## FCM Debug Send
+
+Untuk mengirim push FCM minimal langsung ke satu device token memakai kredensial backend yang sama:
+
+```powershell
+go run ./cmd/fcm-debug-send -token "<FCM_DEVICE_TOKEN>"
+```
+
+Opsional:
+
+```powershell
+go run ./cmd/fcm-debug-send -token "<FCM_DEVICE_TOKEN>" -title "Debug" -body "Tes push minimal"
+```
+
+Mode pembanding payload:
+
+```powershell
+go run ./cmd/fcm-debug-send -token "<FCM_DEVICE_TOKEN>" -mode notification-only
+go run ./cmd/fcm-debug-send -token "<FCM_DEVICE_TOKEN>" -mode android-priority
+go run ./cmd/fcm-debug-send -token "<FCM_DEVICE_TOKEN>" -mode android-channel
+```
+
+Arti mode:
+
+- `notification-only`: hanya `notification.title/body`
+- `android-priority`: `notification.title/body` + `android.priority=high`
+- `android-channel`: `notification.title/body` + `android.priority=high` + `channel_id=finance-go-default`
+
+Command ini akan memakai:
+
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_CREDENTIALS_PATH`
+- `FIREBASE_CREDENTIALS_JSON`
+
 ## Catatan
 
 - API akan membaca file `.env` otomatis jika tersedia di root project
