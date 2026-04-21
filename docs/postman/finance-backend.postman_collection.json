@@ -73,6 +73,14 @@
                          "value":  "1"
                      },
                      {
+                         "key":  "notification_kind",
+                         "value":  "daily_expense_input"
+                     },
+                     {
+                         "key":  "push_token",
+                         "value":  "fcm-device-token"
+                     },
+                     {
                          "key":  "media_path",
                          "value":  "/uploads/general/example.jpg"
                      }
@@ -1409,6 +1417,118 @@
                                                                  ]
                                                   },
                                       "name":  "List Notifications",
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test('List notifications status code', function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "",
+                                                                                    "let jsonData = {};",
+                                                                                    "try {",
+                                                                                    "  jsonData = pm.response.json();",
+                                                                                    "} catch (e) {",
+                                                                                    "  console.log('Invalid JSON response', e);",
+                                                                                    "}",
+                                                                                    "",
+                                                                                    "const items = Array.isArray(jsonData && jsonData.Data) ? jsonData.Data : [];",
+                                                                                    "if (items.length > 0 && items[0].id) {",
+                                                                                    "  pm.collectionVariables.set('notification_id', String(items[0].id));",
+                                                                                    "  pm.environment.set('notification_id', String(items[0].id));",
+                                                                                    "}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ],
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/notifications?read=false",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "List Unread Notifications",
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test('List unread notifications status code', function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "",
+                                                                                    "let jsonData = {};",
+                                                                                    "try {",
+                                                                                    "  jsonData = pm.response.json();",
+                                                                                    "} catch (e) {",
+                                                                                    "  console.log('Invalid JSON response', e);",
+                                                                                    "}",
+                                                                                    "",
+                                                                                    "const items = Array.isArray(jsonData && jsonData.Data) ? jsonData.Data : [];",
+                                                                                    "if (items.length > 0 && items[0].id) {",
+                                                                                    "  pm.collectionVariables.set('notification_id', String(items[0].id));",
+                                                                                    "  pm.environment.set('notification_id', String(items[0].id));",
+                                                                                    "}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ],
+                                      "response":  [
+
+                                                   ]
+                                  },
+                                  {
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "url":  "{{base_url}}/v1/notifications?kind={{notification_kind}}",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Authorization",
+                                                                         "type":  "text",
+                                                                         "value":  "Bearer {{access_token}}"
+                                                                     }
+                                                                 ]
+                                                  },
+                                      "name":  "List Notifications By Kind",
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test('List notifications by kind status code', function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "",
+                                                                                    "let jsonData = {};",
+                                                                                    "try {",
+                                                                                    "  jsonData = pm.response.json();",
+                                                                                    "} catch (e) {",
+                                                                                    "  console.log('Invalid JSON response', e);",
+                                                                                    "}",
+                                                                                    "",
+                                                                                    "const items = Array.isArray(jsonData && jsonData.Data) ? jsonData.Data : [];",
+                                                                                    "if (items.length > 0 && items[0].id) {",
+                                                                                    "  pm.collectionVariables.set('notification_id', String(items[0].id));",
+                                                                                    "  pm.environment.set('notification_id', String(items[0].id));",
+                                                                                    "}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ],
                                       "response":  [
 
                                                    ]
@@ -1433,7 +1553,7 @@
                                   {
                                       "request":  {
                                                       "body":  {
-												"raw":  "{\n  \"enabled\": true,\n  \"daily_expense_reminder_enabled\": true,\n  \"daily_expense_reminder_time\": \"20:00\",\n  \"debt_payment_reminder_enabled\": true,\n  \"debt_payment_reminder_time\": \"09:00\",\n  \"debt_payment_reminder_days_before\": 3,\n  \"salary_reminder_enabled\": true,\n  \"salary_reminder_time\": \"08:00\",\n  \"salary_reminder_days_before\": 1,\n  \"salary_day\": 25,\n  \"push_token\": \"fcm-device-token\"\n}",
+                                                                        "raw":  "{\n  \"enabled\": true,\n  \"daily_expense_reminder_enabled\": true,\n  \"daily_expense_reminder_time\": \"20:00\",\n  \"debt_payment_reminder_enabled\": true,\n  \"debt_payment_reminder_time\": \"09:00\",\n  \"debt_payment_reminder_days_before\": 3,\n  \"salary_reminder_enabled\": true,\n  \"salary_reminder_time\": \"08:00\",\n  \"salary_reminder_days_before\": 1,\n  \"salary_day\": 25,\n  \"push_token\": \"{{push_token}}\"\n}",
                                                                    "options":  {
                                                                                    "raw":  {
                                                                                                "language":  "json"
@@ -1456,6 +1576,19 @@
                                                                  ]
                                                   },
                                       "name":  "Update Notification Settings",
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test('Update notification settings status code', function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ],
                                       "response":  [
 
                                                    ]
@@ -1472,7 +1605,33 @@
                                                                      }
                                                                  ]
                                                   },
-                                      "name":  "Generate Notifications",
+                                      "name":  "Generate Scheduled Reminders",
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test('Generate scheduled reminders status code', function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "",
+                                                                                    "let jsonData = {};",
+                                                                                    "try {",
+                                                                                    "  jsonData = pm.response.json();",
+                                                                                    "} catch (e) {",
+                                                                                    "  console.log('Invalid JSON response', e);",
+                                                                                    "}",
+                                                                                    "",
+                                                                                    "const items = Array.isArray(jsonData && jsonData.Data) ? jsonData.Data : [];",
+                                                                                    "if (items.length > 0 && items[0].id) {",
+                                                                                    "  pm.collectionVariables.set('notification_id', String(items[0].id));",
+                                                                                    "  pm.environment.set('notification_id', String(items[0].id));",
+                                                                                    "}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ],
                                       "response":  [
 
                                                    ]
@@ -1490,6 +1649,30 @@
                                                                  ]
                                                   },
                                       "name":  "Mark Notification Read",
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test('Mark notification read status code', function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "",
+                                                                                    "let jsonData = {};",
+                                                                                    "try {",
+                                                                                    "  jsonData = pm.response.json();",
+                                                                                    "} catch (e) {",
+                                                                                    "  console.log('Invalid JSON response', e);",
+                                                                                    "}",
+                                                                                    "",
+                                                                                    "pm.test('Notification marked as read', function () {",
+                                                                                    "  pm.expect(jsonData && jsonData.Data && jsonData.Data.status).to.eql('read');",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ],
                                       "response":  [
 
                                                    ]
