@@ -9,6 +9,8 @@ import (
 	"google.golang.org/api/option"
 )
 
+const androidNotificationChannelID = "finance-go-default"
+
 type PushMessage struct {
 	Title string
 	Body  string
@@ -72,6 +74,12 @@ func (s *FirebaseSender) Send(ctx context.Context, token string, message PushMes
 			Body:  message.Body,
 		},
 		Data: message.Data,
+		Android: &messaging.AndroidConfig{
+			Priority: "high",
+			Notification: &messaging.AndroidNotification{
+				ChannelID: androidNotificationChannelID,
+			},
+		},
 	})
 	return err
 }

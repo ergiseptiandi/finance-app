@@ -148,6 +148,8 @@ Rekomendasi perilaku UI:
 - `debt_payment` -> buka detail debt atau halaman pembayaran
 - `salary_reminder` -> buka input income / salary
 
+Backend mengirim payload FCM dengan `notification` + `data`, serta Android channel `finance-go-default` dan priority tinggi.
+
 `salary_day` adalah tanggal gaji bulanan yang dipilih user. Kalau bulan lebih pendek, backend memakai hari terakhir bulan itu.
 
 ## Environment Backend Yang Terkait
