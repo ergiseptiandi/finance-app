@@ -8,6 +8,7 @@ import (
 
 type notificationsRepoStub struct {
 	getSettingsFn         func(context.Context, int64) (*Settings, error)
+	upsertSettingsFn      func(context.Context, Settings) (Settings, error)
 	clearPushTokenFn      func(context.Context, int64) error
 	upsertNotificationFn  func(context.Context, Notification) (Notification, error)
 	findNotificationFn    func(context.Context, int64, string) (*Notification, error)
@@ -22,6 +23,9 @@ func (r notificationsRepoStub) GetSettings(ctx context.Context, userID int64) (*
 }
 
 func (r notificationsRepoStub) UpsertSettings(ctx context.Context, settings Settings) (Settings, error) {
+	if r.upsertSettingsFn != nil {
+		return r.upsertSettingsFn(ctx, settings)
+	}
 	return settings, nil
 }
 
@@ -141,5 +145,93 @@ func TestUpdateSettingsRejectsInvalidSalaryDay(t *testing.T) {
 	_, err := svc.UpdateSettings(context.Background(), 2, UpdateSettingsInput{SalaryDay: &invalid})
 	if err != ErrInvalidInput {
 		t.Fatalf("expected ErrInvalidInput, got %v", err)
+	}
+}
+
+func TestUpdateSettingsRefreshesPushTokenForExistingUser(t *testing.T) {
+	newToken := "new-device-token"
+	var stored Settings
+
+	svc := NewService(notificationsRepoStub{
+		getSettingsFn: func(context.Context, int64) (*Settings, error) {
+			return &Settings{
+				UserID:                      2,
+				Enabled:                     true,
+				DailyExpenseReminderEnabled: true,
+				DailyExpenseReminderTime:    "20:00",
+				DebtPaymentReminderEnabled:  true,
+				DebtPaymentReminderTime:     "09:00",
+				SalaryReminderEnabled:       true,
+				SalaryReminderTime:          "08:00",
+				SalaryReminderDaysBefore:    1,
+				SalaryDay:                   25,
+				PushToken:                   "old-device-token",
+			}, nil
+		},
+		upsertSettingsFn: func(_ context.Context, settings Settings) (Settings, error) {
+			stored = settings
+			return settings, nil
+		},
+	}, nil)
+
+	item, err := svc.UpdateSettings(context.Background(), 2, UpdateSettingsInput{
+		PushToken: &newToken,
+	})
+	if err != nil {
+		t.Fatalf("UpdateSettings returned error: %v", err)
+	}
+
+	if stored.UserID != 2 {
+		t.Fatalf("unexpected user id: %d", stored.UserID)
+	}
+	if stored.PushToken != newToken {
+		t.Fatalf("expected push token %q, got %q", newToken, stored.PushToken)
+	}
+	if stored.DailyExpenseReminderTime != "20:00" {
+		t.Fatalf("existing settings should be preserved, got %q", stored.DailyExpenseReminderTime)
+	}
+	if item.PushToken != newToken {
+		t.Fatalf("unexpected returned token: %q", item.PushToken)
+	}
+}
+
+func TestUpdateSettingsCreatesDefaultsWhenOnlyPushTokenProvided(t *testing.T) {
+	newToken := "fresh-install-token"
+	var stored Settings
+
+	svc := NewService(notificationsRepoStub{
+		getSettingsFn: func(context.Context, int64) (*Settings, error) {
+			return nil, nil
+		},
+		upsertSettingsFn: func(_ context.Context, settings Settings) (Settings, error) {
+			stored = settings
+			return settings, nil
+		},
+	}, nil)
+
+	item, err := svc.UpdateSettings(context.Background(), 7, UpdateSettingsInput{
+		PushToken: &newToken,
+	})
+	if err != nil {
+		t.Fatalf("UpdateSettings returned error: %v", err)
+	}
+
+	if stored.UserID != 7 {
+		t.Fatalf("unexpected user id: %d", stored.UserID)
+	}
+	if stored.PushToken != newToken {
+		t.Fatalf("expected push token %q, got %q", newToken, stored.PushToken)
+	}
+	if !stored.Enabled {
+		t.Fatal("expected default enabled=true")
+	}
+	if stored.DailyExpenseReminderTime != "20:00" {
+		t.Fatalf("unexpected default daily reminder time: %q", stored.DailyExpenseReminderTime)
+	}
+	if stored.SalaryDay != 25 {
+		t.Fatalf("unexpected default salary day: %d", stored.SalaryDay)
+	}
+	if item.PushToken != newToken {
+		t.Fatalf("unexpected returned token: %q", item.PushToken)
 	}
 }

@@ -80,7 +80,6 @@ func (s *FirebaseSender) Send(ctx context.Context, token string, message PushMes
 			Notification: &messaging.AndroidNotification{
 				ChannelID: androidNotificationChannelID,
 				Sound:     "default",
-				Priority:  messaging.PriorityMax,
 			},
 		},
 	})
