@@ -20,6 +20,32 @@ Alur yang dipakai saat ini:
 5. Worker notifikasi di backend menjalankan jadwal reminder.
 6. Jika kondisi notifikasi terpenuhi, backend mengirim push ke token yang tersimpan.
 
+## Kontrak Final Yang Harus Disepakati
+
+### Field backend yang dipakai
+
+- `enabled` untuk toggle notifikasi global
+- `push_token` untuk token FCM device
+- `daily_expense_reminder_enabled`
+- `daily_expense_reminder_time`
+- `debt_payment_reminder_enabled`
+- `debt_payment_reminder_time`
+- `debt_payment_reminder_days_before`
+- `salary_reminder_enabled`
+- `salary_reminder_time`
+- `salary_reminder_days_before`
+- `salary_day`
+
+Catatan: di mobile, field lokal boleh dinamai `notification_enabled`, tetapi saat kirim ke backend tetap gunakan `enabled`.
+
+### Route yang dikirim backend
+
+- `daily_expense_input` -> `/activity`
+- `debt_payment` -> `/debts`
+- `salary_reminder` -> `/transactions?type=income`
+
+Mobile harus membaca `data.kind`, `data.type`, dan `data.route` dari payload atau inbox backend.
+
 ## Yang Harus Disiapkan Di Firebase
 
 Firebase project saja belum cukup. Aplikasi mobile harus didaftarkan juga.
@@ -107,6 +133,7 @@ Contoh body lengkap:
 - tangani notifikasi saat app foreground
 - tangani tap notifikasi saat app background
 - buka screen yang sesuai berdasarkan tipe notifikasi
+- arahkan tap notifikasi berdasarkan `data.route`
 - tampilkan unread badge atau inbox notif dari backend
 
 ## Tipe Notifikasi Yang Disiapkan Backend
