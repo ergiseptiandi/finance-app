@@ -86,10 +86,14 @@ Contoh body lengkap:
 {
   "enabled": true,
   "daily_expense_reminder_enabled": true,
-  "daily_expense_reminder_time": "20:00",
-  "debt_payment_reminder_enabled": true,
-  "debt_payment_reminder_time": "09:00",
-  "debt_payment_reminder_days_before": 3,
+ "daily_expense_reminder_time": "20:00",
+ "debt_payment_reminder_enabled": true,
+ "debt_payment_reminder_time": "09:00",
+ "debt_payment_reminder_days_before": 3,
+  "salary_reminder_enabled": true,
+  "salary_reminder_time": "08:00",
+  "salary_reminder_days_before": 1,
+  "salary_day": 25,
   "push_token": "fcm-device-token"
 }
 ```
@@ -109,11 +113,15 @@ Contoh body lengkap:
 
 - `daily_expense_input`
 - `debt_payment`
+- `salary_reminder`
 
 Rekomendasi perilaku UI:
 
 - `daily_expense_input` -> buka input pengeluaran
 - `debt_payment` -> buka detail debt atau halaman pembayaran
+- `salary_reminder` -> buka input income / salary
+
+`salary_day` adalah tanggal gaji bulanan yang dipilih user. Kalau bulan lebih pendek, backend memakai hari terakhir bulan itu.
 
 ## Environment Backend Yang Terkait
 

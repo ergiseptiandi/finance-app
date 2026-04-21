@@ -41,8 +41,11 @@ Recommended mobile fields to store locally:
 - `notification_enabled`
 - `daily_expense_reminder_enabled`
 - `debt_payment_reminder_enabled`
+- `salary_reminder_enabled`
 - `daily_expense_reminder_time`
 - `debt_payment_reminder_time`
+- `salary_reminder_time`
+- `salary_day`
 
 ---
 
@@ -69,6 +72,10 @@ Request body example:
   "debt_payment_reminder_enabled": true,
   "debt_payment_reminder_time": "09:00",
   "debt_payment_reminder_days_before": 3,
+  "salary_reminder_enabled": true,
+  "salary_reminder_time": "08:00",
+  "salary_reminder_days_before": 1,
+  "salary_day": 25,
   "push_token": "fcm-device-token"
 }
 ```
@@ -81,6 +88,7 @@ Request body example:
 Generates:
 - daily expense input reminder
 - debt payment reminder
+- salary reminder
 
 If `push_token` exists and Firebase credentials are configured, notifications are also pushed.
 If you run the worker service in Docker Compose, this endpoint is called automatically on the cron schedule.
@@ -93,10 +101,14 @@ Each item includes `kind`, `type`, `read`, `read_at`, `created_at`, and `data` f
 Suggested notification types handled by the app:
 - `daily_expense_input`
 - `debt_payment`
+- `salary_reminder`
 
 Suggested UI behavior:
 - `daily_expense_input`: open the quick expense input screen
 - `debt_payment`: open debt detail or payment screen
+- `salary_reminder`: open income / salary input screen
+
+`salary_day` is the recurring day-of-month for salary. If the month is shorter than that day, the backend uses the last day of the month.
 
 ---
 

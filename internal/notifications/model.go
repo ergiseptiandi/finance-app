@@ -7,6 +7,7 @@ type ReminderKind string
 const (
 	ReminderKindDailyExpense ReminderKind = "daily_expense_input"
 	ReminderKindDebtPayment  ReminderKind = "debt_payment"
+	ReminderKindSalary       ReminderKind = "salary_reminder"
 )
 
 type DeliveryStatus string
@@ -26,6 +27,10 @@ type Settings struct {
 	DebtPaymentReminderEnabled    bool      `json:"debt_payment_reminder_enabled"`
 	DebtPaymentReminderTime       string    `json:"debt_payment_reminder_time"`
 	DebtPaymentReminderDaysBefore int       `json:"debt_payment_reminder_days_before"`
+	SalaryReminderEnabled         bool      `json:"salary_reminder_enabled"`
+	SalaryReminderTime            string    `json:"salary_reminder_time"`
+	SalaryReminderDaysBefore      int       `json:"salary_reminder_days_before"`
+	SalaryDay                     int       `json:"salary_day"`
 	PushToken                     string    `json:"push_token"`
 	CreatedAt                     time.Time `json:"created_at"`
 	UpdatedAt                     time.Time `json:"updated_at"`
@@ -56,6 +61,10 @@ type UpdateSettingsInput struct {
 	DebtPaymentReminderEnabled    *bool   `json:"debt_payment_reminder_enabled,omitempty"`
 	DebtPaymentReminderTime       *string `json:"debt_payment_reminder_time,omitempty"`
 	DebtPaymentReminderDaysBefore *int    `json:"debt_payment_reminder_days_before,omitempty"`
+	SalaryReminderEnabled         *bool   `json:"salary_reminder_enabled,omitempty"`
+	SalaryReminderTime            *string `json:"salary_reminder_time,omitempty"`
+	SalaryReminderDaysBefore      *int    `json:"salary_reminder_days_before,omitempty"`
+	SalaryDay                     *int    `json:"salary_day,omitempty"`
 	PushToken                     *string `json:"push_token,omitempty"`
 }
 

@@ -12,6 +12,7 @@ import (
 var (
 	ErrNotFound     = errors.New("notification not found")
 	ErrInvalidInput = errors.New("invalid notification input")
+	nowFunc         = time.Now
 )
 
 type Service struct {
@@ -68,6 +69,24 @@ func (s *Service) UpdateSettings(ctx context.Context, userID int64, input Update
 		}
 		updated.DebtPaymentReminderDaysBefore = *input.DebtPaymentReminderDaysBefore
 	}
+	if input.SalaryReminderEnabled != nil {
+		updated.SalaryReminderEnabled = *input.SalaryReminderEnabled
+	}
+	if input.SalaryReminderTime != nil {
+		updated.SalaryReminderTime = normalizeClock(*input.SalaryReminderTime, updated.SalaryReminderTime)
+	}
+	if input.SalaryReminderDaysBefore != nil {
+		if *input.SalaryReminderDaysBefore < 0 {
+			return Settings{}, ErrInvalidInput
+		}
+		updated.SalaryReminderDaysBefore = *input.SalaryReminderDaysBefore
+	}
+	if input.SalaryDay != nil {
+		if *input.SalaryDay < 1 || *input.SalaryDay > 31 {
+			return Settings{}, ErrInvalidInput
+		}
+		updated.SalaryDay = *input.SalaryDay
+	}
 	if input.PushToken != nil {
 		updated.PushToken = strings.TrimSpace(*input.PushToken)
 	}
@@ -92,8 +111,8 @@ func (s *Service) Generate(ctx context.Context, userID int64) ([]Notification, e
 		return []Notification{}, nil
 	}
 
-	now := time.Now()
-	items := make([]Notification, 0, 3)
+	now := nowFunc()
+	items := make([]Notification, 0, 4)
 
 	if settings.DailyExpenseReminderEnabled {
 		if item, err := s.generateDailyExpenseReminder(ctx, userID, settings, now); err != nil {
@@ -111,11 +130,19 @@ func (s *Service) Generate(ctx context.Context, userID int64) ([]Notification, e
 		}
 	}
 
+	if settings.SalaryReminderEnabled {
+		if item, err := s.generateSalaryReminder(ctx, userID, settings, now); err != nil {
+			return nil, err
+		} else if item != nil {
+			items = append(items, *item)
+		}
+	}
+
 	return items, nil
 }
 
 func (s *Service) MarkRead(ctx context.Context, userID, id int64) (Notification, error) {
-	return s.repo.MarkNotificationRead(ctx, userID, id, time.Now())
+	return s.repo.MarkNotificationRead(ctx, userID, id, nowFunc())
 }
 
 func (s *Service) generateDailyExpenseReminder(ctx context.Context, userID int64, settings Settings, now time.Time) (*Notification, error) {
@@ -190,6 +217,36 @@ func (s *Service) generateDebtReminder(ctx context.Context, userID int64, settin
 	return s.storeAndPush(ctx, settings, item)
 }
 
+func (s *Service) generateSalaryReminder(ctx context.Context, userID int64, settings Settings, now time.Time) (*Notification, error) {
+	nextSalaryDate := nextSalaryDate(now, settings.SalaryDay)
+	reminderDate := nextSalaryDate.AddDate(0, 0, -settings.SalaryReminderDaysBefore)
+	if now.Before(combineDateAndClock(reminderDate, settings.SalaryReminderTime)) {
+		return nil, nil
+	}
+
+	dedupeKey := fmt.Sprintf("salary-reminder:%s:%d", nextSalaryDate.Format("2006-01"), settings.SalaryReminderDaysBefore)
+	existing, err := s.repo.FindNotificationByDedupeKey(ctx, userID, dedupeKey)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, nil
+	}
+
+	item := Notification{
+		UserID:         userID,
+		Kind:           ReminderKindSalary,
+		Title:          "Salary reminder",
+		Message:        fmt.Sprintf("Jangan lupa catat pemasukan gaji tanggal %s.", nextSalaryDate.Format("2006-01-02")),
+		Data:           notificationData(ReminderKindSalary),
+		DeliveryStatus: DeliveryStatusPending,
+		ScheduledFor:   combineDateAndClock(reminderDate, settings.SalaryReminderTime),
+		DedupeKey:      dedupeKey,
+	}
+
+	return s.storeAndPush(ctx, settings, item)
+}
+
 func (s *Service) storeAndPush(ctx context.Context, settings Settings, item Notification) (*Notification, error) {
 	item = normalizeNotification(item)
 	token := strings.TrimSpace(settings.PushToken)
@@ -227,6 +284,9 @@ func validateSettings(item Settings) error {
 	if _, err := parseClock(item.DebtPaymentReminderTime); err != nil {
 		return ErrInvalidInput
 	}
+	if _, err := parseClock(item.SalaryReminderTime); err != nil {
+		return ErrInvalidInput
+	}
 	return nil
 }
 
@@ -239,6 +299,10 @@ func defaultSettings(userID int64) Settings {
 		DebtPaymentReminderEnabled:    true,
 		DebtPaymentReminderTime:       "09:00",
 		DebtPaymentReminderDaysBefore: 3,
+		SalaryReminderEnabled:         true,
+		SalaryReminderTime:            "08:00",
+		SalaryReminderDaysBefore:      1,
+		SalaryDay:                     25,
 	}
 }
 
@@ -301,12 +365,50 @@ func notificationData(kind ReminderKind) map[string]string {
 			"type":  string(kind),
 			"route": "/debts",
 		}
+	case ReminderKindSalary:
+		return map[string]string{
+			"kind":  string(kind),
+			"type":  string(kind),
+			"route": "/transactions?type=income",
+		}
 	default:
 		return map[string]string{
 			"kind": string(kind),
 			"type": string(kind),
 		}
 	}
+}
+
+func nextSalaryDate(now time.Time, salaryDay int) time.Time {
+	if salaryDay < 1 {
+		salaryDay = 1
+	}
+
+	current := salaryDateInMonth(now, salaryDay)
+	if now.Before(current) {
+		return current
+	}
+
+	return salaryDateInMonth(now.AddDate(0, 1, 0), salaryDay)
+}
+
+func salaryDateInMonth(ref time.Time, salaryDay int) time.Time {
+	y, m, _ := ref.Date()
+	lastDay := lastDayOfMonth(y, m, ref.Location())
+	if salaryDay > lastDay {
+		salaryDay = lastDay
+	}
+	return time.Date(y, m, salaryDay, 0, 0, 0, 0, ref.Location())
+}
+
+func lastDayOfMonth(year int, month time.Month, loc *time.Location) int {
+	firstOfNextMonth := time.Date(year, month+1, 1, 0, 0, 0, 0, loc)
+	return firstOfNextMonth.AddDate(0, 0, -1).Day()
+}
+
+func startOfMonth(t time.Time) time.Time {
+	y, m, _ := t.Date()
+	return time.Date(y, m, 1, 0, 0, 0, 0, t.Location())
 }
 
 func startOfDay(t time.Time) time.Time {

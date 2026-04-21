@@ -1433,7 +1433,7 @@
                                   {
                                       "request":  {
                                                       "body":  {
-                                                                   "raw":  "{\n  \"enable_push\": true,\n  \"enable_email\": false,\n  \"notification_day\": 25\n}",
+												"raw":  "{\n  \"enabled\": true,\n  \"daily_expense_reminder_enabled\": true,\n  \"daily_expense_reminder_time\": \"20:00\",\n  \"debt_payment_reminder_enabled\": true,\n  \"debt_payment_reminder_time\": \"09:00\",\n  \"debt_payment_reminder_days_before\": 3,\n  \"salary_reminder_enabled\": true,\n  \"salary_reminder_time\": \"08:00\",\n  \"salary_reminder_days_before\": 1,\n  \"salary_day\": 25,\n  \"push_token\": \"fcm-device-token\"\n}",
                                                                    "options":  {
                                                                                    "raw":  {
                                                                                                "language":  "json"

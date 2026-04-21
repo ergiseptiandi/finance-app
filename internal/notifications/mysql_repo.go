@@ -21,6 +21,7 @@ func (r *MySQLNotificationsRepository) GetSettings(ctx context.Context, userID i
 	const query = `
 		SELECT user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
 		       debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
+		       salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before, salary_day,
 		       push_token, created_at, updated_at
 		FROM notification_settings
 		WHERE user_id = ?
@@ -36,6 +37,10 @@ func (r *MySQLNotificationsRepository) GetSettings(ctx context.Context, userID i
 		&item.DebtPaymentReminderEnabled,
 		&item.DebtPaymentReminderTime,
 		&item.DebtPaymentReminderDaysBefore,
+		&item.SalaryReminderEnabled,
+		&item.SalaryReminderTime,
+		&item.SalaryReminderDaysBefore,
+		&item.SalaryDay,
 		&item.PushToken,
 		&item.CreatedAt,
 		&item.UpdatedAt,
@@ -53,8 +58,9 @@ func (r *MySQLNotificationsRepository) UpsertSettings(ctx context.Context, setti
 	const query = `
 		INSERT INTO notification_settings (
 			user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
-			debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before, push_token
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
+			salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before, salary_day, push_token
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			enabled = VALUES(enabled),
 			daily_expense_reminder_enabled = VALUES(daily_expense_reminder_enabled),
@@ -62,6 +68,10 @@ func (r *MySQLNotificationsRepository) UpsertSettings(ctx context.Context, setti
 			debt_payment_reminder_enabled = VALUES(debt_payment_reminder_enabled),
 			debt_payment_reminder_time = VALUES(debt_payment_reminder_time),
 			debt_payment_reminder_days_before = VALUES(debt_payment_reminder_days_before),
+			salary_reminder_enabled = VALUES(salary_reminder_enabled),
+			salary_reminder_time = VALUES(salary_reminder_time),
+			salary_reminder_days_before = VALUES(salary_reminder_days_before),
+			salary_day = VALUES(salary_day),
 			push_token = VALUES(push_token)
 	`
 
@@ -73,6 +83,10 @@ func (r *MySQLNotificationsRepository) UpsertSettings(ctx context.Context, setti
 		settings.DebtPaymentReminderEnabled,
 		settings.DebtPaymentReminderTime,
 		settings.DebtPaymentReminderDaysBefore,
+		settings.SalaryReminderEnabled,
+		settings.SalaryReminderTime,
+		settings.SalaryReminderDaysBefore,
+		settings.SalaryDay,
 		settings.PushToken,
 	); err != nil {
 		return Settings{}, err
