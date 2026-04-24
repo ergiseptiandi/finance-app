@@ -10,7 +10,7 @@ services:
       - TZ=Asia/Jakarta
       - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/firebase-admin-sdk.json
     volumes:
-      - ./secrets/firebase-admin-sdk.json:/app/secrets/firebase-admin-sdk.json:ro
+      - ./secrets:/app/secrets:ro
     networks:
       - nginx-proxy-manager_default
       - db_net
@@ -33,7 +33,7 @@ services:
       - TZ=Asia/Jakarta
       - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/firebase-admin-sdk.json
     volumes:
-      - ./secrets/firebase-admin-sdk.json:/app/secrets/firebase-admin-sdk.json:ro
+      - ./secrets:/app/secrets:ro
     networks:
       - db_net
     restart: always
