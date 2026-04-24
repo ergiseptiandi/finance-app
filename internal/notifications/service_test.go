@@ -85,6 +85,14 @@ func (r notificationsRepoStub) DebtReminderSummary(ctx context.Context, userID i
 	return ReminderSummary{}, nil
 }
 
+func (r notificationsRepoStub) WeeklySummary(ctx context.Context, userID int64, now time.Time) (WeeklySummaryData, error) {
+	return WeeklySummaryData{}, nil
+}
+
+func (r notificationsRepoStub) UpcomingGoals(ctx context.Context, userID int64, daysBefore int) ([]GoalData, error) {
+	return []GoalData{}, nil
+}
+
 func TestGenerateIncludesSalaryReminder(t *testing.T) {
 	originalNowFunc := nowFunc
 	nowFunc = func() time.Time {
