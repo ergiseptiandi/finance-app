@@ -378,9 +378,15 @@ func (r *MySQLNotificationsRepository) WeeklySummary(ctx context.Context, userID
 
 	var summary WeeklySummaryData
 	if err := r.db.QueryRowContext(ctx, expenseQuery, userID, weekStart, weekEnd).Scan(&summary.TotalExpense); err != nil {
+		if strings.Contains(err.Error(), "doesn't exist") || strings.Contains(err.Error(), "42S02") {
+			return WeeklySummaryData{}, nil
+		}
 		return WeeklySummaryData{}, err
 	}
 	if err := r.db.QueryRowContext(ctx, incomeQuery, userID, weekStart, weekEnd).Scan(&summary.TotalIncome); err != nil {
+		if strings.Contains(err.Error(), "doesn't exist") || strings.Contains(err.Error(), "42S02") {
+			return WeeklySummaryData{}, nil
+		}
 		return WeeklySummaryData{}, err
 	}
 	summary.NetSavings = summary.TotalIncome - summary.TotalExpense
@@ -403,6 +409,10 @@ func (r *MySQLNotificationsRepository) UpcomingGoals(ctx context.Context, userID
 
 	rows, err := r.db.QueryContext(ctx, query, userID, deadline, startOfDay(now))
 	if err != nil {
+		// Table doesn't exist yet, return empty list
+		if strings.Contains(err.Error(), "doesn't exist") || strings.Contains(err.Error(), "42S02") {
+			return []GoalData{}, nil
+		}
 		return nil, err
 	}
 	defer rows.Close()
