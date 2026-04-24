@@ -23,6 +23,9 @@ jobs:
           mkdir -p /tmp/go/pkg/mod /tmp/go-build
           # Copy shared runtime env from the server into the runner workspace
           cp /home/www/finance-app/.env .env || true
+          # Copy Firebase Admin SDK credentials into the checked-out workspace
+          mkdir -p secrets
+          cp /home/www/finance-app/secrets/firebase-admin-sdk.json secrets/firebase-admin-sdk.json
           docker compose down
           go run ./cmd/migrate up
           docker compose up -d --build
