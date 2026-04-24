@@ -100,7 +100,7 @@ func buildFirebaseMessage(token string, message PushMessage) *messaging.Message 
 			Priority: "high",
 			Notification: &messaging.AndroidNotification{
 				ChannelID: androidNotificationChannelID,
-				Sound:     "finance_go_notification",
+				Sound:     "default",
 			},
 		},
 		APNS: &messaging.APNSConfig{
@@ -113,7 +113,7 @@ func buildFirebaseMessage(token string, message PushMessage) *messaging.Message 
 						Title: message.Title,
 						Body:  message.Body,
 					},
-					Sound: "finance_go_notification.wav",
+					Sound: "default",
 					Badge: nil,
 				},
 			},
