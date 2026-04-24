@@ -90,7 +90,7 @@ func (s *FirebaseSender) Send(ctx context.Context, token string, message PushMes
 }
 
 func buildFirebaseMessage(token string, message PushMessage) *messaging.Message {
-	return &messaging.Message{
+	msg := &messaging.Message{
 		Token: token,
 		Notification: &messaging.Notification{
 			Title: message.Title,
@@ -100,9 +100,17 @@ func buildFirebaseMessage(token string, message PushMessage) *messaging.Message 
 			Priority: "high",
 			Notification: &messaging.AndroidNotification{
 				ChannelID: androidNotificationChannelID,
+				Sound:     "default",
 			},
 		},
+		Data: message.Data,
 	}
+
+	if msg.Data == nil {
+		msg.Data = map[string]string{}
+	}
+
+	return msg
 }
 
 func logFirebaseSendRequest(projectID string, msg *messaging.Message) {

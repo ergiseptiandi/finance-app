@@ -8,6 +8,9 @@ services:
       - DB_HOST=mysql
       - APP_MODE=api
       - TZ=Asia/Jakarta
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/firebase-admin-sdk.json
+    volumes:
+      - ./secrets/firebase-admin-sdk.json:/app/secrets/firebase-admin-sdk.json:ro
     networks:
       - nginx-proxy-manager_default
       - db_net
@@ -28,6 +31,9 @@ services:
       - APP_MODE=worker
       - NOTIFICATION_CRON_SCHEDULE=@every 1m
       - TZ=Asia/Jakarta
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/firebase-admin-sdk.json
+    volumes:
+      - ./secrets/firebase-admin-sdk.json:/app/secrets/firebase-admin-sdk.json:ro
     networks:
       - db_net
     restart: always
