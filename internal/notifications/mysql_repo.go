@@ -358,7 +358,65 @@ func (r *MySQLNotificationsRepository) DebtReminderSummary(ctx context.Context, 
 		summary.NextDueAt = &nextDue.Time
 	}
 
+		return summary, nil
+}
+
+func (r *MySQLNotificationsRepository) WeeklySummary(ctx context.Context, userID int64, now time.Time) (WeeklySummaryData, error) {
+	weekStart := startOfDay(now).AddDate(0, 0, -int(now.Weekday()))
+	weekEnd := weekStart.AddDate(0, 0, 7)
+
+	const expenseQuery = `
+		SELECT COALESCE(SUM(amount), 0)
+		FROM transactions
+		WHERE user_id = ? AND type = 'expense' AND created_at >= ? AND created_at < ?
+	`
+	const incomeQuery = `
+		SELECT COALESCE(SUM(amount), 0)
+		FROM transactions
+		WHERE user_id = ? AND type = 'income' AND created_at >= ? AND created_at < ?
+	`
+
+	var summary WeeklySummaryData
+	if err := r.db.QueryRowContext(ctx, expenseQuery, userID, weekStart, weekEnd).Scan(&summary.TotalExpense); err != nil {
+		return WeeklySummaryData{}, err
+	}
+	if err := r.db.QueryRowContext(ctx, incomeQuery, userID, weekStart, weekEnd).Scan(&summary.TotalIncome); err != nil {
+		return WeeklySummaryData{}, err
+	}
+	summary.NetSavings = summary.TotalIncome - summary.TotalExpense
+
 	return summary, nil
+}
+
+func (r *MySQLNotificationsRepository) UpcomingGoals(ctx context.Context, userID int64, daysBefore int) ([]GoalData, error) {
+	now := time.Now()
+	deadline := startOfDay(now.AddDate(0, 0, daysBefore))
+	const query = `
+		SELECT id, name, target_amount, current_amount, deadline
+		FROM savings_goals
+		WHERE user_id = ?
+		  AND deadline <= ?
+		  AND deadline > ?
+		  AND status = 'active'
+		ORDER BY deadline ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID, deadline, startOfDay(now))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var goals []GoalData
+	for rows.Next() {
+		var g GoalData
+		if err := rows.Scan(&g.ID, &g.Name, &g.TargetAmount, &g.CurrentAmount, &g.Deadline); err != nil {
+			return nil, err
+		}
+		goals = append(goals, g)
+	}
+
+	return goals, rows.Err()
 }
 
 func (r *MySQLNotificationsRepository) detectSalaryDayColumn(ctx context.Context) (bool, error) {
@@ -473,4 +531,9 @@ func marshalNotificationData(data map[string]string) (any, error) {
 	}
 
 	return string(raw), nil
+}
+
+func startOfDay(t time.Time) time.Time {
+	y, m, d := t.Date()
+	return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
 }
