@@ -8,9 +8,10 @@ services:
       - DB_HOST=mysql
       - APP_MODE=api
       - TZ=Asia/Jakarta
-      - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/firebase-admin-sdk.json
+      - FIREBASE_PROJECT_ID=finance-go-aead3
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-credentials.json
     volumes:
-      - ./secrets:/app/secrets:ro
+      - ./secrets/firebase-admin-sdk.json:/app/firebase-credentials.json:ro
     networks:
       - nginx-proxy-manager_default
       - db_net
@@ -31,9 +32,10 @@ services:
       - APP_MODE=worker
       - NOTIFICATION_CRON_SCHEDULE=@every 1m
       - TZ=Asia/Jakarta
-      - GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/firebase-admin-sdk.json
+      - FIREBASE_PROJECT_ID=finance-go-aead3
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/firebase-credentials.json
     volumes:
-      - ./secrets:/app/secrets:ro
+      - ./secrets/firebase-admin-sdk.json:/app/firebase-credentials.json:ro
     networks:
       - db_net
     restart: always
