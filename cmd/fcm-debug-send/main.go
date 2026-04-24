@@ -21,9 +21,7 @@ import (
 const androidChannelID = "finance-go-default"
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Print("no .env file loaded; using system environment")
-	}
+	_ = godotenv.Load()
 
 	token := flag.String("token", "", "target FCM device token")
 	mode := flag.String("mode", "android-channel", "payload mode: notification-only | android-priority | android-channel")

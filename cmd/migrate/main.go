@@ -22,9 +22,7 @@ import (
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Print("no .env file loaded; using system environment")
-	}
+	_ = godotenv.Load()
 
 	cfg, err := config.Load()
 	if err != nil {
