@@ -87,6 +87,42 @@ func (s *Service) UpdateSettings(ctx context.Context, userID int64, input Update
 		}
 		updated.SalaryDay = *input.SalaryDay
 	}
+	if input.BudgetWarningEnabled != nil {
+		updated.BudgetWarningEnabled = *input.BudgetWarningEnabled
+	}
+	if input.BudgetWarningThreshold != nil {
+		if *input.BudgetWarningThreshold < 1 || *input.BudgetWarningThreshold > 100 {
+			return Settings{}, ErrInvalidInput
+		}
+		updated.BudgetWarningThreshold = *input.BudgetWarningThreshold
+	}
+	if input.WeeklySummaryEnabled != nil {
+		updated.WeeklySummaryEnabled = *input.WeeklySummaryEnabled
+	}
+	if input.WeeklySummaryDay != nil {
+		if *input.WeeklySummaryDay < 0 || *input.WeeklySummaryDay > 6 {
+			return Settings{}, ErrInvalidInput
+		}
+		updated.WeeklySummaryDay = *input.WeeklySummaryDay
+	}
+	if input.LargeTransactionEnabled != nil {
+		updated.LargeTransactionEnabled = *input.LargeTransactionEnabled
+	}
+	if input.LargeTransactionThreshold != nil {
+		if *input.LargeTransactionThreshold < 0 {
+			return Settings{}, ErrInvalidInput
+		}
+		updated.LargeTransactionThreshold = *input.LargeTransactionThreshold
+	}
+	if input.GoalReminderEnabled != nil {
+		updated.GoalReminderEnabled = *input.GoalReminderEnabled
+	}
+	if input.GoalReminderDaysBefore != nil {
+		if *input.GoalReminderDaysBefore < 0 {
+			return Settings{}, ErrInvalidInput
+		}
+		updated.GoalReminderDaysBefore = *input.GoalReminderDaysBefore
+	}
 	if input.PushToken != nil {
 		updated.PushToken = strings.TrimSpace(*input.PushToken)
 	}
@@ -112,7 +148,7 @@ func (s *Service) Generate(ctx context.Context, userID int64) ([]Notification, e
 	}
 
 	now := nowFunc()
-	items := make([]Notification, 0, 4)
+	items := make([]Notification, 0, 8)
 
 	if settings.DailyExpenseReminderEnabled {
 		if item, err := s.generateDailyExpenseReminder(ctx, userID, settings, now); err != nil {
@@ -132,6 +168,22 @@ func (s *Service) Generate(ctx context.Context, userID int64) ([]Notification, e
 
 	if settings.SalaryReminderEnabled {
 		if item, err := s.generateSalaryReminder(ctx, userID, settings, now); err != nil {
+			return nil, err
+		} else if item != nil {
+			items = append(items, *item)
+		}
+	}
+
+	if settings.WeeklySummaryEnabled {
+		if item, err := s.generateWeeklySummary(ctx, userID, settings, now); err != nil {
+			return nil, err
+		} else if item != nil {
+			items = append(items, *item)
+		}
+	}
+
+	if settings.GoalReminderEnabled {
+		if item, err := s.generateGoalReminder(ctx, userID, settings, now); err != nil {
 			return nil, err
 		} else if item != nil {
 			items = append(items, *item)
@@ -163,8 +215,8 @@ func (s *Service) generateDailyExpenseReminder(ctx context.Context, userID int64
 	item := Notification{
 		UserID:         userID,
 		Kind:           ReminderKindDailyExpense,
-		Title:          "Daily expense reminder",
-		Message:        "Jangan lupa input pengeluaran hari ini.",
+		Title:          "Pengingat Pengeluaran Harian",
+		Message:        "Yuk catat pengeluaran hari ini! Mencatat keuangan secara rutin membantu kamu mengelola uang lebih baik.",
 		Data:           notificationData(ReminderKindDailyExpense),
 		DeliveryStatus: DeliveryStatusPending,
 		ScheduledFor:   scheduledFor,
@@ -198,15 +250,15 @@ func (s *Service) generateDebtReminder(ctx context.Context, userID int64, settin
 		return nil, nil
 	}
 
-	message := fmt.Sprintf("Ada %d tagihan debt dengan total %.2f yang perlu dibayar.", summary.Count, summary.Amount)
+	message := fmt.Sprintf("Kamu memiliki %d tagihan yang perlu dibayar segera.", summary.Count)
 	if summary.NextDueAt != nil {
-		message = fmt.Sprintf("%s Jatuh tempo terdekat: %s.", message, summary.NextDueAt.Format("2006-01-02"))
+		message = fmt.Sprintf("%s Tagihan terdekat jatuh tempo pada %s.", message, summary.NextDueAt.Format("02 January 2006"))
 	}
 
 	item := Notification{
 		UserID:         userID,
 		Kind:           ReminderKindDebtPayment,
-		Title:          "Debt payment reminder",
+		Title:          "Pengingat Pembayaran Utang",
 		Message:        message,
 		Data:           notificationData(ReminderKindDebtPayment),
 		DeliveryStatus: DeliveryStatusPending,
@@ -236,15 +288,113 @@ func (s *Service) generateSalaryReminder(ctx context.Context, userID int64, sett
 	item := Notification{
 		UserID:         userID,
 		Kind:           ReminderKindSalary,
-		Title:          "Salary reminder",
-		Message:        fmt.Sprintf("Jangan lupa catat pemasukan gaji tanggal %s.", nextSalaryDate.Format("2006-01-02")),
+		Title:          "Pengingat Gaji",
+		Message:        fmt.Sprintf("Gaji kamu akan cair tanggal %s. Jangan lupa catat pemasukan ya!", nextSalaryDate.Format("02 January 2006")),
 		Data:           notificationData(ReminderKindSalary),
 		DeliveryStatus: DeliveryStatusPending,
 		ScheduledFor:   combineDateAndClock(reminderDate, settings.SalaryReminderTime),
 		DedupeKey:      dedupeKey,
 	}
 
+		return s.storeAndPush(ctx, settings, item)
+}
+
+func (s *Service) generateWeeklySummary(ctx context.Context, userID int64, settings Settings, now time.Time) (*Notification, error) {
+	// Check if today is the configured summary day
+	if int(now.Weekday()) != settings.WeeklySummaryDay {
+		return nil, nil
+	}
+
+	dedupeKey := fmt.Sprintf("weekly-summary:%s", now.Format("2006-01-02"))
+	existing, err := s.repo.FindNotificationByDedupeKey(ctx, userID, dedupeKey)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil {
+		return nil, nil
+	}
+
+	// Get weekly summary data from repository
+	summary, err := s.repo.WeeklySummary(ctx, userID, now)
+	if err != nil {
+		return nil, err
+	}
+
+	message := fmt.Sprintf("Ringkasan minggu ini: Total pengeluaran Rp %.2f dan pemasukan Rp %.2f.", summary.TotalExpense, summary.TotalIncome)
+	if summary.NetSavings > 0 {
+		message = fmt.Sprintf("%s Tabungan bersih: Rp %.2f. Keren!", message, summary.NetSavings)
+	} else if summary.NetSavings < 0 {
+		message = fmt.Sprintf("%s Pengeluaran melebihi pemasukan sebesar Rp %.2f. Ayo lebih hemat minggu depan!", message, -summary.NetSavings)
+	}
+
+	item := Notification{
+		UserID:         userID,
+		Kind:           ReminderKindWeeklySummary,
+		Title:          "Ringkasan Keuangan Mingguan",
+		Message:        message,
+		Data:           notificationData(ReminderKindWeeklySummary),
+		DeliveryStatus: DeliveryStatusPending,
+		ScheduledFor:   now,
+		DedupeKey:      dedupeKey,
+	}
+
 	return s.storeAndPush(ctx, settings, item)
+}
+
+func (s *Service) generateGoalReminder(ctx context.Context, userID int64, settings Settings, now time.Time) (*Notification, error) {
+	// Get upcoming goal deadlines
+	goals, err := s.repo.UpcomingGoals(ctx, userID, settings.GoalReminderDaysBefore)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(goals) == 0 {
+		return nil, nil
+	}
+
+	items := make([]Notification, 0, len(goals))
+	for _, goal := range goals {
+		dedupeKey := fmt.Sprintf("goal-reminder:%d:%s", goal.ID, now.Format("2006-01-02"))
+		existing, err := s.repo.FindNotificationByDedupeKey(ctx, userID, dedupeKey)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil {
+			continue
+		}
+
+		daysLeft := int(goal.Deadline.Sub(startOfDay(now)).Hours() / 24)
+		message := fmt.Sprintf("Target tabungan '%s' akan jatuh tempo dalam %d hari.", goal.Name, daysLeft)
+		progress := float64(0)
+		if goal.TargetAmount > 0 {
+			progress = (goal.CurrentAmount / goal.TargetAmount) * 100
+		}
+		message = fmt.Sprintf("%s Progress: %.0f%% (Rp %.2f / Rp %.2f).", message, progress, goal.CurrentAmount, goal.TargetAmount)
+
+		item := Notification{
+			UserID:         userID,
+			Kind:           ReminderKindGoalReminder,
+			Title:          "Pengingat Target Tabungan",
+			Message:        message,
+			Data:           notificationData(ReminderKindGoalReminder),
+			DeliveryStatus: DeliveryStatusPending,
+			ScheduledFor:   now,
+			DedupeKey:      dedupeKey,
+		}
+
+		stored, err := s.storeAndPush(ctx, settings, item)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, *stored)
+	}
+
+	if len(items) == 0 {
+		return nil, nil
+	}
+
+	// Return the first item (for compatibility with existing code)
+	return &items[0], nil
 }
 
 func (s *Service) storeAndPush(ctx context.Context, settings Settings, item Notification) (*Notification, error) {
@@ -312,6 +462,14 @@ func defaultSettings(userID int64) Settings {
 		SalaryReminderTime:            "08:00",
 		SalaryReminderDaysBefore:      1,
 		SalaryDay:                     25,
+		BudgetWarningEnabled:          true,
+		BudgetWarningThreshold:        80,
+		WeeklySummaryEnabled:          true,
+		WeeklySummaryDay:              0, // Sunday
+		LargeTransactionEnabled:       true,
+		LargeTransactionThreshold:     1000000, // Rp 1,000,000
+		GoalReminderEnabled:           true,
+		GoalReminderDaysBefore:        7,
 	}
 }
 
@@ -379,6 +537,30 @@ func notificationData(kind ReminderKind) map[string]string {
 			"kind":  string(kind),
 			"type":  string(kind),
 			"route": "/transactions?type=income",
+		}
+	case ReminderKindBudgetWarning:
+		return map[string]string{
+			"kind":  string(kind),
+			"type":  string(kind),
+			"route": "/reports",
+		}
+	case ReminderKindWeeklySummary:
+		return map[string]string{
+			"kind":  string(kind),
+			"type":  string(kind),
+			"route": "/reports",
+		}
+	case ReminderKindLargeTransaction:
+		return map[string]string{
+			"kind":  string(kind),
+			"type":  string(kind),
+			"route": "/activity",
+		}
+	case ReminderKindGoalReminder:
+		return map[string]string{
+			"kind":  string(kind),
+			"type":  string(kind),
+			"route": "/reports",
 		}
 	default:
 		return map[string]string{

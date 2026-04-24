@@ -103,6 +103,21 @@ func buildFirebaseMessage(token string, message PushMessage) *messaging.Message 
 				Sound:     "default",
 			},
 		},
+		APNS: &messaging.APNSConfig{
+			Headers: map[string]string{
+				"apns-priority": "10",
+			},
+			Payload: &messaging.APNSPayload{
+				Aps: &messaging.Aps{
+					Alert: &messaging.ApsAlert{
+						Title: message.Title,
+						Body:  message.Body,
+					},
+					Sound: "default",
+					Badge: nil,
+				},
+			},
+		},
 		Data: message.Data,
 	}
 

@@ -5,9 +5,13 @@ import "time"
 type ReminderKind string
 
 const (
-	ReminderKindDailyExpense ReminderKind = "daily_expense_input"
-	ReminderKindDebtPayment  ReminderKind = "debt_payment"
-	ReminderKindSalary       ReminderKind = "salary_reminder"
+	ReminderKindDailyExpense   ReminderKind = "daily_expense_input"
+	ReminderKindDebtPayment    ReminderKind = "debt_payment"
+	ReminderKindSalary         ReminderKind = "salary_reminder"
+	ReminderKindBudgetWarning  ReminderKind = "budget_warning"
+	ReminderKindWeeklySummary  ReminderKind = "weekly_summary"
+	ReminderKindLargeTransaction ReminderKind = "large_transaction"
+	ReminderKindGoalReminder   ReminderKind = "goal_reminder"
 )
 
 type DeliveryStatus string
@@ -32,6 +36,14 @@ type Settings struct {
 	SalaryReminderTime            string    `json:"salary_reminder_time"`
 	SalaryReminderDaysBefore      int       `json:"salary_reminder_days_before"`
 	SalaryDay                     int       `json:"salary_day"`
+	BudgetWarningEnabled          bool      `json:"budget_warning_enabled"`
+	BudgetWarningThreshold        int       `json:"budget_warning_threshold"` // percentage (e.g., 80 = 80%)
+	WeeklySummaryEnabled          bool      `json:"weekly_summary_enabled"`
+	WeeklySummaryDay              int       `json:"weekly_summary_day"` // 0=Sunday, 1=Monday, etc.
+	LargeTransactionEnabled       bool      `json:"large_transaction_enabled"`
+	LargeTransactionThreshold     float64   `json:"large_transaction_threshold"` // amount threshold
+	GoalReminderEnabled           bool      `json:"goal_reminder_enabled"`
+	GoalReminderDaysBefore        int       `json:"goal_reminder_days_before"` // days before goal deadline
 	PushToken                     string    `json:"push_token"`
 	CreatedAt                     time.Time `json:"created_at"`
 	UpdatedAt                     time.Time `json:"updated_at"`
@@ -66,6 +78,14 @@ type UpdateSettingsInput struct {
 	SalaryReminderTime            *string `json:"salary_reminder_time,omitempty"`
 	SalaryReminderDaysBefore      *int    `json:"salary_reminder_days_before,omitempty"`
 	SalaryDay                     *int    `json:"salary_day,omitempty"`
+	BudgetWarningEnabled          *bool   `json:"budget_warning_enabled,omitempty"`
+	BudgetWarningThreshold        *int    `json:"budget_warning_threshold,omitempty"`
+	WeeklySummaryEnabled          *bool   `json:"weekly_summary_enabled,omitempty"`
+	WeeklySummaryDay              *int    `json:"weekly_summary_day,omitempty"`
+	LargeTransactionEnabled       *bool   `json:"large_transaction_enabled,omitempty"`
+	LargeTransactionThreshold     *float64 `json:"large_transaction_threshold,omitempty"`
+	GoalReminderEnabled           *bool   `json:"goal_reminder_enabled,omitempty"`
+	GoalReminderDaysBefore        *int    `json:"goal_reminder_days_before,omitempty"`
 	PushToken                     *string `json:"push_token,omitempty"`
 }
 
