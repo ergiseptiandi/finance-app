@@ -352,6 +352,8 @@ func writeDebtError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusNotFound, err.Error())
 	case errors.Is(err, ErrNoInstallment):
 		writeError(w, http.StatusConflict, err.Error())
+	case errors.Is(err, ErrInsufficientBalance):
+		writeError(w, http.StatusBadRequest, err.Error())
 	default:
 		if strings.Contains(err.Error(), "invalid") || strings.Contains(err.Error(), "required") || strings.Contains(err.Error(), "positive number") || strings.Contains(err.Error(), "greater than zero") || strings.Contains(err.Error(), "cannot change") {
 			writeError(w, http.StatusBadRequest, err.Error())

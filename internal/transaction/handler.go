@@ -72,6 +72,10 @@ func (h handler) create(w http.ResponseWriter, r *http.Request) {
 
 	txn, err := h.svc.Create(r.Context(), userID, input)
 	if err != nil {
+		if errors.Is(err, ErrInsufficientBalance) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -128,6 +132,10 @@ func (h handler) update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
 			writeError(w, http.StatusNotFound, err.Error())
+			return
+		}
+		if errors.Is(err, ErrInsufficientBalance) {
+			writeError(w, http.StatusBadRequest, err.Error())
 			return
 		}
 		writeError(w, http.StatusBadRequest, err.Error())

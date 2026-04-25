@@ -11,9 +11,10 @@ import (
 )
 
 var (
-	ErrNotFound      = errors.New("debt not found")
-	ErrInvalidInput  = errors.New("invalid debt input")
-	ErrNoInstallment = errors.New("no unpaid installment available")
+	ErrNotFound            = errors.New("debt not found")
+	ErrInvalidInput        = errors.New("invalid debt input")
+	ErrNoInstallment       = errors.New("no unpaid installment available")
+	ErrInsufficientBalance = errors.New("saldo wallet tidak cukup")
 )
 
 type Service struct {
@@ -186,6 +187,9 @@ func (s *Service) CreatePayment(ctx context.Context, userID, debtID int64, input
 	if input.Amount < nextInstallment.Amount {
 		return Payment{}, errors.New("amount must be at least the installment amount")
 	}
+	if err := s.ensurePaymentBalance(ctx, userID, walletID, nil, input.Amount); err != nil {
+		return Payment{}, err
+	}
 
 	payment := Payment{
 		DebtID:      debtID,
@@ -211,6 +215,7 @@ func (s *Service) UpdatePayment(ctx context.Context, userID, debtID, paymentID i
 	if err != nil {
 		return Payment{}, err
 	}
+	original := payment
 
 	if input.Amount != nil {
 		if *input.Amount <= 0 {
@@ -233,6 +238,9 @@ func (s *Service) UpdatePayment(ctx context.Context, userID, debtID, paymentID i
 	}
 	if input.ProofImage != nil {
 		payment.ProofImage = *input.ProofImage
+	}
+	if err := s.ensurePaymentBalance(ctx, userID, payment.WalletID, &original, payment.Amount); err != nil {
+		return Payment{}, err
 	}
 
 	if err := s.repo.UpdatePayment(ctx, payment); err != nil {
@@ -264,6 +272,28 @@ func (s *Service) resolveWalletID(ctx context.Context, userID int64, walletID *i
 	}
 
 	return item.ID, nil
+}
+
+func (s *Service) ensurePaymentBalance(ctx context.Context, userID, walletID int64, current *Payment, amount float64) error {
+	if s.wallets == nil {
+		return errors.New("wallet service is required")
+	}
+
+	item, err := s.wallets.GetByID(ctx, userID, walletID)
+	if err != nil {
+		return err
+	}
+
+	available := item.Balance
+	if current != nil && current.WalletID == walletID {
+		available += current.Amount
+	}
+
+	if amount > available {
+		return ErrInsufficientBalance
+	}
+
+	return nil
 }
 
 func (s *Service) PaymentHistory(ctx context.Context, userID, debtID int64) ([]Payment, error) {

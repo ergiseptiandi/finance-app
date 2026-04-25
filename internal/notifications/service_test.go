@@ -146,7 +146,7 @@ func TestGenerateIncludesSalaryReminder(t *testing.T) {
 	if item.DedupeKey != "salary-reminder:2026-04:1" {
 		t.Fatalf("unexpected dedupe key: %s", item.DedupeKey)
 	}
-	if item.Message != "Jangan lupa catat pemasukan gaji tanggal 2026-04-30." {
+	if item.Message != "Gaji kamu akan cair tanggal 30 April 2026. Jangan lupa catat pemasukan ya!" {
 		t.Fatalf("unexpected message: %s", item.Message)
 	}
 	if item.ScheduledFor.Format("2006-01-02 15:04") != "2026-04-29 08:00" {
@@ -289,7 +289,7 @@ func TestGenerateMarksSuccessfulPushAsSent(t *testing.T) {
 			if token != "valid-device-token" {
 				t.Fatalf("unexpected token: %s", token)
 			}
-			if message.Title != "Daily expense reminder" {
+			if message.Title != "Pengingat Pengeluaran Harian" {
 				t.Fatalf("unexpected title: %s", message.Title)
 			}
 			return nil

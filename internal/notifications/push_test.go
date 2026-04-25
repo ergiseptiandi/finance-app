@@ -25,8 +25,8 @@ func TestBuildFirebaseMessageUsesMinimalAndroidPayload(t *testing.T) {
 	if msg.Notification.Body != "Jangan lupa input pengeluaran hari ini." {
 		t.Fatalf("unexpected body: %s", msg.Notification.Body)
 	}
-	if msg.Data != nil {
-		t.Fatalf("expected no data payload, got: %#v", msg.Data)
+	if len(msg.Data) != 3 {
+		t.Fatalf("expected data payload, got: %#v", msg.Data)
 	}
 	if msg.Android == nil {
 		t.Fatal("expected android config")
@@ -40,7 +40,7 @@ func TestBuildFirebaseMessageUsesMinimalAndroidPayload(t *testing.T) {
 	if msg.Android.Notification.ChannelID != androidNotificationChannelID {
 		t.Fatalf("unexpected channel id: %s", msg.Android.Notification.ChannelID)
 	}
-	if msg.Android.Notification.Sound != "" {
-		t.Fatalf("expected empty sound for minimal payload, got %q", msg.Android.Notification.Sound)
+	if msg.Android.Notification.Sound != "default" {
+		t.Fatalf("expected default sound for android payload, got %q", msg.Android.Notification.Sound)
 	}
 }

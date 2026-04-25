@@ -10,9 +10,10 @@ import (
 )
 
 var (
-	ErrNotFound     = errors.New("transaction not found")
-	ErrInvalidInput = errors.New("invalid transaction input")
-	nowFunc         = time.Now
+	ErrNotFound            = errors.New("transaction not found")
+	ErrInvalidInput        = errors.New("invalid transaction input")
+	ErrInsufficientBalance = errors.New("saldo wallet tidak cukup")
+	nowFunc                = time.Now
 )
 
 type Service struct {
@@ -46,6 +47,11 @@ func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (
 		Date:        input.Date,
 		Description: input.Description,
 	}
+	if txn.Type == TypeExpense {
+		if err := s.ensureExpenseBalance(ctx, userID, txn.WalletID, nil, txn.Amount); err != nil {
+			return Transaction{}, err
+		}
+	}
 
 	id, err := s.repo.Create(ctx, txn)
 	if err != nil {
@@ -65,6 +71,7 @@ func (s *Service) Update(ctx context.Context, id int64, userID int64, input Upda
 	if err != nil {
 		return Transaction{}, err
 	}
+	original := txn
 
 	if input.Type != nil {
 		if *input.Type != TypeIncome && *input.Type != TypeExpense {
@@ -100,6 +107,11 @@ func (s *Service) Update(ctx context.Context, id int64, userID int64, input Upda
 	}
 	if input.Description != nil {
 		txn.Description = *input.Description
+	}
+	if txn.Type == TypeExpense {
+		if err := s.ensureExpenseBalance(ctx, userID, txn.WalletID, &original, txn.Amount); err != nil {
+			return Transaction{}, err
+		}
 	}
 
 	err = s.repo.Update(ctx, txn)
@@ -211,4 +223,31 @@ func (s *Service) resolveWalletID(ctx context.Context, userID int64, txnType Typ
 		return 0, err
 	}
 	return item.ID, nil
+}
+
+func (s *Service) ensureExpenseBalance(ctx context.Context, userID, walletID int64, current *Transaction, amount float64) error {
+	if s.wallets == nil {
+		return errors.New("wallet service is required")
+	}
+
+	item, err := s.wallets.GetByID(ctx, userID, walletID)
+	if err != nil {
+		return err
+	}
+
+	available := item.Balance
+	if current != nil && current.WalletID == walletID {
+		switch current.Type {
+		case TypeIncome:
+			available -= current.Amount
+		case TypeExpense:
+			available += current.Amount
+		}
+	}
+
+	if amount > available {
+		return ErrInsufficientBalance
+	}
+
+	return nil
 }
