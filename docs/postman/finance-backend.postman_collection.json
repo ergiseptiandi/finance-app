@@ -43,10 +43,18 @@
                       {
                           "key":  "transaction_id",
                           "value":  "1"
-                     },
-                     {
-                         "key":  "category_id",
-                         "value":  "1"
+                      },
+                      {
+                          "key":  "wallet_id",
+                          "value":  "1"
+                      },
+                      {
+                          "key":  "to_wallet_id",
+                          "value":  "2"
+                      },
+                      {
+                          "key":  "category_id",
+                          "value":  "1"
                      },
                      {
                          "key":  "salary_id",
@@ -568,9 +576,9 @@
                                   }
                               ]
                  },
-                 {
-                     "name":  "Category",
-                     "item":  [
+                  {
+                      "name":  "Category",
+                      "item":  [
                                   {
                                       "request":  {
                                                       "body":  {
@@ -664,11 +672,208 @@
                                       "response":  [
 
                                                    ]
-                                  }
-                              ]
-                 },
-                 {
-                     "name":  "Salary",
+                                   }
+                               ]
+                  },
+                  {
+                      "name":  "Wallet",
+                      "item":  [
+                                   {
+                                       "request":  {
+                                                       "body":  {
+                                                                    "raw":  "{\n  \"name\": \"Cash\",\n  \"opening_balance\": 500000\n}",
+                                                                    "options":  {
+                                                                                    "raw":  {
+                                                                                                "language":  "json"
+                                                                                            }
+                                                                                },
+                                                                    "mode":  "raw"
+                                                                },
+                                                       "method":  "POST",
+                                                       "url":  "{{base_url}}/v1/wallets",
+                                                       "header":  [
+                                                                      {
+                                                                          "key":  "Authorization",
+                                                                          "type":  "text",
+                                                                          "value":  "Bearer {{access_token}}"
+                                                                      },
+                                                                      {
+                                                                          "key":  "Content-Type",
+                                                                          "value":  "application/json"
+                                                                      }
+                                                                  ]
+                                                   },
+                                       "name":  "Create Wallet",
+                                       "event":  [
+                                                     {
+                                                         "script":  {
+                                                                        "exec":  [
+                                                                                     "let jsonData = {};",
+                                                                                     "try { jsonData = pm.response.json(); } catch (e) {}",
+                                                                                     "const wallet = jsonData && jsonData.Data ? jsonData.Data : {};",
+                                                                                     "if (wallet.id) {",
+                                                                                     "  pm.collectionVariables.set('wallet_id', String(wallet.id));",
+                                                                                     "  pm.environment.set('wallet_id', String(wallet.id));",
+                                                                                     "}"
+                                                                                 ],
+                                                                        "type":  "text/javascript"
+                                                                    },
+                                                         "listen":  "test"
+                                                     }
+                                                 ],
+                                       "response":  [
+
+                                                    ]
+                                   },
+                                   {
+                                       "request":  {
+                                                       "method":  "GET",
+                                                       "url":  "{{base_url}}/v1/wallets",
+                                                       "header":  [
+                                                                      {
+                                                                          "key":  "Authorization",
+                                                                          "type":  "text",
+                                                                          "value":  "Bearer {{access_token}}"
+                                                                      }
+                                                                  ]
+                                                   },
+                                       "name":  "List Wallets",
+                                       "response":  [
+
+                                                    ]
+                                   },
+                                   {
+                                       "request":  {
+                                                       "method":  "GET",
+                                                       "url":  "{{base_url}}/v1/wallets/summary",
+                                                       "header":  [
+                                                                      {
+                                                                          "key":  "Authorization",
+                                                                          "type":  "text",
+                                                                          "value":  "Bearer {{access_token}}"
+                                                                      }
+                                                                  ]
+                                                   },
+                                       "name":  "Wallet Summary",
+                                       "response":  [
+
+                                                    ]
+                                   },
+                                   {
+                                       "request":  {
+                                                       "method":  "GET",
+                                                       "url":  "{{base_url}}/v1/wallets/{{wallet_id}}",
+                                                       "header":  [
+                                                                      {
+                                                                          "key":  "Authorization",
+                                                                          "type":  "text",
+                                                                          "value":  "Bearer {{access_token}}"
+                                                                      }
+                                                                  ]
+                                                   },
+                                       "name":  "Get Wallet Detail",
+                                       "response":  [
+
+                                                    ]
+                                   },
+                                   {
+                                       "request":  {
+                                                       "body":  {
+                                                                    "raw":  "{\n  \"name\": \"Cash Updated\",\n  \"opening_balance\": 750000\n}",
+                                                                    "options":  {
+                                                                                    "raw":  {
+                                                                                                "language":  "json"
+                                                                                            }
+                                                                                },
+                                                                    "mode":  "raw"
+                                                                },
+                                                       "method":  "PATCH",
+                                                       "url":  "{{base_url}}/v1/wallets/{{wallet_id}}",
+                                                       "header":  [
+                                                                      {
+                                                                          "key":  "Authorization",
+                                                                          "type":  "text",
+                                                                          "value":  "Bearer {{access_token}}"
+                                                                      },
+                                                                      {
+                                                                          "key":  "Content-Type",
+                                                                          "value":  "application/json"
+                                                                      }
+                                                                  ]
+                                                   },
+                                       "name":  "Update Wallet",
+                                       "response":  [
+
+                                                    ]
+                                   },
+                                   {
+                                       "request":  {
+                                                       "body":  {
+                                                                    "raw":  "{\n  \"from_wallet_id\": {{wallet_id}},\n  \"to_wallet_id\": {{to_wallet_id}},\n  \"amount\": 100000,\n  \"note\": \"Move cash to savings\",\n  \"transfer_date\": \"2026-04-21T10:00:00Z\"\n}",
+                                                                    "options":  {
+                                                                                    "raw":  {
+                                                                                                "language":  "json"
+                                                                                            }
+                                                                                },
+                                                                    "mode":  "raw"
+                                                                },
+                                                       "method":  "POST",
+                                                       "url":  "{{base_url}}/v1/wallet-transfers",
+                                                       "header":  [
+                                                                      {
+                                                                          "key":  "Authorization",
+                                                                          "type":  "text",
+                                                                          "value":  "Bearer {{access_token}}"
+                                                                      },
+                                                                      {
+                                                                          "key":  "Content-Type",
+                                                                          "value":  "application/json"
+                                                                      }
+                                                                  ]
+                                                   },
+                                       "name":  "Create Wallet Transfer",
+                                       "response":  [
+
+                                                    ]
+                                   },
+                                   {
+                                       "request":  {
+                                                       "method":  "GET",
+                                                       "url":  "{{base_url}}/v1/wallet-transfers",
+                                                       "header":  [
+                                                                      {
+                                                                          "key":  "Authorization",
+                                                                          "type":  "text",
+                                                                          "value":  "Bearer {{access_token}}"
+                                                                      }
+                                                                  ]
+                                                   },
+                                       "name":  "List Wallet Transfers",
+                                       "response":  [
+
+                                                    ]
+                                   },
+                                   {
+                                       "request":  {
+                                                       "method":  "DELETE",
+                                                       "url":  "{{base_url}}/v1/wallets/{{wallet_id}}",
+                                                       "header":  [
+                                                                      {
+                                                                          "key":  "Authorization",
+                                                                          "type":  "text",
+                                                                          "value":  "Bearer {{access_token}}"
+                                                                      }
+                                                                  ]
+                                                   },
+                                       "name":  "Delete Wallet",
+                                       "response":  [
+
+                                                    ]
+                                   }
+                               ]
+                  },
+                  {
+                      "name":  "Salary",
                      "item":  [
                                   {
                                       "request":  {
