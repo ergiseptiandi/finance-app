@@ -99,7 +99,7 @@ func main() {
 	alertsService := alerts.NewService(alertsRepo)
 
 	dashboardRepo := dashboard.NewMySQLDashboardRepository(db)
-	dashboardService := dashboard.NewService(dashboardRepo, walletService, alertsService)
+	dashboardService := dashboard.NewService(dashboardRepo, walletService, alertsService, notificationsService)
 
 	reportsRepo := reports.NewMySQLReportsRepository(db)
 	reportsService := reports.NewService(reportsRepo, walletService)
@@ -111,7 +111,7 @@ func main() {
 	txService := transaction.NewService(txRepo, walletService)
 
 	if cfg.Runtime.Mode == "worker" || os.Getenv("APP_MODE") == "worker" {
-		worker := notifications.NewWorker(notificationsService, notificationsRepo, cfg.Runtime.NotificationCronSpec)
+		worker := notifications.NewWorker(notificationsService, alertsService, notificationsRepo, cfg.Runtime.NotificationCronSpec)
 		workerCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
 

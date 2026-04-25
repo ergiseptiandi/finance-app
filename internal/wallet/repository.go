@@ -8,6 +8,7 @@ type Repository interface {
 	GetByName(ctx context.Context, userID int64, name string) (Wallet, error)
 	GetDefaultWallet(ctx context.Context, userID int64) (Wallet, error)
 	Update(ctx context.Context, item Wallet) error
+	Archive(ctx context.Context, userID, id int64) error
 	Delete(ctx context.Context, userID, id int64) error
 	FindAll(ctx context.Context, userID int64) ([]Wallet, error)
 	CreateTransfer(ctx context.Context, transfer Transfer) (int64, error)

@@ -189,7 +189,7 @@ func TestSummaryDefaultsToCurrentMonth(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	}, nil)
+	}, nil, nil)
 
 	summary, err := svc.Summary(context.Background(), 1, DashboardFilter{})
 	if err != nil {
@@ -234,7 +234,7 @@ func TestSummaryDefaultsToCurrentMonth(t *testing.T) {
 }
 
 func TestSummaryRejectsRangeLongerThanThreeMonths(t *testing.T) {
-	svc := NewService(dashboardRepoStub{}, nil, nil)
+	svc := NewService(dashboardRepoStub{}, nil, nil, nil)
 
 	startDate := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, time.April, 2, 0, 0, 0, 0, time.UTC)
@@ -272,7 +272,7 @@ func TestSummaryUsesPeriodBalanceWhileKeepingTotalBalanceRunning(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 2582000, nil },
-	}, nil)
+	}, nil, nil)
 
 	summary, err := svc.Summary(context.Background(), 1, DashboardFilter{StartDate: &startDate, EndDate: &endDate})
 	if err != nil {
@@ -310,7 +310,7 @@ func TestBudgetVsActualUsesExplicitBudgetAmount(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	}, nil)
+	}, nil, nil)
 
 	budget := 5000000.0
 	result, err := svc.BudgetVsActual(context.Background(), 1, DashboardFilter{}, &budget)
@@ -355,7 +355,7 @@ func TestCategoryBreakdownCalculatesPercentage(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	}, nil)
+	}, nil, nil)
 
 	items, err := svc.CategoryBreakdown(context.Background(), 1, DashboardFilter{})
 	if err != nil {
@@ -389,7 +389,7 @@ func TestUpcomingBillsUsesLookaheadDays(t *testing.T) {
 				{BillName: "Loan installment #1", Amount: 500000, DueDate: "2026-04-25", Status: "pending", SourceType: "debt"},
 			}, nil
 		},
-	}, nil, nil)
+	}, nil, nil, nil)
 
 	items, err := svc.UpcomingBills(context.Background(), 1, 7)
 	if err != nil {
@@ -431,7 +431,7 @@ func TestGoalsProgressReturnsEmptyUntilModuleExists(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	}, nil)
+	}, nil, nil)
 
 	items, err := svc.GoalsProgress(context.Background(), 1, DashboardFilter{})
 	if err != nil {
@@ -457,7 +457,7 @@ func TestInsightsReturnsAlerts(t *testing.T) {
 				},
 			}, nil
 		},
-	})
+	}, nil)
 
 	items, err := svc.Insights(context.Background(), 1, DashboardFilter{})
 	if err != nil {

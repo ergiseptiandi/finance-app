@@ -22,31 +22,19 @@ func NewMySQLNotificationsRepository(db *sql.DB) *MySQLNotificationsRepository {
 }
 
 func (r *MySQLNotificationsRepository) GetSettings(ctx context.Context, userID int64) (*Settings, error) {
-	hasSalaryDayColumn, err := r.detectSalaryDayColumn(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	query := `
 		SELECT user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
 		       debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
 		       salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before, salary_day,
+		       budget_amount, budget_warning_enabled, budget_warning_threshold,
+		       weekly_summary_enabled, weekly_summary_day,
+		       large_transaction_enabled, large_transaction_threshold,
+		       goal_reminder_enabled, goal_reminder_days_before,
 		       push_token, created_at, updated_at
 		FROM notification_settings
 		WHERE user_id = ?
 		LIMIT 1
 	`
-	if !hasSalaryDayColumn {
-		query = `
-			SELECT user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
-			       debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
-			       salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before, 25 AS salary_day,
-			       push_token, created_at, updated_at
-			FROM notification_settings
-			WHERE user_id = ?
-			LIMIT 1
-		`
-	}
 
 	var item Settings
 	if err := r.db.QueryRowContext(ctx, query, userID).Scan(
@@ -61,6 +49,15 @@ func (r *MySQLNotificationsRepository) GetSettings(ctx context.Context, userID i
 		&item.SalaryReminderTime,
 		&item.SalaryReminderDaysBefore,
 		&item.SalaryDay,
+		&item.BudgetAmount,
+		&item.BudgetWarningEnabled,
+		&item.BudgetWarningThreshold,
+		&item.WeeklySummaryEnabled,
+		&item.WeeklySummaryDay,
+		&item.LargeTransactionEnabled,
+		&item.LargeTransactionThreshold,
+		&item.GoalReminderEnabled,
+		&item.GoalReminderDaysBefore,
 		&item.PushToken,
 		&item.CreatedAt,
 		&item.UpdatedAt,
@@ -75,11 +72,6 @@ func (r *MySQLNotificationsRepository) GetSettings(ctx context.Context, userID i
 }
 
 func (r *MySQLNotificationsRepository) UpsertSettings(ctx context.Context, settings Settings) (Settings, error) {
-	hasSalaryDayColumn, err := r.detectSalaryDayColumn(ctx)
-	if err != nil {
-		return Settings{}, err
-	}
-
 	args := []any{
 		settings.UserID,
 		settings.Enabled,
@@ -91,14 +83,29 @@ func (r *MySQLNotificationsRepository) UpsertSettings(ctx context.Context, setti
 		settings.SalaryReminderEnabled,
 		settings.SalaryReminderTime,
 		settings.SalaryReminderDaysBefore,
+		settings.SalaryDay,
+		settings.BudgetAmount,
+		settings.BudgetWarningEnabled,
+		settings.BudgetWarningThreshold,
+		settings.WeeklySummaryEnabled,
+		settings.WeeklySummaryDay,
+		settings.LargeTransactionEnabled,
+		settings.LargeTransactionThreshold,
+		settings.GoalReminderEnabled,
+		settings.GoalReminderDaysBefore,
+		settings.PushToken,
 	}
 
-	query := `
+	const query = `
 		INSERT INTO notification_settings (
 			user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
 			debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
-			salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before, salary_day, push_token
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before, salary_day,
+			budget_amount, budget_warning_enabled, budget_warning_threshold,
+			weekly_summary_enabled, weekly_summary_day,
+			large_transaction_enabled, large_transaction_threshold,
+			goal_reminder_enabled, goal_reminder_days_before, push_token
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON DUPLICATE KEY UPDATE
 			enabled = VALUES(enabled),
 			daily_expense_reminder_enabled = VALUES(daily_expense_reminder_enabled),
@@ -110,32 +117,17 @@ func (r *MySQLNotificationsRepository) UpsertSettings(ctx context.Context, setti
 			salary_reminder_time = VALUES(salary_reminder_time),
 			salary_reminder_days_before = VALUES(salary_reminder_days_before),
 			salary_day = VALUES(salary_day),
+			budget_amount = VALUES(budget_amount),
+			budget_warning_enabled = VALUES(budget_warning_enabled),
+			budget_warning_threshold = VALUES(budget_warning_threshold),
+			weekly_summary_enabled = VALUES(weekly_summary_enabled),
+			weekly_summary_day = VALUES(weekly_summary_day),
+			large_transaction_enabled = VALUES(large_transaction_enabled),
+			large_transaction_threshold = VALUES(large_transaction_threshold),
+			goal_reminder_enabled = VALUES(goal_reminder_enabled),
+			goal_reminder_days_before = VALUES(goal_reminder_days_before),
 			push_token = VALUES(push_token)
 	`
-	args = append(args, settings.SalaryDay, settings.PushToken)
-
-	if !hasSalaryDayColumn {
-		query = `
-			INSERT INTO notification_settings (
-				user_id, enabled, daily_expense_reminder_enabled, daily_expense_reminder_time,
-				debt_payment_reminder_enabled, debt_payment_reminder_time, debt_payment_reminder_days_before,
-				salary_reminder_enabled, salary_reminder_time, salary_reminder_days_before, push_token
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			ON DUPLICATE KEY UPDATE
-				enabled = VALUES(enabled),
-				daily_expense_reminder_enabled = VALUES(daily_expense_reminder_enabled),
-				daily_expense_reminder_time = VALUES(daily_expense_reminder_time),
-				debt_payment_reminder_enabled = VALUES(debt_payment_reminder_enabled),
-				debt_payment_reminder_time = VALUES(debt_payment_reminder_time),
-				debt_payment_reminder_days_before = VALUES(debt_payment_reminder_days_before),
-				salary_reminder_enabled = VALUES(salary_reminder_enabled),
-				salary_reminder_time = VALUES(salary_reminder_time),
-				salary_reminder_days_before = VALUES(salary_reminder_days_before),
-				push_token = VALUES(push_token)
-		`
-		args = args[:10]
-		args = append(args, settings.PushToken)
-	}
 
 	if _, err := r.db.ExecContext(ctx, query, args...); err != nil {
 		return Settings{}, err
@@ -358,7 +350,7 @@ func (r *MySQLNotificationsRepository) DebtReminderSummary(ctx context.Context, 
 		summary.NextDueAt = &nextDue.Time
 	}
 
-		return summary, nil
+	return summary, nil
 }
 
 func (r *MySQLNotificationsRepository) WeeklySummary(ctx context.Context, userID int64, now time.Time) (WeeklySummaryData, error) {

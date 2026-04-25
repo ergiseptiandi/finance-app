@@ -15,6 +15,8 @@ var (
 	ErrInvalidInput  = errors.New("invalid wallet input")
 )
 
+var nowFunc = time.Now
+
 type Service struct {
 	repo Repository
 }
@@ -53,6 +55,9 @@ func (s *Service) Update(ctx context.Context, userID, id int64, input UpdateInpu
 	if err != nil {
 		return Wallet{}, err
 	}
+	if item.IsArchived {
+		return Wallet{}, ErrNotFound
+	}
 
 	if item.IsLocked && (input.Name != nil || input.OpeningBalance != nil) {
 		return Wallet{}, errors.New("main wallet cannot be edited")
@@ -84,8 +89,30 @@ func (s *Service) Delete(ctx context.Context, userID, id int64) error {
 	if item.IsLocked {
 		return errors.New("main wallet cannot be deleted")
 	}
+	if item.IsArchived {
+		return ErrNotFound
+	}
 
-	return s.repo.Delete(ctx, userID, id)
+	if item.Balance > 0 {
+		mainWallet, err := s.DefaultWallet(ctx, userID)
+		if err != nil {
+			return err
+		}
+		if mainWallet.ID != item.ID {
+			if _, err := s.repo.CreateTransfer(ctx, Transfer{
+				UserID:       userID,
+				FromWalletID: item.ID,
+				ToWalletID:   mainWallet.ID,
+				Amount:       item.Balance,
+				Note:         "Auto transfer saat wallet ditutup",
+				TransferDate: nowFunc(),
+			}); err != nil {
+				return err
+			}
+		}
+	}
+
+	return s.repo.Archive(ctx, userID, id)
 }
 
 func (s *Service) List(ctx context.Context, userID int64) ([]Wallet, error) {
@@ -107,6 +134,9 @@ func (s *Service) Summary(ctx context.Context, userID int64) (Summary, error) {
 
 	total := 0.0
 	for _, item := range items {
+		if item.IsArchived {
+			continue
+		}
 		total += item.Balance
 	}
 
@@ -138,6 +168,7 @@ func (s *Service) DefaultWallet(ctx context.Context, userID int64) (Wallet, erro
 		Name:           defaultWalletName,
 		OpeningBalance: 0,
 		IsLocked:       true,
+		IsArchived:     false,
 	})
 	if err != nil {
 		if errors.Is(err, ErrAlreadyExists) {

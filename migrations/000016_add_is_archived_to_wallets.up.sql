@@ -1,0 +1,2 @@
+ALTER TABLE wallets
+    ADD COLUMN is_archived BOOLEAN NOT NULL DEFAULT 0 AFTER is_locked;

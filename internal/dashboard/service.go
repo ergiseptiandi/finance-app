@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"finance-backend/internal/alerts"
+	"finance-backend/internal/notifications"
 	"finance-backend/internal/wallet"
 )
 
@@ -20,17 +21,22 @@ var (
 var nowFunc = time.Now
 
 type Service struct {
-	repo         Repository
-	balances     wallet.BalanceProvider
-	alertsSource AlertSource
+	repo          Repository
+	balances      wallet.BalanceProvider
+	alertsSource  AlertSource
+	settingsSource BudgetSource
 }
 
 type AlertSource interface {
 	List(ctx context.Context, userID int64, filter alerts.AlertListFilter) ([]alerts.Alert, error)
 }
 
-func NewService(repo Repository, balances wallet.BalanceProvider, alertsSource AlertSource) *Service {
-	return &Service{repo: repo, balances: balances, alertsSource: alertsSource}
+type BudgetSource interface {
+	GetSettings(ctx context.Context, userID int64) (notifications.Settings, error)
+}
+
+func NewService(repo Repository, balances wallet.BalanceProvider, alertsSource AlertSource, settingsSource BudgetSource) *Service {
+	return &Service{repo: repo, balances: balances, alertsSource: alertsSource, settingsSource: settingsSource}
 }
 
 func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFilter) (Summary, error) {
@@ -203,6 +209,10 @@ func (s *Service) BudgetVsActual(ctx context.Context, userID int64, filter Dashb
 			return BudgetVsActual{}, fmt.Errorf("%w: budget_amount must be greater than zero", ErrInvalidInput)
 		}
 		budget = *budgetAmount
+	} else if s.settingsSource != nil {
+		if settings, err := s.settingsSource.GetSettings(ctx, userID); err == nil && settings.BudgetAmount > 0 {
+			budget = settings.BudgetAmount
+		}
 	}
 
 	actual := summary.MonthlyExpense

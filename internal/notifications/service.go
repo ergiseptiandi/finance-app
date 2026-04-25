@@ -87,6 +87,12 @@ func (s *Service) UpdateSettings(ctx context.Context, userID int64, input Update
 		}
 		updated.SalaryDay = *input.SalaryDay
 	}
+	if input.BudgetAmount != nil {
+		if *input.BudgetAmount < 0 {
+			return Settings{}, ErrInvalidInput
+		}
+		updated.BudgetAmount = *input.BudgetAmount
+	}
 	if input.BudgetWarningEnabled != nil {
 		updated.BudgetWarningEnabled = *input.BudgetWarningEnabled
 	}
@@ -296,7 +302,7 @@ func (s *Service) generateSalaryReminder(ctx context.Context, userID int64, sett
 		DedupeKey:      dedupeKey,
 	}
 
-		return s.storeAndPush(ctx, settings, item)
+	return s.storeAndPush(ctx, settings, item)
 }
 
 func (s *Service) generateWeeklySummary(ctx context.Context, userID int64, settings Settings, now time.Time) (*Notification, error) {
@@ -462,6 +468,7 @@ func defaultSettings(userID int64) Settings {
 		SalaryReminderTime:            "08:00",
 		SalaryReminderDaysBefore:      1,
 		SalaryDay:                     25,
+		BudgetAmount:                  0,
 		BudgetWarningEnabled:          true,
 		BudgetWarningThreshold:        80,
 		WeeklySummaryEnabled:          true,

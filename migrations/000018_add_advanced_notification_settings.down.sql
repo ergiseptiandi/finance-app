@@ -1,0 +1,9 @@
+ALTER TABLE notification_settings
+    DROP COLUMN goal_reminder_days_before,
+    DROP COLUMN goal_reminder_enabled,
+    DROP COLUMN large_transaction_threshold,
+    DROP COLUMN large_transaction_enabled,
+    DROP COLUMN weekly_summary_day,
+    DROP COLUMN weekly_summary_enabled,
+    DROP COLUMN budget_warning_threshold,
+    DROP COLUMN budget_warning_enabled;

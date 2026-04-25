@@ -5,24 +5,27 @@ import (
 	"log"
 	"time"
 
+	"finance-backend/internal/alerts"
 	"github.com/robfig/cron/v3"
 )
 
 type Worker struct {
-	service *Service
-	repo    Repository
-	spec    string
+	service      *Service
+	alertsService *alerts.Service
+	repo         Repository
+	spec         string
 }
 
-func NewWorker(service *Service, repo Repository, spec string) *Worker {
+func NewWorker(service *Service, alertsService *alerts.Service, repo Repository, spec string) *Worker {
 	if spec == "" {
 		spec = "@every 1m"
 	}
 
 	return &Worker{
-		service: service,
-		repo:    repo,
-		spec:    spec,
+		service:      service,
+		alertsService: alertsService,
+		repo:          repo,
+		spec:          spec,
 	}
 }
 
@@ -62,6 +65,17 @@ func (w *Worker) runOnce(ctx context.Context) {
 		}
 		if len(items) > 0 {
 			log.Printf("notifications worker: generated %d notification(s) for user %d", len(items), userID)
+		}
+
+		if w.alertsService != nil {
+			alertsItems, err := w.alertsService.Evaluate(ctx, userID, alerts.EvaluateInput{})
+			if err != nil {
+				log.Printf("alerts worker: evaluate failed for user %d: %v", userID, err)
+				continue
+			}
+			if len(alertsItems) > 0 {
+				log.Printf("alerts worker: generated %d alert(s) for user %d", len(alertsItems), userID)
+			}
 		}
 	}
 }

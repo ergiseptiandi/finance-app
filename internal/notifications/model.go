@@ -36,6 +36,7 @@ type Settings struct {
 	SalaryReminderTime            string    `json:"salary_reminder_time"`
 	SalaryReminderDaysBefore      int       `json:"salary_reminder_days_before"`
 	SalaryDay                     int       `json:"salary_day"`
+	BudgetAmount                  float64   `json:"budget_amount"`
 	BudgetWarningEnabled          bool      `json:"budget_warning_enabled"`
 	BudgetWarningThreshold        int       `json:"budget_warning_threshold"` // percentage (e.g., 80 = 80%)
 	WeeklySummaryEnabled          bool      `json:"weekly_summary_enabled"`
@@ -78,6 +79,7 @@ type UpdateSettingsInput struct {
 	SalaryReminderTime            *string `json:"salary_reminder_time,omitempty"`
 	SalaryReminderDaysBefore      *int    `json:"salary_reminder_days_before,omitempty"`
 	SalaryDay                     *int    `json:"salary_day,omitempty"`
+	BudgetAmount                  *float64 `json:"budget_amount,omitempty"`
 	BudgetWarningEnabled          *bool   `json:"budget_warning_enabled,omitempty"`
 	BudgetWarningThreshold        *int    `json:"budget_warning_threshold,omitempty"`
 	WeeklySummaryEnabled          *bool   `json:"weekly_summary_enabled,omitempty"`

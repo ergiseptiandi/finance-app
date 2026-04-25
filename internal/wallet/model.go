@@ -8,6 +8,7 @@ type Wallet struct {
 	Name           string    `json:"name"`
 	OpeningBalance float64   `json:"opening_balance"`
 	IsLocked       bool      `json:"is_locked"`
+	IsArchived     bool      `json:"is_archived"`
 	Balance        float64   `json:"balance"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`

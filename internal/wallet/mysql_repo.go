@@ -21,11 +21,11 @@ func NewMySQLWalletRepository(db *sql.DB) *MySQLWalletRepository {
 
 func (r *MySQLWalletRepository) Create(ctx context.Context, item Wallet) (int64, error) {
 	const query = `
-		INSERT INTO wallets (user_id, name, opening_balance, is_locked)
-		VALUES (?, ?, ?, ?)
+		INSERT INTO wallets (user_id, name, opening_balance, is_locked, is_archived)
+		VALUES (?, ?, ?, ?, ?)
 	`
 
-	result, err := r.db.ExecContext(ctx, query, item.UserID, item.Name, item.OpeningBalance, item.IsLocked)
+	result, err := r.db.ExecContext(ctx, query, item.UserID, item.Name, item.OpeningBalance, item.IsLocked, item.IsArchived)
 	if err != nil {
 		return 0, normalizeMySQLError(err)
 	}
@@ -44,11 +44,11 @@ func (r *MySQLWalletRepository) GetByName(ctx context.Context, userID int64, nam
 func (r *MySQLWalletRepository) Update(ctx context.Context, item Wallet) error {
 	const query = `
 		UPDATE wallets
-		SET name = ?, opening_balance = ?
+		SET name = ?, opening_balance = ?, is_archived = ?
 		WHERE id = ? AND user_id = ?
 	`
 
-	result, err := r.db.ExecContext(ctx, query, item.Name, item.OpeningBalance, item.ID, item.UserID)
+	result, err := r.db.ExecContext(ctx, query, item.Name, item.OpeningBalance, item.IsArchived, item.ID, item.UserID)
 	if err != nil {
 		return normalizeMySQLError(err)
 	}
@@ -83,16 +83,40 @@ func (r *MySQLWalletRepository) Delete(ctx context.Context, userID, id int64) er
 	return nil
 }
 
+func (r *MySQLWalletRepository) Archive(ctx context.Context, userID, id int64) error {
+	const query = `
+		UPDATE wallets
+		SET is_archived = 1
+		WHERE id = ? AND user_id = ?
+	`
+
+	result, err := r.db.ExecContext(ctx, query, id, userID)
+	if err != nil {
+		return normalizeMySQLError(err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return ErrNotFound
+	}
+
+	return nil
+}
+
 func (r *MySQLWalletRepository) FindAll(ctx context.Context, userID int64) ([]Wallet, error) {
 	const query = `
-		SELECT
-			w.id,
-			w.user_id,
-			w.name,
-			w.opening_balance,
-			w.is_locked,
-			w.created_at,
-			w.updated_at,
+	SELECT
+		w.id,
+		w.user_id,
+		w.name,
+		w.opening_balance,
+		w.is_locked,
+		w.is_archived,
+		w.created_at,
+		w.updated_at,
 			w.opening_balance +
 			COALESCE((
 				SELECT SUM(
@@ -120,7 +144,7 @@ func (r *MySQLWalletRepository) FindAll(ctx context.Context, userID int64) ([]Wa
 				WHERE wt.from_wallet_id = w.id OR wt.to_wallet_id = w.id
 			), 0) AS balance
 		FROM wallets w
-		WHERE w.user_id = ?
+		WHERE w.user_id = ? AND w.is_archived = 0
 		ORDER BY w.created_at ASC, w.id ASC
 	`
 
@@ -139,6 +163,7 @@ func (r *MySQLWalletRepository) FindAll(ctx context.Context, userID int64) ([]Wa
 			&item.Name,
 			&item.OpeningBalance,
 			&item.IsLocked,
+			&item.IsArchived,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 			&item.Balance,
@@ -251,6 +276,7 @@ func (r *MySQLWalletRepository) loadWallet(ctx context.Context, where string, ar
 			w.name,
 			w.opening_balance,
 			w.is_locked,
+			w.is_archived,
 			w.created_at,
 			w.updated_at,
 			w.opening_balance +
@@ -303,6 +329,9 @@ func (r *MySQLWalletRepository) loadWallet(ctx context.Context, where string, ar
 			return Wallet{}, ErrNotFound
 		}
 		return Wallet{}, err
+	}
+	if item.IsArchived {
+		return Wallet{}, ErrNotFound
 	}
 
 	return item, nil
