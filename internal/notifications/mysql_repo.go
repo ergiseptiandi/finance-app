@@ -360,12 +360,12 @@ func (r *MySQLNotificationsRepository) WeeklySummary(ctx context.Context, userID
 	const expenseQuery = `
 		SELECT COALESCE(SUM(amount), 0)
 		FROM transactions
-		WHERE user_id = ? AND type = 'expense' AND created_at >= ? AND created_at < ?
+		WHERE user_id = ? AND type = 'expense' AND date >= ? AND date < ?
 	`
 	const incomeQuery = `
 		SELECT COALESCE(SUM(amount), 0)
 		FROM transactions
-		WHERE user_id = ? AND type = 'income' AND created_at >= ? AND created_at < ?
+		WHERE user_id = ? AND type = 'income' AND date >= ? AND date < ?
 	`
 
 	var summary WeeklySummaryData
