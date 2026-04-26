@@ -51,12 +51,14 @@ func (s *LocalStorage) SaveMultipartFile(relativeDir string, fileHeader *multipa
 		return "", err
 	}
 
-	publicPath := "/" + filepath.ToSlash(filepath.Join(relativeDir, fileName))
+	publicPath := "/uploads/" + filepath.ToSlash(filepath.Join(relativeDir, fileName))
 	return publicPath, nil
 }
 
 func (s *LocalStorage) Delete(publicPath string) error {
-	trimmed := strings.TrimPrefix(publicPath, "/")
+	trimmed := strings.TrimSpace(publicPath)
+	trimmed = strings.TrimPrefix(trimmed, "/")
+	trimmed = strings.TrimPrefix(trimmed, "uploads/")
 	if trimmed == "" {
 		return nil
 	}

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	domainauth "finance-backend/internal/auth"
+	"finance-backend/internal/media"
 	"finance-backend/internal/server/routeinfo"
 
 	"github.com/go-chi/chi/v5"
@@ -134,6 +135,8 @@ func (h handler) detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	baseURL := requestBaseURL(r)
+	item.Payments = normalizePaymentProofImages(item.Payments, baseURL)
 	writeJSON(w, http.StatusOK, "Success Get", item)
 }
 
@@ -219,6 +222,7 @@ func (h handler) createPayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	payment.ProofImage = resolveProofImageURL(payment.ProofImage, requestBaseURL(r))
 	writeJSON(w, http.StatusCreated, "Success Create", payment)
 }
 
@@ -265,6 +269,7 @@ func (h handler) updatePayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	payment.ProofImage = resolveProofImageURL(payment.ProofImage, requestBaseURL(r))
 	writeJSON(w, http.StatusOK, "Success Update", payment)
 }
 
@@ -287,6 +292,7 @@ func (h handler) paymentHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	items = normalizePaymentProofImages(items, requestBaseURL(r))
 	writeJSON(w, http.StatusOK, "Success Get", items)
 }
 
@@ -362,4 +368,34 @@ func writeDebtError(w http.ResponseWriter, err error) {
 
 		writeError(w, http.StatusInternalServerError, "internal server error")
 	}
+}
+
+func normalizePaymentProofImages(items []Payment, baseURL string) []Payment {
+	for i := range items {
+		items[i].ProofImage = resolveProofImageURL(items[i].ProofImage, baseURL)
+	}
+
+	return items
+}
+
+func resolveProofImageURL(value, baseURL string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+
+	if strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") {
+		return value
+	}
+
+	if baseURL == "" {
+		return value
+	}
+
+	return strings.TrimRight(baseURL, "/") + "/" + strings.TrimLeft(value, "/")
+}
+
+func requestBaseURL(r *http.Request) string {
+	scheme := r.Header.Get("X-Forwarded-Proto")
+	return media.BaseURLFromRequest(media.SchemeFromHeaderOrTLS(r.TLS != nil, scheme), r.Host)
 }
