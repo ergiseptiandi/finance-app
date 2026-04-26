@@ -169,7 +169,7 @@ FROM (
 	SELECT user_id, wallet_id, type, category, date, amount
 	FROM transactions
 	UNION ALL
-	SELECT d.user_id AS user_id, p.wallet_id AS wallet_id, 'expense' AS type, NULL AS category, p.payment_date AS date, p.amount
+	SELECT d.user_id AS user_id, p.wallet_id AS wallet_id, 'expense' AS type, 'Debt Payment' AS category, p.payment_date AS date, p.amount
 	FROM debt_payments p
 	JOIN debts d ON d.id = p.debt_id
 ) sources

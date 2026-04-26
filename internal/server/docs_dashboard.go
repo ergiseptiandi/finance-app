@@ -15,9 +15,27 @@ func dashboardOpenAPIComponents() map[string]any {
 					"net_cashflow":    map[string]any{"type": "number"},
 					"savings_rate":    map[string]any{"type": "number"},
 					"expense_ratio":   map[string]any{"type": "number"},
+					"budget_summary": map[string]any{
+						"$ref": "#/components/schemas/BudgetSummary",
+					},
+					"goals_progress": map[string]any{
+						"type": "array",
+						"items": map[string]any{"$ref": "#/components/schemas/GoalProgress"},
+					},
 					"debt": map[string]any{
 						"$ref": "#/components/schemas/DebtOverview",
 					},
+				},
+			},
+			"BudgetSummary": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"monthly_budget":    map[string]any{"type": "number"},
+					"spent":             map[string]any{"type": "number"},
+					"remaining":         map[string]any{"type": "number"},
+					"usage_rate":        map[string]any{"type": "number"},
+					"over_budget_amount": map[string]any{"type": "number"},
+					"is_over_budget":    map[string]any{"type": "boolean"},
 				},
 			},
 			"DebtOverview": map[string]any{

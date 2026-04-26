@@ -11,6 +11,7 @@ import (
 
 	"finance-backend/internal/alerts"
 	"finance-backend/internal/auth"
+	"finance-backend/internal/budget"
 	"finance-backend/internal/category"
 	"finance-backend/internal/config"
 	"finance-backend/internal/dashboard"
@@ -27,6 +28,24 @@ import (
 
 	"github.com/joho/godotenv"
 )
+
+type dashboardExpenseProvider struct {
+	repo dashboard.Repository
+}
+
+func (p dashboardExpenseProvider) ExpenseByCategory(ctx context.Context, userID int64, start, end time.Time) ([]budget.ExpenseItem, error) {
+	items, err := p.repo.ExpenseByCategory(ctx, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]budget.ExpenseItem, 0, len(items))
+	for _, item := range items {
+		result = append(result, budget.ExpenseItem{Category: item.Category, Amount: item.Amount})
+	}
+
+	return result, nil
+}
 
 func main() {
 	_ = godotenv.Load()
@@ -99,7 +118,9 @@ func main() {
 	alertsService := alerts.NewService(alertsRepo)
 
 	dashboardRepo := dashboard.NewMySQLDashboardRepository(db)
-	dashboardService := dashboard.NewService(dashboardRepo, walletService, alertsService, notificationsService)
+	budgetRepo := budget.NewMySQLRepository(db)
+	budgetService := budget.NewService(budgetRepo, dashboardExpenseProvider{repo: dashboardRepo})
+	dashboardService := dashboard.NewService(dashboardRepo, walletService, alertsService, notificationsService, budgetService)
 
 	reportsRepo := reports.NewMySQLReportsRepository(db)
 	reportsService := reports.NewService(reportsRepo, walletService)
@@ -123,7 +144,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
-		Handler: server.NewRouter(authService, txService, walletService, categoryService, debtService, dashboardService, reportsService, alertsService, notificationsService, mediaService, fileStorage, cfg.Storage.UploadDir),
+		Handler: server.NewRouter(authService, txService, walletService, categoryService, debtService, dashboardService, reportsService, alertsService, notificationsService, mediaService, fileStorage, cfg.Storage.UploadDir, budgetService),
 	}
 
 	log.Printf("server listening on :%s", cfg.Server.Port)

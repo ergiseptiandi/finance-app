@@ -31,7 +31,18 @@ type Summary struct {
 	NetCashflow    float64      `json:"net_cashflow"`
 	SavingsRate    float64      `json:"savings_rate"`
 	ExpenseRatio   float64      `json:"expense_ratio"`
+	BudgetSummary  *BudgetSummary `json:"budget_summary,omitempty"`
+	GoalsProgress  []GoalProgress  `json:"goals_progress,omitempty"`
 	Debt           DebtOverview `json:"debt"`
+}
+
+type BudgetSummary struct {
+	MonthlyBudget    float64 `json:"monthly_budget"`
+	Spent            float64 `json:"spent"`
+	Remaining        float64 `json:"remaining"`
+	UsageRate        float64 `json:"usage_rate"`
+	OverBudgetAmount float64 `json:"over_budget_amount"`
+	IsOverBudget     bool    `json:"is_over_budget"`
 }
 
 type BudgetVsActual struct {

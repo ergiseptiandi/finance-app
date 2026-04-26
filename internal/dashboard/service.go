@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"finance-backend/internal/alerts"
+	"finance-backend/internal/budget"
 	"finance-backend/internal/notifications"
 	"finance-backend/internal/wallet"
 )
@@ -25,6 +26,7 @@ type Service struct {
 	balances      wallet.BalanceProvider
 	alertsSource  AlertSource
 	settingsSource BudgetSource
+	budgetService  *budget.Service
 }
 
 type AlertSource interface {
@@ -35,8 +37,12 @@ type BudgetSource interface {
 	GetSettings(ctx context.Context, userID int64) (notifications.Settings, error)
 }
 
-func NewService(repo Repository, balances wallet.BalanceProvider, alertsSource AlertSource, settingsSource BudgetSource) *Service {
-	return &Service{repo: repo, balances: balances, alertsSource: alertsSource, settingsSource: settingsSource}
+func NewService(repo Repository, balances wallet.BalanceProvider, alertsSource AlertSource, settingsSource BudgetSource, budgetService ...*budget.Service) *Service {
+	svc := &Service{repo: repo, balances: balances, alertsSource: alertsSource, settingsSource: settingsSource}
+	if len(budgetService) > 0 {
+		svc.budgetService = budgetService[0]
+	}
+	return svc
 }
 
 func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFilter) (Summary, error) {
@@ -87,6 +93,34 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 	debtOverview.DebtToBalanceRatio = percentageOf(debtOverview.RemainingDebt, totalBalance)
 	debtOverview.CompletionRate = percentageOf(debtOverview.PaidDebt, debtOverview.TotalDebt)
 
+	var budgetSummary *BudgetSummary
+	var goalsProgress []GoalProgress
+	if s.budgetService != nil {
+		items, summary, err := s.budgetService.List(ctx, userID, start, end)
+		if err != nil {
+			return Summary{}, err
+		}
+
+		budgetSummary = &BudgetSummary{
+			MonthlyBudget:    summary.MonthlyBudget,
+			Spent:            summary.Spent,
+			Remaining:        summary.Remaining,
+			UsageRate:        summary.UsageRate,
+			OverBudgetAmount: summary.OverBudgetAmount,
+			IsOverBudget:     summary.IsOverBudget,
+		}
+		goalsProgress = make([]GoalProgress, 0, len(items))
+		for _, item := range items {
+			goalsProgress = append(goalsProgress, GoalProgress{
+				Name:               item.CategoryName,
+				TargetAmount:       item.MonthlyAmount,
+				CurrentAmount:      item.CurrentAmount,
+				ProgressPercentage: item.ProgressPercentage,
+				Status:             string(item.Status),
+			})
+		}
+	}
+
 	return Summary{
 		TotalBalance:   totalBalance,
 		PeriodBalance:  periodBalance,
@@ -95,6 +129,8 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 		NetCashflow:    netCashflow,
 		SavingsRate:    percentageOf(netCashflow, monthlyIncome),
 		ExpenseRatio:   percentageOf(monthlyExpense, monthlyIncome),
+		BudgetSummary:  budgetSummary,
+		GoalsProgress:  goalsProgress,
 		Debt:           debtOverview,
 	}, nil
 }
@@ -356,10 +392,32 @@ func (s *Service) Insights(ctx context.Context, userID int64, filter DashboardFi
 }
 
 func (s *Service) GoalsProgress(ctx context.Context, userID int64, filter DashboardFilter) ([]GoalProgress, error) {
-	_ = ctx
-	_ = userID
-	_ = filter
-	return []GoalProgress{}, nil
+	if s.budgetService == nil {
+		return []GoalProgress{}, nil
+	}
+
+	start, end, err := s.resolveRange(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	items, _, err := s.budgetService.List(ctx, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	goals := make([]GoalProgress, 0, len(items))
+	for _, item := range items {
+		goals = append(goals, GoalProgress{
+			Name:               item.CategoryName,
+			TargetAmount:       item.MonthlyAmount,
+			CurrentAmount:      item.CurrentAmount,
+			ProgressPercentage: item.ProgressPercentage,
+			Status:             string(item.Status),
+		})
+	}
+
+	return goals, nil
 }
 
 func (s *Service) resolveRange(filter DashboardFilter) (time.Time, time.Time, error) {

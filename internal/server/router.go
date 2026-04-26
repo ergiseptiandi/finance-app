@@ -7,6 +7,7 @@ import (
 
 	"finance-backend/internal/alerts"
 	"finance-backend/internal/auth"
+	"finance-backend/internal/budget"
 	"finance-backend/internal/category"
 	"finance-backend/internal/dashboard"
 	"finance-backend/internal/debt"
@@ -24,7 +25,7 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
-func NewRouter(authService *auth.Service, txService *transaction.Service, walletService *wallet.Service, categoryService *category.Service, debtService *debt.Service, dashboardService *dashboard.Service, reportsService *reports.Service, alertsService *alerts.Service, notificationsService *notifications.Service, mediaService *media.Service, debtStorage debt.FileStorage, uploadDir string) http.Handler {
+func NewRouter(authService *auth.Service, txService *transaction.Service, walletService *wallet.Service, categoryService *category.Service, debtService *debt.Service, dashboardService *dashboard.Service, reportsService *reports.Service, alertsService *alerts.Service, notificationsService *notifications.Service, mediaService *media.Service, debtStorage debt.FileStorage, uploadDir string, budgetService *budget.Service) http.Handler {
 	router := chi.NewRouter()
 	catalog := newRouteCatalog()
 	router.Use(chimiddleware.RequestID)
@@ -33,13 +34,14 @@ func NewRouter(authService *auth.Service, txService *transaction.Service, wallet
 
 	registerBaseRoutes(router, catalog)
 
-	router.Route("/v1", func(r chi.Router) {
-		registerAuthRoutes(r, catalog, authService)
-		registerTransactionRoutes(r, catalog, authService, txService)
-		registerWalletRoutes(r, catalog, authService, walletService)
-		registerCategoryRoutes(r, catalog, authService, categoryService)
-		registerDebtRoutes(r, catalog, authService, debtService, debtStorage)
-		registerDashboardRoutes(r, catalog, authService, dashboardService)
+		router.Route("/v1", func(r chi.Router) {
+			registerAuthRoutes(r, catalog, authService)
+			registerTransactionRoutes(r, catalog, authService, txService)
+			registerWalletRoutes(r, catalog, authService, walletService)
+			registerCategoryRoutes(r, catalog, authService, categoryService)
+			registerDebtRoutes(r, catalog, authService, debtService, debtStorage)
+			registerBudgetRoutes(r, catalog, authService, budgetService)
+			registerDashboardRoutes(r, catalog, authService, dashboardService)
 		registerReportsRoutes(r, catalog, authService, reportsService)
 		registerAlertsRoutes(r, catalog, authService, alertsService)
 		registerNotificationsRoutes(r, catalog, authService, notificationsService)
