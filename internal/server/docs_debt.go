@@ -48,7 +48,7 @@ func debtOpenAPIComponents() map[string]any {
 					"installment_id": map[string]any{"type": "integer", "nullable": true},
 					"amount":         map[string]any{"type": "number"},
 					"payment_date":   map[string]any{"type": "string", "format": "date-time"},
-					"proof_image":    map[string]any{"type": "string"},
+					"proof_image":    map[string]any{"type": "string", "format": "uri"},
 					"created_at":     map[string]any{"type": "string", "format": "date-time"},
 					"updated_at":     map[string]any{"type": "string", "format": "date-time"},
 				},
@@ -102,6 +102,7 @@ func debtOpenAPIComponents() map[string]any {
 			},
 			"UpdatePaymentRequest": map[string]any{
 				"type": "object",
+				"description": "All fields are optional. Provide proof_image to replace the stored payment proof.",
 				"properties": map[string]any{
 					"wallet_id":    map[string]any{"type": "integer"},
 					"amount":       map[string]any{"type": "number"},

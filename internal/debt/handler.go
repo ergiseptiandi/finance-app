@@ -245,6 +245,12 @@ func (h handler) updatePayment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	original, err := h.svc.repo.GetPaymentByID(r.Context(), userID, debtID, paymentID)
+	if err != nil {
+		writeDebtError(w, err)
+		return
+	}
+
 	input, fileHeader, err := parseUpdatePaymentMultipart(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
@@ -267,6 +273,10 @@ func (h handler) updatePayment(w http.ResponseWriter, r *http.Request) {
 		}
 		writeDebtError(w, err)
 		return
+	}
+
+	if input.ProofImage != nil && original.ProofImage != "" && original.ProofImage != payment.ProofImage {
+		_ = h.storage.Delete(original.ProofImage)
 	}
 
 	payment.ProofImage = resolveProofImageURL(payment.ProofImage, requestBaseURL(r))

@@ -234,6 +234,10 @@ Update payment metadata and optionally replace the proof image.
 - `payment_date` (optional, RFC3339 datetime)
 - `proof_image` (optional, file)
 
+If `proof_image` is omitted, the existing uploaded photo stays unchanged.
+
+If `proof_image` is provided, the old file is replaced and the API returns the new public URL under `proof_image`.
+
 ---
 
 ## 8. Get Payment History
