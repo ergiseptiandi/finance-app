@@ -472,3 +472,69 @@ func TestInsightsReturnsAlerts(t *testing.T) {
 		t.Fatalf("unexpected insight code: %s", items[0].Code)
 	}
 }
+
+func TestInsightsGeneratesActionableRecommendations(t *testing.T) {
+	originalNowFunc := nowFunc
+	nowFunc = func() time.Time {
+		return time.Date(2026, time.April, 19, 10, 30, 0, 0, time.FixedZone("WIB", 7*60*60))
+	}
+	defer func() { nowFunc = originalNowFunc }()
+
+	svc := NewService(dashboardRepoStub{
+		refreshUserDebtStatusesFn: func(context.Context, int64) error { return nil },
+		allTimeIncomeFn:           func(context.Context, int64) (float64, error) { return 12000000, nil },
+		allTimeExpenseFn:          func(context.Context, int64) (float64, error) { return 4000000, nil },
+		incomeBetweenFn:           func(context.Context, int64, time.Time, time.Time) (float64, error) { return 3000000, nil },
+		expenseBetweenFn: func(_ context.Context, _ int64, start, end time.Time) (float64, error) {
+			if start.Month() == time.March && end.Month() == time.April {
+				return 800000, nil
+			}
+
+			return 1000000, nil
+		},
+		debtOverviewFn: func(context.Context, int64, time.Time, time.Time) (DebtOverview, error) {
+			return DebtOverview{
+				RemainingDebt:           4000000,
+				TotalDebt:               5000000,
+				PaidDebt:                1000000,
+				OverdueDebtCount:        1,
+				OverdueInstallments:     1,
+				UpcomingDueAmount:       500000,
+				UpcomingDueInstallments: 1,
+			}, nil
+		},
+		expenseByCategoryFn: func(context.Context, int64, time.Time, time.Time) ([]CategoryBreakdownItem, error) {
+			return []CategoryBreakdownItem{
+				{Category: "Food", Amount: 700000, TransactionCount: 7},
+				{Category: "Transport", Amount: 300000, TransactionCount: 3},
+			}, nil
+		},
+	}, balanceProviderStub{
+		totalBalanceFn: func(context.Context, int64) (float64, error) { return 9000000, nil },
+	}, nil, nil)
+
+	items, err := svc.Insights(context.Background(), 1, DashboardFilter{})
+	if err != nil {
+		t.Fatalf("Insights returned error: %v", err)
+	}
+
+	if len(items) != 3 {
+		t.Fatalf("expected 3 generated insights, got %d", len(items))
+	}
+
+	if items[0].Code != "debt_pressure" {
+		t.Fatalf("expected debt pressure to rank first, got %s", items[0].Code)
+	}
+
+	if items[1].Code != "spending_increase" && items[2].Code != "spending_increase" {
+		t.Fatalf("expected spending increase insight to be present, got %#v", items)
+	}
+
+	if items[1].Code != "top_category" && items[2].Code != "top_category" {
+		t.Fatalf("expected top category insight to be present, got %#v", items)
+	}
+
+	if items[1].Severity != "warning" && items[2].Severity != "warning" {
+		t.Fatalf("expected warning severity insight, got %#v", items)
+	}
+}

@@ -363,32 +363,154 @@ func (s *Service) TopMerchants(ctx context.Context, userID int64, filter Dashboa
 }
 
 func (s *Service) Insights(ctx context.Context, userID int64, filter DashboardFilter) ([]Insight, error) {
-	if s.alertsSource == nil {
-		return []Insight{}, nil
-	}
-
-	items, err := s.alertsSource.List(ctx, userID, alerts.AlertListFilter{})
+	summary, err := s.Summary(ctx, userID, filter)
 	if err != nil {
 		return nil, err
 	}
 
-	insights := make([]Insight, 0, len(items))
-	for _, item := range items {
+	start, end, err := s.resolveRange(filter)
+	if err != nil {
+		return nil, err
+	}
+
+	previousStart, previousEnd := previousPeriodRange(start, end)
+	previousExpense, err := s.repo.ExpenseBetween(ctx, userID, previousStart, previousEnd)
+	if err != nil {
+		return nil, err
+	}
+
+	breakdown, err := s.repo.ExpenseByCategory(ctx, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+
+	insights := make([]Insight, 0, 4)
+
+	if change := percentageChange(summary.MonthlyExpense, previousExpense); math.Abs(change) >= 10 {
+		rounded := math.Round(math.Abs(change))
+		if change > 0 {
+			insights = append(insights, Insight{
+				Type:        "recommendation",
+				Code:        "spending_increase",
+				Title:       fmt.Sprintf("Pengeluaran naik %.0f%%", rounded),
+				Message:     "Pengeluaran periode ini lebih tinggi dari periode sebelumnya. Tinjau kategori terbesar dan kurangi transaksi kecil yang tidak penting.",
+				Severity:    "warning",
+				ChangeValue: change,
+			})
+		} else {
+			insights = append(insights, Insight{
+				Type:        "recommendation",
+				Code:        "spending_drop",
+				Title:       fmt.Sprintf("Pengeluaran turun %.0f%%", rounded),
+				Message:     "Pengeluaran periode ini berhasil turun dibanding periode sebelumnya. Pertahankan pola ini di kategori yang paling besar.",
+				Severity:    "info",
+				ChangeValue: change,
+			})
+		}
+	}
+
+	if len(breakdown) > 0 {
+		top := breakdown[0]
+		if top.Amount > 0 {
+			insights = append(insights, Insight{
+				Type:        "recommendation",
+				Code:        "top_category",
+				Title:       fmt.Sprintf("Kategori paling boros: %s", top.Category),
+				Message:     fmt.Sprintf("Kategori %s menyerap %.0f%% dari total pengeluaran periode ini. Tinjau transaksi kecil di kategori ini lebih dulu.", top.Category, top.Percentage),
+				Severity:    "warning",
+				ChangeValue: top.Percentage,
+			})
+		}
+	}
+
+	if summary.Debt.RemainingDebt > 0 {
+		severity := "info"
+		if summary.Debt.OverdueInstallments > 0 || summary.Debt.OverdueDebtCount > 0 || summary.Debt.DebtToIncomeRatio >= 40 {
+			severity = "critical"
+		} else if summary.Debt.DebtToIncomeRatio >= 25 {
+			severity = "warning"
+		}
+
 		insights = append(insights, Insight{
-			Type:        string(item.Type),
-			Code:        item.DedupeKey,
-			Title:       item.Title,
-			Message:     item.Message,
-			Severity:    string(item.Severity),
-			ChangeValue: item.MetricValue,
+			Type:        "recommendation",
+			Code:        "debt_pressure",
+			Title:       "Utang paling berat",
+			Message:     fmt.Sprintf("Sisa utang saat ini %.0f dengan rasio utang terhadap pendapatan %.0f%%. Prioritaskan pembayaran utang yang paling dekat jatuh tempo.", summary.Debt.RemainingDebt, summary.Debt.DebtToIncomeRatio),
+			Severity:    severity,
+			ChangeValue: summary.Debt.DebtToIncomeRatio,
 		})
 	}
 
-	if insights == nil {
+	if summary.BudgetSummary != nil {
+		if summary.BudgetSummary.IsOverBudget || summary.BudgetSummary.UsageRate >= 80 {
+			severity := "warning"
+			if summary.BudgetSummary.IsOverBudget {
+				severity = "critical"
+			}
+
+			insights = append(insights, Insight{
+				Type:        "recommendation",
+				Code:        "budget_pressure",
+				Title:       "Anggaran mulai menipis",
+				Message:     fmt.Sprintf("Pemakaian anggaran sudah %.0f%% dengan sisa %.0f. Kurangi pengeluaran non-esensial di kategori terbesar.", summary.BudgetSummary.UsageRate, summary.BudgetSummary.Remaining),
+				Severity:    severity,
+				ChangeValue: summary.BudgetSummary.UsageRate,
+			})
+		}
+	}
+
+	if len(insights) < 3 && s.alertsSource != nil {
+		items, err := s.alertsSource.List(ctx, userID, alerts.AlertListFilter{})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, item := range items {
+			insights = append(insights, Insight{
+				Type:        string(item.Type),
+				Code:        item.DedupeKey,
+				Title:       item.Title,
+				Message:     item.Message,
+				Severity:    string(item.Severity),
+				ChangeValue: item.MetricValue,
+			})
+		}
+	}
+
+	if len(insights) == 0 {
 		return []Insight{}, nil
 	}
 
+	sort.SliceStable(insights, func(i, j int) bool {
+		rank := func(severity string) int {
+			switch severity {
+			case "critical":
+				return 0
+			case "warning":
+				return 1
+			default:
+				return 2
+			}
+		}
+
+		iRank := rank(insights[i].Severity)
+		jRank := rank(insights[j].Severity)
+		if iRank == jRank {
+			return insights[i].Code < insights[j].Code
+		}
+		return iRank < jRank
+	})
+
+	if len(insights) > 4 {
+		insights = insights[:4]
+	}
+
 	return insights, nil
+}
+
+func previousPeriodRange(start, end time.Time) (time.Time, time.Time) {
+	duration := end.Sub(start)
+	return start.Add(-duration), end.Add(-duration)
 }
 
 func (s *Service) GoalsProgress(ctx context.Context, userID int64, filter DashboardFilter) ([]GoalProgress, error) {
