@@ -388,11 +388,17 @@ func resolveProofImageURL(value, baseURL string) string {
 		return value
 	}
 
+	trimmed := strings.TrimLeft(value, "/")
+	if !strings.HasPrefix(trimmed, "uploads/") {
+		trimmed = "uploads/" + trimmed
+	}
+	pathValue := "/" + trimmed
+
 	if baseURL == "" {
-		return value
+		return pathValue
 	}
 
-	return strings.TrimRight(baseURL, "/") + "/" + strings.TrimLeft(value, "/")
+	return strings.TrimRight(baseURL, "/") + pathValue
 }
 
 func requestBaseURL(r *http.Request) string {
