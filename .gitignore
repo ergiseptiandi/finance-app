@@ -16,3 +16,8 @@ actions-runner/
 
 # local secrets
 secrets/
+
+# runtime uploads
+/uploads/*
+!/uploads/.gitignore
+!/uploads/.gitkeep
