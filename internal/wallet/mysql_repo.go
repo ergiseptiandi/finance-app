@@ -320,6 +320,7 @@ func (r *MySQLWalletRepository) loadWallet(ctx context.Context, where string, ar
 		&item.Name,
 		&item.OpeningBalance,
 		&item.IsLocked,
+		&item.IsArchived,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 		&item.Balance,
