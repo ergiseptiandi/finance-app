@@ -3,15 +3,19 @@ package exportcsv
 import "time"
 
 type Scope string
+type Language string
 
 const (
 	ScopeTransactions Scope = "transactions"
 	ScopeDebts        Scope = "debts"
 	ScopeReports      Scope = "reports"
+
+	LanguageID Language = "id"
+	LanguageEN Language = "en"
 )
 
 type Period struct {
-	Month     string
+	Month      string
 	StartDate  *time.Time
 	EndDate    *time.Time
 	Label      string

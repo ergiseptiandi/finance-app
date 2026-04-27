@@ -68,7 +68,9 @@ func (h handler) exportCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := h.svc.Export(r.Context(), userID, scope, period)
+	lang := parseLanguage(r.URL.Query().Get("lang"))
+
+	result, err := h.svc.Export(r.Context(), userID, scope, period, lang)
 	if err != nil {
 		if errors.Is(err, transaction.ErrInvalidInput) || errors.Is(err, reports.ErrInvalidInput) || errors.Is(err, debt.ErrInvalidInput) {
 			writeError(w, http.StatusBadRequest, err.Error())
@@ -132,7 +134,7 @@ func parsePeriod(r *http.Request) (Period, error) {
 		startOfMonth := time.Date(parsedMonth.Year(), parsedMonth.Month(), 1, 0, 0, 0, 0, time.Local)
 		endOfMonth := startOfMonth.AddDate(0, 1, 0).AddDate(0, 0, -1)
 		return Period{
-			Month:     startOfMonth.Format("2006-01"),
+			Month:      startOfMonth.Format("2006-01"),
 			StartDate:  &startOfMonth,
 			EndDate:    &endOfMonth,
 			Label:      startOfMonth.Format("2006-01"),
@@ -175,4 +177,13 @@ func parsePeriod(r *http.Request) (Period, error) {
 		Label:      parsedStartDate.Format("2006-01-02") + "_to_" + parsedEndDate.Format("2006-01-02"),
 		HasFilters: true,
 	}, nil
+}
+
+func parseLanguage(value string) Language {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "en", "en-us", "en-gb":
+		return LanguageEN
+	default:
+		return LanguageID
+	}
 }

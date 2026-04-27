@@ -28,85 +28,95 @@ func NewService(transactions *transaction.Service, debts *debt.Service, reports 
 	}
 }
 
-func (s *Service) Export(ctx context.Context, userID int64, scope Scope, period Period) (Result, error) {
+func (s *Service) Export(ctx context.Context, userID int64, scope Scope, period Period, lang Language) (Result, error) {
 	switch scope {
 	case ScopeTransactions:
-		return s.exportTransactions(ctx, userID, period)
+		return s.exportTransactions(ctx, userID, period, lang)
 	case ScopeDebts:
-		return s.exportDebts(ctx, userID, period)
+		return s.exportDebts(ctx, userID, period, lang)
 	case ScopeReports:
-		return s.exportReports(ctx, userID, period)
+		return s.exportReports(ctx, userID, period, lang)
 	default:
 		return Result{}, errors.New("scope must be transactions, debts, or reports")
 	}
 }
 
-type csvRow struct {
-	RecordType        string
-	ID                string
-	ParentID          string
-	Name              string
-	Type              string
-	Status            string
-	Category          string
-	Amount            string
-	AmountSecondary   string
-	CategoryID        string
-	CategoryName      string
-	WalletID          string
-	WalletName        string
-	Date              string
-	DueDate           string
-	InstallmentNo     string
-	Note              string
-	Description       string
-	TotalAmount       string
-	MonthlyInstallment string
-	PaidAmount        string
-	RemainingAmount   string
-	Balance           string
-	OpeningBalance    string
-	CurrentAmount     string
-	RemainingBudget   string
-	MonthlyBudget     string
-	Spent             string
-	UsageRate         string
-	OverBudgetAmount  string
-	Percentage        string
-	TransactionCount  string
-	Progress          string
-	ProofImage        string
-	PaymentDate       string
-	TransferDate      string
-	CreatedAt         string
-	UpdatedAt         string
-	PaidAt            string
-	Period            string
-	Label             string
-	Income            string
-	Expense           string
-	NetCashflow       string
-	RemainingBalance  string
-	SavingsRate       string
-	ExpenseRatio      string
-	DaysCount         string
-	AverageDaily      string
-	HighestDaily      string
-	LowestDaily       string
-	PayloadJSON       string
+type csvColumn struct {
+	Key   string
+	Label string
 }
 
-func buildCSV(headers []string, rows []csvRow) ([]byte, error) {
+type csvRow struct {
+	RecordType         string
+	ID                 string
+	ParentID           string
+	Name               string
+	Type               string
+	Status             string
+	Category           string
+	Amount             string
+	AmountSecondary    string
+	CategoryID         string
+	CategoryName       string
+	WalletID           string
+	WalletName         string
+	Date               string
+	DueDate            string
+	InstallmentNo      string
+	Note               string
+	Description        string
+	TotalAmount        string
+	MonthlyInstallment string
+	PaidAmount         string
+	RemainingAmount    string
+	Balance            string
+	OpeningBalance     string
+	CurrentAmount      string
+	RemainingBudget    string
+	MonthlyBudget      string
+	Spent              string
+	UsageRate          string
+	OverBudgetAmount   string
+	Percentage         string
+	TransactionCount   string
+	Progress           string
+	ProofImage         string
+	PaymentDate        string
+	TransferDate       string
+	CreatedAt          string
+	UpdatedAt          string
+	PaidAt             string
+	Period             string
+	Label              string
+	Income             string
+	Expense            string
+	NetCashflow        string
+	RemainingBalance   string
+	SavingsRate        string
+	ExpenseRatio       string
+	DaysCount          string
+	AverageDaily       string
+	HighestDaily       string
+	LowestDaily        string
+	PayloadJSON        string
+}
+
+func buildCSV(columns []csvColumn, rows []csvRow) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteString("\ufeff")
 
 	writer := csv.NewWriter(&buf)
+	headers := make([]string, 0, len(columns))
+	for _, column := range columns {
+		headers = append(headers, column.Label)
+	}
+
 	if err := writer.Write(headers); err != nil {
 		return nil, err
 	}
 
 	for _, row := range rows {
-		if err := writer.Write(row.values(headers)); err != nil {
+		if err := writer.Write(row.values(columns)); err != nil {
 			return nil, err
 		}
 	}
@@ -119,10 +129,10 @@ func buildCSV(headers []string, rows []csvRow) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (r csvRow) values(headers []string) []string {
-	values := make([]string, 0, len(headers))
-	for _, header := range headers {
-		values = append(values, r.value(header))
+func (r csvRow) values(columns []csvColumn) []string {
+	values := make([]string, 0, len(columns))
+	for _, column := range columns {
+		values = append(values, r.value(column.Key))
 	}
 	return values
 }
@@ -258,7 +268,92 @@ func formatFloat(value float64) string {
 	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", value), "0"), ".")
 }
 
-func (s *Service) exportTransactions(ctx context.Context, userID int64, period Period) (Result, error) {
+func text(lang Language, id string, en string) string {
+	if lang == LanguageEN {
+		return en
+	}
+	return id
+}
+
+func transactionTypeLabel(lang Language, value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "income":
+		return text(lang, "Pemasukan", "Income")
+	case "expense":
+		return text(lang, "Pengeluaran", "Expense")
+	default:
+		return value
+	}
+}
+
+func debtStatusLabel(lang Language, value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "pending":
+		return text(lang, "Menunggu", "Pending")
+	case "paid":
+		return text(lang, "Lunas", "Paid")
+	case "overdue":
+		return text(lang, "Terlambat", "Overdue")
+	default:
+		return value
+	}
+}
+
+func transactionColumns(lang Language) []csvColumn {
+	return []csvColumn{
+		{Key: "record_type", Label: text(lang, "Jenis Data", "Record Type")},
+		{Key: "date", Label: text(lang, "Tanggal Transaksi", "Transaction Date")},
+		{Key: "type", Label: text(lang, "Tipe", "Type")},
+		{Key: "category", Label: text(lang, "Kategori", "Category")},
+		{Key: "amount", Label: text(lang, "Nominal", "Amount")},
+		{Key: "description", Label: text(lang, "Keterangan", "Description")},
+		{Key: "created_at", Label: text(lang, "Dibuat Pada", "Created At")},
+		{Key: "updated_at", Label: text(lang, "Diubah Pada", "Updated At")},
+	}
+}
+
+func debtColumns(lang Language) []csvColumn {
+	return []csvColumn{
+		{Key: "record_type", Label: text(lang, "Jenis Data", "Record Type")},
+		{Key: "name", Label: text(lang, "Nama Utang", "Debt Name")},
+		{Key: "status", Label: text(lang, "Status", "Status")},
+		{Key: "due_date", Label: text(lang, "Jatuh Tempo", "Due Date")},
+		{Key: "total_amount", Label: text(lang, "Total Utang", "Total Amount")},
+		{Key: "monthly_installment", Label: text(lang, "Cicilan Bulanan", "Monthly Installment")},
+		{Key: "paid_amount", Label: text(lang, "Sudah Dibayar", "Paid Amount")},
+		{Key: "remaining_amount", Label: text(lang, "Sisa Tagihan", "Remaining Amount")},
+		{Key: "installment_no", Label: text(lang, "Nomor Cicilan", "Installment No.")},
+		{Key: "amount", Label: text(lang, "Nominal", "Amount")},
+		{Key: "payment_date", Label: text(lang, "Tanggal Pembayaran", "Payment Date")},
+		{Key: "proof_image", Label: text(lang, "Bukti", "Proof")},
+		{Key: "paid_at", Label: text(lang, "Waktu Pelunasan", "Paid At")},
+		{Key: "created_at", Label: text(lang, "Dibuat Pada", "Created At")},
+		{Key: "updated_at", Label: text(lang, "Diubah Pada", "Updated At")},
+	}
+}
+
+func reportColumns(lang Language) []csvColumn {
+	return []csvColumn{
+		{Key: "record_type", Label: text(lang, "Jenis Data", "Record Type")},
+		{Key: "period", Label: text(lang, "Periode", "Period")},
+		{Key: "label", Label: text(lang, "Nama", "Name")},
+		{Key: "amount", Label: text(lang, "Nominal", "Amount")},
+		{Key: "percentage", Label: text(lang, "Persentase", "Percentage")},
+		{Key: "transaction_count", Label: text(lang, "Jumlah Transaksi", "Transaction Count")},
+		{Key: "income", Label: text(lang, "Pemasukan", "Income")},
+		{Key: "expense", Label: text(lang, "Pengeluaran", "Expense")},
+		{Key: "net_cashflow", Label: text(lang, "Arus Kas Bersih", "Net Cashflow")},
+		{Key: "remaining_balance", Label: text(lang, "Sisa Saldo", "Remaining Balance")},
+		{Key: "savings_rate", Label: text(lang, "Rasio Tabungan", "Savings Rate")},
+		{Key: "expense_ratio", Label: text(lang, "Rasio Pengeluaran", "Expense Ratio")},
+		{Key: "days_count", Label: text(lang, "Jumlah Hari", "Days Count")},
+		{Key: "average_daily", Label: text(lang, "Rata-rata Harian", "Average Daily")},
+		{Key: "highest_daily", Label: text(lang, "Tertinggi Harian", "Highest Daily")},
+		{Key: "lowest_daily", Label: text(lang, "Terendah Harian", "Lowest Daily")},
+	}
+}
+
+func (s *Service) exportTransactions(ctx context.Context, userID int64, period Period, lang Language) (Result, error) {
 	if s.transactions == nil {
 		return Result{}, errors.New("transaction service is required")
 	}
@@ -282,17 +377,14 @@ func (s *Service) exportTransactions(ctx context.Context, userID int64, period P
 		totalCount += len(page.Data)
 		for _, item := range page.Data {
 			rows = append(rows, csvRow{
-				RecordType:      "transaction",
-				ID:              fmt.Sprintf("%d", item.ID),
-				WalletID:        fmt.Sprintf("%d", item.WalletID),
-				Type:            string(item.Type),
-				Category:        item.Category,
-				Amount:          formatFloat(item.Amount),
-				Date:            formatDate(item.Date),
-				Description:     item.Description,
-				CreatedAt:       formatTime(item.CreatedAt),
-				UpdatedAt:       formatTime(item.UpdatedAt),
-				PayloadJSON:     "",
+				RecordType:  text(lang, "Transaksi", "Transaction"),
+				Type:        transactionTypeLabel(lang, string(item.Type)),
+				Category:    item.Category,
+				Amount:      formatFloat(item.Amount),
+				Date:        formatDate(item.Date),
+				Description: item.Description,
+				CreatedAt:   formatTime(item.CreatedAt),
+				UpdatedAt:   formatTime(item.UpdatedAt),
 			})
 		}
 
@@ -303,18 +395,7 @@ func (s *Service) exportTransactions(ctx context.Context, userID int64, period P
 		filter.Page++
 	}
 
-	csvBytes, err := buildCSV([]string{
-		"record_type",
-		"id",
-		"wallet_id",
-		"type",
-		"category",
-		"amount",
-		"date",
-		"description",
-		"created_at",
-		"updated_at",
-	}, rows)
+	csvBytes, err := buildCSV(transactionColumns(lang), rows)
 	if err != nil {
 		return Result{}, err
 	}
@@ -327,7 +408,7 @@ func (s *Service) exportTransactions(ctx context.Context, userID int64, period P
 	}, nil
 }
 
-func (s *Service) exportDebts(ctx context.Context, userID int64, period Period) (Result, error) {
+func (s *Service) exportDebts(ctx context.Context, userID int64, period Period, lang Language) (Result, error) {
 	if s.debts == nil {
 		return Result{}, errors.New("debt service is required")
 	}
@@ -357,22 +438,20 @@ func (s *Service) exportDebts(ctx context.Context, userID int64, period Period) 
 		detail, err := s.debts.Detail(ctx, userID, item.ID)
 		if err != nil {
 			partial = true
-			rows = append(rows, debtSummaryRow(item))
+			rows = append(rows, debtSummaryRow(item, lang))
 			continue
 		}
 
-		rows = append(rows, debtSummaryRow(detail.DebtSummary))
+		rows = append(rows, debtSummaryRow(detail.DebtSummary, lang))
 
 		for _, installment := range detail.Installments {
 			rows = append(rows, csvRow{
-				RecordType:    "installment",
-				ParentID:      fmt.Sprintf("%d", item.ID),
-				ID:            fmt.Sprintf("%d", installment.ID),
+				RecordType:    text(lang, "Cicilan", "Installment"),
 				Name:          item.Name,
 				InstallmentNo: fmt.Sprintf("%d", installment.InstallmentNo),
 				DueDate:       formatDate(installment.DueDate),
 				Amount:        formatFloat(installment.Amount),
-				Status:        string(installment.Status),
+				Status:        debtStatusLabel(lang, string(installment.Status)),
 				PaidAt:        formatTimePtr(installment.PaidAt),
 				CreatedAt:     formatTime(installment.CreatedAt),
 				UpdatedAt:     formatTime(installment.UpdatedAt),
@@ -381,41 +460,19 @@ func (s *Service) exportDebts(ctx context.Context, userID int64, period Period) 
 
 		for _, payment := range detail.Payments {
 			rows = append(rows, csvRow{
-				RecordType:   "payment",
-				ParentID:     fmt.Sprintf("%d", item.ID),
-				ID:           fmt.Sprintf("%d", payment.ID),
-				Name:         item.Name,
-				WalletID:     fmt.Sprintf("%d", payment.WalletID),
-				Amount:       formatFloat(payment.Amount),
-				PaymentDate:  formatDate(payment.PaymentDate),
-				ProofImage:   payment.ProofImage,
-				CreatedAt:    formatTime(payment.CreatedAt),
-				UpdatedAt:    formatTime(payment.UpdatedAt),
+				RecordType:    text(lang, "Pembayaran", "Payment"),
+				Name:          item.Name,
+				Amount:        formatFloat(payment.Amount),
+				PaymentDate:   formatDate(payment.PaymentDate),
+				ProofImage:    payment.ProofImage,
+				CreatedAt:     formatTime(payment.CreatedAt),
+				UpdatedAt:     formatTime(payment.UpdatedAt),
 				InstallmentNo: installmentRef(payment.InstallmentID),
 			})
 		}
 	}
 
-	csvBytes, err := buildCSV([]string{
-		"record_type",
-		"id",
-		"parent_id",
-		"name",
-		"installment_no",
-		"status",
-		"due_date",
-		"amount",
-		"total_amount",
-		"monthly_installment",
-		"paid_amount",
-		"remaining_amount",
-		"wallet_id",
-		"payment_date",
-		"proof_image",
-		"paid_at",
-		"created_at",
-		"updated_at",
-	}, rows)
+	csvBytes, err := buildCSV(debtColumns(lang), rows)
 	if err != nil {
 		return Result{}, err
 	}
@@ -428,7 +485,7 @@ func (s *Service) exportDebts(ctx context.Context, userID int64, period Period) 
 	}, nil
 }
 
-func (s *Service) exportReports(ctx context.Context, userID int64, period Period) (Result, error) {
+func (s *Service) exportReports(ctx context.Context, userID int64, period Period, lang Language) (Result, error) {
 	if s.reports == nil {
 		return Result{}, errors.New("reports service is required")
 	}
@@ -451,7 +508,7 @@ func (s *Service) exportReports(ctx context.Context, userID int64, period Period
 	} else {
 		for _, item := range expenseReport.Items {
 			rows = append(rows, csvRow{
-				RecordType:       "expense_category",
+				RecordType:       text(lang, "Kategori Pengeluaran", "Expense Category"),
 				Period:           reportPeriodLabel(expenseReport.Period),
 				Label:            item.Category,
 				Amount:           formatFloat(item.Amount),
@@ -460,7 +517,7 @@ func (s *Service) exportReports(ctx context.Context, userID int64, period Period
 			})
 		}
 		rows = append(rows, csvRow{
-			RecordType:       "expense_summary",
+			RecordType:       text(lang, "Ringkasan Pengeluaran", "Expense Summary"),
 			Period:           reportPeriodLabel(expenseReport.Period),
 			Amount:           formatFloat(expenseReport.Summary.TotalExpense),
 			TransactionCount: fmt.Sprintf("%d", expenseReport.Summary.CategoryCount),
@@ -474,7 +531,7 @@ func (s *Service) exportReports(ctx context.Context, userID int64, period Period
 	} else {
 		for _, item := range trendReport.Items {
 			rows = append(rows, csvRow{
-				RecordType:  "spending_trend",
+				RecordType:  text(lang, "Tren Pengeluaran", "Spending Trend"),
 				Period:      reportPeriodLabel(trendReport.Period),
 				Label:       item.Period,
 				Income:      formatFloat(item.Income),
@@ -489,7 +546,7 @@ func (s *Service) exportReports(ctx context.Context, userID int64, period Period
 		partial = true
 	} else {
 		rows = append(rows, csvRow{
-			RecordType:       "highest_category",
+			RecordType:       text(lang, "Kategori Terbesar", "Highest Category"),
 			Period:           reportPeriodLabel(highestReport.Period),
 			Label:            highestReport.Category,
 			Amount:           formatFloat(highestReport.Amount),
@@ -503,13 +560,13 @@ func (s *Service) exportReports(ctx context.Context, userID int64, period Period
 		partial = true
 	} else {
 		rows = append(rows, csvRow{
-			RecordType:    "average_daily",
-			Period:        reportPeriodLabel(averageReport.Period),
-			Amount:        formatFloat(averageReport.TotalExpense),
-			DaysCount:     fmt.Sprintf("%d", averageReport.DaysCount),
-			AverageDaily:  formatFloat(averageReport.AverageDailySpending),
-			HighestDaily:  formatFloat(averageReport.HighestDailySpending),
-			LowestDaily:   formatFloat(averageReport.LowestDailySpending),
+			RecordType:   text(lang, "Rata-rata Harian", "Average Daily"),
+			Period:       reportPeriodLabel(averageReport.Period),
+			Amount:       formatFloat(averageReport.TotalExpense),
+			DaysCount:    fmt.Sprintf("%d", averageReport.DaysCount),
+			AverageDaily: formatFloat(averageReport.AverageDailySpending),
+			HighestDaily: formatFloat(averageReport.HighestDailySpending),
+			LowestDaily:  formatFloat(averageReport.LowestDailySpending),
 		})
 	}
 
@@ -518,7 +575,7 @@ func (s *Service) exportReports(ctx context.Context, userID int64, period Period
 		partial = true
 	} else {
 		rows = append(rows, csvRow{
-			RecordType:       "remaining_balance",
+			RecordType:       text(lang, "Sisa Saldo", "Remaining Balance"),
 			Period:           reportPeriodLabel(remainingReport.Period),
 			Income:           formatFloat(remainingReport.TotalIncome),
 			Expense:          formatFloat(remainingReport.TotalExpense),
@@ -528,24 +585,7 @@ func (s *Service) exportReports(ctx context.Context, userID int64, period Period
 		})
 	}
 
-	csvBytes, err := buildCSV([]string{
-		"record_type",
-		"period",
-		"label",
-		"amount",
-		"percentage",
-		"transaction_count",
-		"income",
-		"expense",
-		"net_cashflow",
-		"remaining_balance",
-		"savings_rate",
-		"expense_ratio",
-		"days_count",
-		"average_daily",
-		"highest_daily",
-		"lowest_daily",
-	}, rows)
+	csvBytes, err := buildCSV(reportColumns(lang), rows)
 	if err != nil {
 		return Result{}, err
 	}
@@ -567,17 +607,16 @@ func buildFileName(scope string, period Period) string {
 	return fmt.Sprintf("finance-go-%s-%s.csv", scope, suffix)
 }
 
-func debtSummaryRow(item debt.DebtSummary) csvRow {
+func debtSummaryRow(item debt.DebtSummary, lang Language) csvRow {
 	return csvRow{
-		RecordType:         "debt",
-		ID:                 fmt.Sprintf("%d", item.ID),
+		RecordType:         text(lang, "Utang", "Debt"),
 		Name:               item.Name,
 		TotalAmount:        formatFloat(item.TotalAmount),
 		MonthlyInstallment: formatFloat(item.MonthlyInstallment),
 		DueDate:            formatDate(item.DueDate),
 		PaidAmount:         formatFloat(item.PaidAmount),
 		RemainingAmount:    formatFloat(item.RemainingAmount),
-		Status:             string(item.Status),
+		Status:             debtStatusLabel(lang, string(item.Status)),
 		CreatedAt:          formatTime(item.CreatedAt),
 		UpdatedAt:          formatTime(item.UpdatedAt),
 	}
