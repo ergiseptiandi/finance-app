@@ -41,6 +41,23 @@ func (s *Service) Export(ctx context.Context, userID int64, scope Scope, period 
 	}
 }
 
+func (s *Service) ExportXLSX(ctx context.Context, userID int64, scope Scope, period Period, lang Language) (Result, error) {
+	result, err := s.Export(ctx, userID, scope, period, lang)
+	if err != nil {
+		return Result{}, err
+	}
+
+	xlsxBytes, err := buildXLSX(result.CSV, scope, period, lang, result.Partial)
+	if err != nil {
+		return Result{}, err
+	}
+
+	result.FileName = buildFileName(string(scope), period, "xlsx")
+	result.CSV = nil
+	result.XLSX = xlsxBytes
+	return result, nil
+}
+
 type csvColumn struct {
 	Key   string
 	Label string
@@ -101,11 +118,20 @@ type csvRow struct {
 	PayloadJSON        string
 }
 
-func buildCSV(columns []csvColumn, rows []csvRow) ([]byte, error) {
+func delimiterForLanguage(lang Language) rune {
+	if lang == LanguageEN {
+		return ','
+	}
+	return ';'
+}
+
+func buildCSV(lang Language, columns []csvColumn, rows []csvRow) ([]byte, error) {
 	var buf bytes.Buffer
 	buf.WriteString("\ufeff")
 
 	writer := csv.NewWriter(&buf)
+	writer.Comma = delimiterForLanguage(lang)
+	writer.UseCRLF = true
 	headers := make([]string, 0, len(columns))
 	for _, column := range columns {
 		headers = append(headers, column.Label)
@@ -395,13 +421,13 @@ func (s *Service) exportTransactions(ctx context.Context, userID int64, period P
 		filter.Page++
 	}
 
-	csvBytes, err := buildCSV(transactionColumns(lang), rows)
+	csvBytes, err := buildCSV(lang, transactionColumns(lang), rows)
 	if err != nil {
 		return Result{}, err
 	}
 
 	return Result{
-		FileName:    buildFileName("transactions", period),
+		FileName:    buildFileName("transactions", period, "csv"),
 		CSV:         csvBytes,
 		Partial:     false,
 		RecordCount: totalCount,
@@ -472,13 +498,13 @@ func (s *Service) exportDebts(ctx context.Context, userID int64, period Period, 
 		}
 	}
 
-	csvBytes, err := buildCSV(debtColumns(lang), rows)
+	csvBytes, err := buildCSV(lang, debtColumns(lang), rows)
 	if err != nil {
 		return Result{}, err
 	}
 
 	return Result{
-		FileName:    buildFileName("debts", period),
+		FileName:    buildFileName("debts", period, "csv"),
 		CSV:         csvBytes,
 		Partial:     partial,
 		RecordCount: len(rows),
@@ -585,26 +611,26 @@ func (s *Service) exportReports(ctx context.Context, userID int64, period Period
 		})
 	}
 
-	csvBytes, err := buildCSV(reportColumns(lang), rows)
+	csvBytes, err := buildCSV(lang, reportColumns(lang), rows)
 	if err != nil {
 		return Result{}, err
 	}
 
 	return Result{
-		FileName:    buildFileName("reports", period),
+		FileName:    buildFileName("reports", period, "csv"),
 		CSV:         csvBytes,
 		Partial:     partial,
 		RecordCount: len(rows),
 	}, nil
 }
 
-func buildFileName(scope string, period Period) string {
+func buildFileName(scope string, period Period, ext string) string {
 	suffix := time.Now().Format("2006-01-02")
 	if period.Label != "" {
 		suffix = period.Label
 	}
 
-	return fmt.Sprintf("finance-go-%s-%s.csv", scope, suffix)
+	return fmt.Sprintf("finance-go-%s-%s.%s", scope, suffix, ext)
 }
 
 func debtSummaryRow(item debt.DebtSummary, lang Language) csvRow {

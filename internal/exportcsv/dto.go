@@ -25,6 +25,7 @@ type Period struct {
 type Result struct {
 	FileName    string
 	CSV         []byte
+	XLSX        []byte
 	Partial     bool
 	RecordCount int
 }

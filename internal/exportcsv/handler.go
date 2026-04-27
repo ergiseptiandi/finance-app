@@ -34,6 +34,7 @@ type handler struct {
 func Definitions() []routeinfo.RouteInfo {
 	return []routeinfo.RouteInfo{
 		{Method: http.MethodGet, Path: "/v1/exports/csv", Summary: "Export CSV data", Protected: true},
+		{Method: http.MethodGet, Path: "/v1/exports/xlsx", Summary: "Export XLSX data", Protected: true},
 	}
 }
 
@@ -46,38 +47,14 @@ func RegisterRoutes(r chi.Router, deps HandlerDependencies) {
 	r.Route("/exports", func(r chi.Router) {
 		r.Use(h.authMiddleware.RequireAuth)
 		r.Get("/csv", h.exportCSV)
+		r.Get("/xlsx", h.exportXLSX)
 	})
 }
 
 func (h handler) exportCSV(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.userID(r)
-	if !ok {
-		writeError(w, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	scope, err := parseScope(r.URL.Query().Get("scope"))
+	result, err := h.exportResult(r, false)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	period, err := parsePeriod(r)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	lang := parseLanguage(r.URL.Query().Get("lang"))
-
-	result, err := h.svc.Export(r.Context(), userID, scope, period, lang)
-	if err != nil {
-		if errors.Is(err, transaction.ErrInvalidInput) || errors.Is(err, reports.ErrInvalidInput) || errors.Is(err, debt.ErrInvalidInput) {
-			writeError(w, http.StatusBadRequest, err.Error())
-			return
-		}
-
-		writeError(w, http.StatusInternalServerError, err.Error())
+		h.writeExportError(w, err)
 		return
 	}
 
@@ -88,6 +65,61 @@ func (h handler) exportCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Export-Record-Count", strconv.Itoa(result.RecordCount))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(result.CSV)
+}
+
+func (h handler) exportXLSX(w http.ResponseWriter, r *http.Request) {
+	result, err := h.exportResult(r, true)
+	if err != nil {
+		h.writeExportError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+result.FileName+`"`)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("X-Export-Partial", strconv.FormatBool(result.Partial))
+	w.Header().Set("X-Export-Record-Count", strconv.Itoa(result.RecordCount))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(result.XLSX)
+}
+
+func (h handler) exportResult(r *http.Request, xlsx bool) (Result, error) {
+	userID, ok := h.userID(r)
+	if !ok {
+		return Result{}, errors.New("unauthorized")
+	}
+
+	scope, err := parseScope(r.URL.Query().Get("scope"))
+	if err != nil {
+		return Result{}, err
+	}
+
+	period, err := parsePeriod(r)
+	if err != nil {
+		return Result{}, err
+	}
+
+	lang := parseLanguage(r.URL.Query().Get("lang"))
+
+	if xlsx {
+		return h.svc.ExportXLSX(r.Context(), userID, scope, period, lang)
+	}
+
+	return h.svc.Export(r.Context(), userID, scope, period, lang)
+}
+
+func (h handler) writeExportError(w http.ResponseWriter, err error) {
+	if errors.Is(err, transaction.ErrInvalidInput) || errors.Is(err, reports.ErrInvalidInput) || errors.Is(err, debt.ErrInvalidInput) {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err != nil && err.Error() == "unauthorized" {
+		writeError(w, http.StatusUnauthorized, err.Error())
+		return
+	}
+
+	writeError(w, http.StatusInternalServerError, err.Error())
 }
 
 func (h handler) userID(r *http.Request) (int64, bool) {
