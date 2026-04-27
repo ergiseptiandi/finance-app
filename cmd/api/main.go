@@ -17,6 +17,7 @@ import (
 	"finance-backend/internal/dashboard"
 	"finance-backend/internal/database"
 	"finance-backend/internal/debt"
+	"finance-backend/internal/exportcsv"
 	"finance-backend/internal/mail"
 	"finance-backend/internal/media"
 	"finance-backend/internal/notifications"
@@ -131,6 +132,8 @@ func main() {
 	txRepo := transaction.NewMySQLTransactionRepository(db)
 	txService := transaction.NewService(txRepo, walletService)
 
+	exportService := exportcsv.NewService(txService, debtService, reportsService)
+
 	if cfg.Runtime.Mode == "worker" || os.Getenv("APP_MODE") == "worker" {
 		worker := notifications.NewWorker(notificationsService, alertsService, notificationsRepo, cfg.Runtime.NotificationCronSpec)
 		workerCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -144,7 +147,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
-		Handler: server.NewRouter(authService, txService, walletService, categoryService, debtService, dashboardService, reportsService, alertsService, notificationsService, mediaService, fileStorage, cfg.Storage.UploadDir, budgetService),
+		Handler: server.NewRouter(authService, txService, walletService, categoryService, debtService, dashboardService, reportsService, alertsService, notificationsService, mediaService, fileStorage, cfg.Storage.UploadDir, budgetService, exportService),
 	}
 
 	log.Printf("server listening on :%s", cfg.Server.Port)

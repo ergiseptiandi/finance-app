@@ -11,6 +11,7 @@ import (
 	"finance-backend/internal/category"
 	"finance-backend/internal/dashboard"
 	"finance-backend/internal/debt"
+	"finance-backend/internal/exportcsv"
 	"finance-backend/internal/media"
 	"finance-backend/internal/notifications"
 	"finance-backend/internal/reports"
@@ -25,7 +26,7 @@ type healthResponse struct {
 	Status string `json:"status"`
 }
 
-func NewRouter(authService *auth.Service, txService *transaction.Service, walletService *wallet.Service, categoryService *category.Service, debtService *debt.Service, dashboardService *dashboard.Service, reportsService *reports.Service, alertsService *alerts.Service, notificationsService *notifications.Service, mediaService *media.Service, debtStorage debt.FileStorage, uploadDir string, budgetService *budget.Service) http.Handler {
+func NewRouter(authService *auth.Service, txService *transaction.Service, walletService *wallet.Service, categoryService *category.Service, debtService *debt.Service, dashboardService *dashboard.Service, reportsService *reports.Service, alertsService *alerts.Service, notificationsService *notifications.Service, mediaService *media.Service, debtStorage debt.FileStorage, uploadDir string, budgetService *budget.Service, exportService *exportcsv.Service) http.Handler {
 	router := chi.NewRouter()
 	catalog := newRouteCatalog()
 	router.Use(chimiddleware.RequestID)
@@ -39,8 +40,9 @@ func NewRouter(authService *auth.Service, txService *transaction.Service, wallet
 			registerTransactionRoutes(r, catalog, authService, txService)
 			registerWalletRoutes(r, catalog, authService, walletService)
 			registerCategoryRoutes(r, catalog, authService, categoryService)
-			registerDebtRoutes(r, catalog, authService, debtService, debtStorage)
-			registerBudgetRoutes(r, catalog, authService, budgetService)
+		registerDebtRoutes(r, catalog, authService, debtService, debtStorage)
+		registerExportCSVRoutes(r, catalog, authService, exportService)
+		registerBudgetRoutes(r, catalog, authService, budgetService)
 			registerDashboardRoutes(r, catalog, authService, dashboardService)
 		registerReportsRoutes(r, catalog, authService, reportsService)
 		registerAlertsRoutes(r, catalog, authService, alertsService)
