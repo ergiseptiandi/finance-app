@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"finance-backend/internal/alerts"
@@ -383,6 +384,13 @@ func (s *Service) Insights(ctx context.Context, userID int64, filter DashboardFi
 	if err != nil {
 		return nil, err
 	}
+	totalBreakdownAmount := 0.0
+	for i := range breakdown {
+		totalBreakdownAmount += breakdown[i].Amount
+	}
+	for i := range breakdown {
+		breakdown[i].Percentage = percentageOf(breakdown[i].Amount, totalBreakdownAmount)
+	}
 
 	insights := make([]Insight, 0, 4)
 
@@ -410,16 +418,28 @@ func (s *Service) Insights(ctx context.Context, userID int64, filter DashboardFi
 	}
 
 	if len(breakdown) > 0 {
-		top := breakdown[0]
-		if top.Amount > 0 {
-			insights = append(insights, Insight{
-				Type:        "recommendation",
-				Code:        "top_category",
-				Title:       fmt.Sprintf("Kategori paling boros: %s", top.Category),
-				Message:     fmt.Sprintf("Kategori %s menyerap %.0f%% dari total pengeluaran periode ini. Tinjau transaksi kecil di kategori ini lebih dulu.", top.Category, top.Percentage),
-				Severity:    "warning",
-				ChangeValue: top.Percentage,
-			})
+		top, isDebtPayment, ok := topInsightCategory(breakdown)
+		if ok && top.Percentage >= 5 {
+			categoryLabel := displayCategoryName(top.Category)
+			if isDebtPayment {
+				insights = append(insights, Insight{
+					Type:        "recommendation",
+					Code:        "debt_payment_share",
+					Title:       fmt.Sprintf("Pembayaran utang menyerap %.0f%%", top.Percentage),
+					Message:     "Pembayaran utang adalah kategori bawaan dari cicilan utang, bukan kategori manual. Untuk membaca pola belanja yang sebenarnya, fokus ke kategori pengeluaran lain.",
+					Severity:    "info",
+					ChangeValue: top.Percentage,
+				})
+			} else {
+				insights = append(insights, Insight{
+					Type:        "recommendation",
+					Code:        "top_category",
+					Title:       fmt.Sprintf("Kategori terbesar: %s", categoryLabel),
+					Message:     fmt.Sprintf("Kategori %s menyerap %.0f%% dari total pengeluaran periode ini. Tinjau transaksi kecil di kategori ini lebih dulu.", categoryLabel, top.Percentage),
+					Severity:    "warning",
+					ChangeValue: top.Percentage,
+				})
+			}
 		}
 	}
 
@@ -595,4 +615,43 @@ func percentageOf(part, whole float64) float64 {
 	}
 
 	return math.Round((part/whole)*10000) / 100
+}
+
+func topInsightCategory(items []CategoryBreakdownItem) (CategoryBreakdownItem, bool, bool) {
+	var debtPaymentItem *CategoryBreakdownItem
+
+	for _, item := range items {
+		if item.Amount <= 0 {
+			continue
+		}
+
+		if isDebtPaymentCategory(item.Category) {
+			if debtPaymentItem == nil {
+				copy := item
+				debtPaymentItem = &copy
+			}
+			continue
+		}
+
+		return item, false, true
+	}
+
+	if debtPaymentItem != nil {
+		return *debtPaymentItem, true, true
+	}
+
+	return CategoryBreakdownItem{}, false, false
+}
+
+func isDebtPaymentCategory(category string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(category))
+	return normalized == "debt payment" || normalized == "pembayaran utang" || normalized == "payment utang"
+}
+
+func displayCategoryName(category string) string {
+	if isDebtPaymentCategory(category) {
+		return "Pembayaran utang"
+	}
+
+	return strings.TrimSpace(category)
 }

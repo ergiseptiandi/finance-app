@@ -538,3 +538,46 @@ func TestInsightsGeneratesActionableRecommendations(t *testing.T) {
 		t.Fatalf("expected warning severity insight, got %#v", items)
 	}
 }
+
+func TestInsightsTreatsDebtPaymentAsSystemCategory(t *testing.T) {
+	originalNowFunc := nowFunc
+	nowFunc = func() time.Time {
+		return time.Date(2026, time.April, 19, 10, 30, 0, 0, time.FixedZone("WIB", 7*60*60))
+	}
+	defer func() { nowFunc = originalNowFunc }()
+
+	svc := NewService(dashboardRepoStub{
+		refreshUserDebtStatusesFn: func(context.Context, int64) error { return nil },
+		allTimeIncomeFn:           func(context.Context, int64) (float64, error) { return 12000000, nil },
+		allTimeExpenseFn:          func(context.Context, int64) (float64, error) { return 4000000, nil },
+		incomeBetweenFn:           func(context.Context, int64, time.Time, time.Time) (float64, error) { return 3000000, nil },
+		expenseBetweenFn:          func(context.Context, int64, time.Time, time.Time) (float64, error) { return 1000000, nil },
+		debtOverviewFn: func(context.Context, int64, time.Time, time.Time) (DebtOverview, error) {
+			return DebtOverview{}, nil
+		},
+		expenseByCategoryFn: func(context.Context, int64, time.Time, time.Time) ([]CategoryBreakdownItem, error) {
+			return []CategoryBreakdownItem{
+				{Category: "Debt Payment", Amount: 1000000, TransactionCount: 2},
+			}, nil
+		},
+	}, balanceProviderStub{
+		totalBalanceFn: func(context.Context, int64) (float64, error) { return 9000000, nil },
+	}, nil, nil)
+
+	items, err := svc.Insights(context.Background(), 1, DashboardFilter{})
+	if err != nil {
+		t.Fatalf("Insights returned error: %v", err)
+	}
+
+	if len(items) != 1 {
+		t.Fatalf("expected 1 insight, got %d", len(items))
+	}
+
+	if items[0].Code != "debt_payment_share" {
+		t.Fatalf("expected debt payment insight, got %s", items[0].Code)
+	}
+
+	if items[0].Title != "Pembayaran utang menyerap 100%" {
+		t.Fatalf("unexpected title: %s", items[0].Title)
+	}
+}
