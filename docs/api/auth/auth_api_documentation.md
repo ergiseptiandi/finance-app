@@ -7,10 +7,10 @@ This document outlines the API endpoints available under `/v1/auth` for user man
 > `Authorization: Bearer <access_token>`
 
 > [!NOTE]
-> Semua success response sekarang memakai envelope:
+> All success responses now use this envelope:
 > `{ "Status": "...", "Message": "...", "Data": ... }`
 >
-> Semua error response memakai:
+> All error responses use:
 > `{ "Status": "...", "Message": "..." }`
 
 ## Authentication Model

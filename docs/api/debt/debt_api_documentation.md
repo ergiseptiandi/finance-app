@@ -6,13 +6,13 @@ This module handles debt management, payment proof uploads, and recurring instal
 **Authentication**: All endpoints require `Authorization: Bearer <access_token>`
 
 > [!NOTE]
-> Semua success response sekarang memakai envelope:
+> All success responses now use this envelope:
 > `{ "Status": "...", "Message": "...", "Data": ... }`
 >
-> Semua error response memakai:
+> All error responses use:
 > `{ "Status": "...", "Message": "..." }`
 >
-> Untuk endpoint list/history (`GET`), jika data kosong tetap mengembalikan HTTP `200` dengan `Data: []`.
+> For list/history endpoints (`GET`), an empty result still returns HTTP `200` with `Data: []`.
 
 Uploaded proof images are served from the local upload directory under `/uploads/...`.
 
@@ -88,7 +88,7 @@ Return all debts for the current user.
 }
 ```
 
-**Response saat data kosong (200 OK)**:
+**Response when data is empty (200 OK)**:
 ```json
 {
   "Status": "200",

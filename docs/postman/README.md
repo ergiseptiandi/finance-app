@@ -1,30 +1,30 @@
 # Postman Collection
 
-Folder ini berisi file Postman untuk semua fitur API di project ini.
+This folder contains the Postman files for all API features in this project.
 
-## File
+## Files
 
-- `finance-backend.postman_collection.json`: Collection semua endpoint.
-- `finance-backend.local.postman_environment.json`: Environment lokal dengan variabel dasar.
+- `finance-backend.postman_collection.json`: the full endpoint collection
+- `finance-backend.local.postman_environment.json`: the local environment with base variables
 
-Collection sudah memuat placeholder filter untuk transaksi, dashboard, dan report, termasuk `month`, `year`, `start_date`, `end_date`, dan `budget_amount`.
-Untuk request yang punya beberapa mode filter, isi hanya salah satu mode yang dipakai.
+The collection already includes placeholder filters for transactions, dashboard, and reports, including `month`, `year`, `start_date`, `end_date`, and `budget_amount`.
+For requests with multiple filter modes, fill in only the mode you want to use.
 
-Catatan dashboard summary: `total_balance` adalah saldo berjalan, sedangkan `period_balance` adalah saldo pada periode terpilih.
+Dashboard summary note: `total_balance` is the running balance, while `period_balance` is the balance for the selected period.
 
-## Cara Pakai
+## How To Use
 
-1. Import kedua file ke Postman.
-2. Pilih environment `Finance Backend Local`.
-3. Jalankan request `Auth > Login`.
+1. Import both files into Postman.
+2. Select the `Finance Backend Local` environment.
+3. Run the `Auth > Login` request.
 
 ## Auto Save Token
 
-Request `Auth > Login` sudah punya script test yang otomatis menyimpan:
+The `Auth > Login` request includes a test script that automatically stores:
 
 - `access_token`
 - `refresh_token`
 - `token_type`
 - `user_id`
 
-Token disimpan ke **collection variables** dan **environment variables**, jadi request protected bisa langsung dipakai.
+The token is saved to both **collection variables** and **environment variables**, so protected requests can be used immediately.

@@ -1,24 +1,24 @@
 # Finance Backend
 
-Backend API berbasis Go untuk autentikasi dan transaksi keuangan.
+Go backend API for financial authentication and transaction workflows.
 
 ## Package-by-Feature (Vertical Slices)
 
-Project ini memakai pendekatan **Package-by-Feature (Vertical Slices)**. Artinya, kode dipisah berdasarkan fitur, bukan dipisah global per layer.
+This project uses a **Package-by-Feature (Vertical Slices)** structure. Code is organized by feature instead of by global layer.
 
-Contohnya:
+Examples:
 
-- `internal/auth/` berisi kebutuhan fitur autentikasi
-- `internal/transaction/` berisi kebutuhan fitur transaksi
-- `internal/server/` berisi kebutuhan global seperti router, middleware, dan dokumentasi
+- `internal/auth/` contains authentication-related code
+- `internal/transaction/` contains transaction-related code
+- `internal/server/` contains shared concerns such as the router, middleware, and documentation
 
-Di dalam tiap fitur, komponen seperti handler, service, repository, dan model disimpan berdekatan. Dengan pola ini:
+Within each feature, handlers, services, repositories, and models live close together. This approach helps because:
 
-- perubahan biasanya tetap di satu slice fitur
-- penambahan fitur baru lebih mudah karena struktur sudah jelas
-- dependensi antar fitur lebih terkontrol
+- changes usually stay within one feature slice
+- new features are easier to add because the structure is clear
+- dependencies between features are easier to control
 
-Struktur ringkas:
+Project layout:
 
 ```text
 cmd/
@@ -35,17 +35,17 @@ internal/
 migrations/
 ```
 
-## Persyaratan
+## Requirements
 
 - Go `1.26.2`
-- MySQL aktif
-- File environment `.env`
+- Running MySQL instance
+- `.env` file
 
-Gunakan `.env.example` sebagai template awal.
+Use `.env.example` as the starting template.
 
-## Konfigurasi
+## Configuration
 
-Salin `.env.example` menjadi `.env`, lalu isi minimal value berikut:
+Copy `.env.example` to `.env`, then fill in at least the following values:
 
 ```env
 PORT=8080
@@ -64,16 +64,16 @@ SEED_USER_EMAIL=owner@example.com
 SEED_USER_PASSWORD=supersecret123
 ```
 
-Keterangan singkat:
+Quick notes:
 
-- `DB_ENABLED` harus `true`
-- `AUTH_JWT_SECRET` wajib diisi untuk menjalankan API
-- `SEED_USER_*` dipakai saat menjalankan seeder
-- konfigurasi SMTP bersifat opsional
+- `DB_ENABLED` must be `true`
+- `AUTH_JWT_SECRET` is required to run the API
+- `SEED_USER_*` values are used by the seeder
+- SMTP configuration is optional
 
-## Cara Menjalankan
+## Running the App
 
-Urutan lokal yang disarankan:
+Recommended local startup order:
 
 ```powershell
 go run ./cmd/migrate up
@@ -81,38 +81,38 @@ go run ./cmd/seed
 go run ./cmd/api
 ```
 
-Server berjalan di `http://localhost:8080`.
+The server runs at `http://localhost:8080`.
 
-Jika ingin mengganti port:
+To change the port:
 
 ```powershell
 $env:PORT="9000"
 go run ./cmd/api
 ```
 
-## Migration
+## Migrations
 
-Semua file migration ada di folder `migrations/`.
+All migration files are stored in the `migrations/` folder.
 
-Naikkan semua migration:
+Run all migrations:
 
 ```powershell
 go run ./cmd/migrate up
 ```
 
-Turunkan 1 migration:
+Rollback one migration:
 
 ```powershell
 go run ./cmd/migrate down 1
 ```
 
-Cek versi migration:
+Check the migration version:
 
 ```powershell
 go run ./cmd/migrate version
 ```
 
-Paksa versi jika status migration dirty:
+Force a version when migration state is dirty:
 
 ```powershell
 go run ./cmd/migrate force 2
@@ -120,13 +120,13 @@ go run ./cmd/migrate force 2
 
 ## Seed Data
 
-Untuk membuat atau update user awal:
+To create or update the initial user:
 
 ```powershell
 go run ./cmd/seed
 ```
 
-Seeder akan membaca:
+The seeder reads:
 
 - `SEED_USER_NAME`
 - `SEED_USER_EMAIL`
@@ -134,7 +134,7 @@ Seeder akan membaca:
 
 ## Testing
 
-Jalankan seluruh test:
+Run the full test suite:
 
 ```powershell
 go test ./...
@@ -142,19 +142,19 @@ go test ./...
 
 ## FCM Debug Send
 
-Untuk mengirim push FCM minimal langsung ke satu device token memakai kredensial backend yang sama:
+To send a minimal FCM push directly to a single device token using the same backend credentials:
 
 ```powershell
 go run ./cmd/fcm-debug-send -token "<FCM_DEVICE_TOKEN>"
 ```
 
-Opsional:
+Optional example:
 
 ```powershell
-go run ./cmd/fcm-debug-send -token "<FCM_DEVICE_TOKEN>" -title "Debug" -body "Tes push minimal"
+go run ./cmd/fcm-debug-send -token "<FCM_DEVICE_TOKEN>" -title "Debug" -body "Test minimal push"
 ```
 
-Mode pembanding payload:
+Payload comparison modes:
 
 ```powershell
 go run ./cmd/fcm-debug-send -token "<FCM_DEVICE_TOKEN>" -mode notification-only
@@ -162,20 +162,20 @@ go run ./cmd/fcm-debug-send -token "<FCM_DEVICE_TOKEN>" -mode android-priority
 go run ./cmd/fcm-debug-send -token "<FCM_DEVICE_TOKEN>" -mode android-channel
 ```
 
-Arti mode:
+Mode meanings:
 
-- `notification-only`: hanya `notification.title/body`
+- `notification-only`: only `notification.title/body`
 - `android-priority`: `notification.title/body` + `android.priority=high`
 - `android-channel`: `notification.title/body` + `android.priority=high` + `channel_id=finance-go-default`
 
-Command ini akan memakai:
+This command uses:
 
 - `FIREBASE_PROJECT_ID`
 - `FIREBASE_CREDENTIALS_PATH`
 - `FIREBASE_CREDENTIALS_JSON`
 
-## Catatan
+## Notes
 
-- API akan membaca file `.env` otomatis jika tersedia di root project
-- database dan tabel tidak dibuat otomatis saat API start, jadi jalankan migration terlebih dahulu
-- jika butuh detail endpoint dan request/response, lihat dokumentasi di folder `docs/api/`
+- The API automatically reads `.env` from the project root when available
+- the database and tables are not created automatically on API startup, so run migrations first
+- for endpoint-level request/response details, see the documentation in `docs/api/`

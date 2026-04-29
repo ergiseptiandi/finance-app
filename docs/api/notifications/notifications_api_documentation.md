@@ -237,7 +237,7 @@ Example success response:
       "kind": "salary_reminder",
       "type": "salary_reminder",
       "title": "Salary reminder",
-      "message": "Jangan lupa catat pemasukan gaji tanggal 2026-04-30.",
+      "message": "Don't forget to record the salary income dated 2026-04-30.",
       "read": false,
       "delivery_status": "skipped",
       "scheduled_for": "2026-04-29T08:00:00Z",
@@ -257,9 +257,9 @@ Example success response:
 ```
 
 Current reminder titles and message patterns from service code:
-- Daily expense: title `Daily expense reminder`, message `Jangan lupa input pengeluaran hari ini.`
-- Debt payment: title `Debt payment reminder`, message includes debt count, total amount, and nearest due date when available
-- Salary: title `Salary reminder`, message `Jangan lupa catat pemasukan gaji tanggal YYYY-MM-DD.`
+- Daily expense: title `Daily expense reminder`, message `Don't forget to record today's expenses.`
+- Debt payment: title `Debt payment reminder`, message includes the debt count, total amount, and the nearest due date when available
+- Salary: title `Salary reminder`, message `Don't forget to record the salary income dated YYYY-MM-DD.`
 
 ---
 
@@ -301,7 +301,7 @@ Example success response:
       "kind": "daily_expense_input",
       "type": "daily_expense_input",
       "title": "Daily expense reminder",
-      "message": "Jangan lupa input pengeluaran hari ini.",
+      "message": "Don't forget to record today's expenses.",
       "read": false,
       "delivery_status": "delivered",
       "scheduled_for": "2026-04-21T20:00:00Z",

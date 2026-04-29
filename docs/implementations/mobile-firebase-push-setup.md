@@ -1,31 +1,31 @@
 # Mobile Firebase Push Setup
 
-Dokumen ini menjelaskan setup yang perlu disiapkan tim mobile supaya push notification dari backend bisa berjalan.
+This document explains the mobile-side setup required for push notifications from the backend.
 
-## Tujuan
+## Goal
 
-- mendaftarkan aplikasi mobile ke Firebase
-- mengambil device token dari Firebase
-- mengirim token ke backend
-- menerima push notification dari backend
+- register the mobile app with Firebase
+- obtain a device token from Firebase
+- send the token to the backend
+- receive push notifications from the backend
 
-## Arsitektur Singkat
+## High-Level Flow
 
-Alur yang dipakai saat ini:
+Current flow:
 
-1. Mobile app meminta izin notifikasi ke user.
-2. Mobile app mendapatkan **FCM device token** dari Firebase.
-3. Mobile app mengirim token tersebut ke backend lewat `PATCH /v1/notifications/settings`.
-4. Backend menyimpan token ke kolom `push_token`.
-5. Worker notifikasi di backend menjalankan jadwal reminder.
-6. Jika kondisi notifikasi terpenuhi, backend mengirim push ke token yang tersimpan.
+1. The mobile app asks the user for notification permission.
+2. The mobile app receives an **FCM device token** from Firebase.
+3. The mobile app sends the token to the backend through `PATCH /v1/notifications/settings`.
+4. The backend stores the token in the `push_token` field.
+5. The backend notification worker runs the reminder schedule.
+6. When notification conditions are met, the backend sends a push message to the stored token.
 
-## Kontrak Final Yang Harus Disepakati
+## Final Contract To Align On
 
-### Field backend yang dipakai
+### Backend fields used by the app
 
-- `enabled` untuk toggle notifikasi global
-- `push_token` untuk token FCM device
+- `enabled` for the global notification toggle
+- `push_token` for the FCM device token
 - `daily_expense_reminder_enabled`
 - `daily_expense_reminder_time`
 - `debt_payment_reminder_enabled`
@@ -36,69 +36,69 @@ Alur yang dipakai saat ini:
 - `salary_reminder_days_before`
 - `salary_day`
 
-Catatan: di mobile, field lokal boleh dinamai `notification_enabled`, tetapi saat kirim ke backend tetap gunakan `enabled`.
+Note: in the mobile app, a local field may be named `notification_enabled`, but the backend still expects `enabled`.
 
-### Route yang dikirim backend
+### Routes sent by the backend
 
 - `daily_expense_input` -> `/activity`
 - `debt_payment` -> `/debts`
 - `salary_reminder` -> `/transactions?type=income`
 
-Mobile harus membaca `data.kind`, `data.type`, dan `data.route` dari payload atau inbox backend.
+The mobile app should read `data.kind`, `data.type`, and `data.route` from the payload or backend inbox.
 
-## Yang Harus Disiapkan Di Firebase
+## What Needs To Be Prepared In Firebase
 
-Firebase project saja belum cukup. Aplikasi mobile harus didaftarkan juga.
+Firebase project setup alone is not enough. The mobile app must also be registered.
 
-### 1. Tambahkan App Baru
+### 1. Add a New App
 
-Di Firebase Console:
+In Firebase Console:
 
-- klik `Add app`
-- pilih platform yang dipakai:
+- click `Add app`
+- choose the target platform:
   - `Android`
   - `iOS`
 
-### 2. Masukkan Identitas App
+### 2. Enter App Identity
 
-Isi identifier sesuai platform:
+Use the correct identifier for each platform:
 
 - Android: `package name`
 - iOS: `bundle identifier`
 
-Identifier ini harus sama dengan konfigurasi app mobile.
+The identifier must match the mobile app configuration.
 
-### 3. Unduh File Konfigurasi
+### 3. Download Configuration Files
 
-Setelah app didaftarkan, Firebase akan memberi file config:
+After registration, Firebase provides configuration files:
 
 - Android: `google-services.json`
 - iOS: `GoogleService-Info.plist`
 
-### 4. Pasang File Config Ke Project Mobile
+### 4. Add The Files To The Mobile Project
 
-Letakkan file config ke project mobile sesuai dokumentasi platform yang dipakai.
+Place the configuration files in the mobile project according to the platform documentation.
 
 ## Expo Notes
 
-Kalau project mobile memakai Expo:
+If the mobile project uses Expo:
 
-- untuk push notification, biasanya perlu **development build** atau **EAS build**
-- Expo Go umumnya tidak cukup untuk setup push production native
-- jika backend ini dipakai apa adanya, mobile harus memakai **FCM device token**
-- backend ini **tidak** memakai Expo Push Token sebagai format utama
+- push notification support usually requires a **development build** or an **EAS build**
+- Expo Go is generally not enough for native production push setup
+- if this backend is used as-is, the mobile app must use an **FCM device token**
+- this backend does **not** use Expo Push Token as the primary format
 
-Kalau tim ingin tetap memakai Expo Push Token, arsitektur backend harus diubah untuk kirim ke Expo Push API, bukan langsung ke Firebase.
+If the team wants to keep Expo Push Token, the backend architecture must be changed to send through the Expo Push API instead of Firebase directly.
 
-## Yang Harus Dikirim Dari Mobile Ke Backend
+## What The Mobile App Sends To The Backend
 
-Mobile harus mengirim token ke endpoint berikut:
+The mobile app should send the token to the following endpoint:
 
 ```http
 PATCH /v1/notifications/settings
 ```
 
-Contoh body minimal:
+Minimal body:
 
 ```json
 {
@@ -106,16 +106,16 @@ Contoh body minimal:
 }
 ```
 
-Contoh body lengkap:
+Full example:
 
 ```json
 {
   "enabled": true,
   "daily_expense_reminder_enabled": true,
- "daily_expense_reminder_time": "20:00",
- "debt_payment_reminder_enabled": true,
- "debt_payment_reminder_time": "09:00",
- "debt_payment_reminder_days_before": 3,
+  "daily_expense_reminder_time": "20:00",
+  "debt_payment_reminder_enabled": true,
+  "debt_payment_reminder_time": "09:00",
+  "debt_payment_reminder_days_before": 3,
   "salary_reminder_enabled": true,
   "salary_reminder_time": "08:00",
   "salary_reminder_days_before": 1,
@@ -124,37 +124,37 @@ Contoh body lengkap:
 }
 ```
 
-## Checklist Mobile
+## Mobile Checklist
 
-- minta izin notifikasi ke user
-- ambil FCM token dari Firebase
-- kirim token ke backend setelah login atau setelah app ready
-- refresh token jika Firebase mengubah token device
-- tangani notifikasi saat app foreground
-- tangani tap notifikasi saat app background
-- buka screen yang sesuai berdasarkan tipe notifikasi
-- arahkan tap notifikasi berdasarkan `data.route`
-- tampilkan unread badge atau inbox notif dari backend
+- request notification permission from the user
+- get the FCM token from Firebase
+- send the token to the backend after login or when the app is ready
+- refresh the token if Firebase changes the device token
+- handle notifications while the app is in the foreground
+- handle notification taps while the app is in the background
+- open the correct screen based on the notification type
+- route taps using `data.route`
+- show an unread badge or notification inbox from the backend
 
-## Tipe Notifikasi Yang Disiapkan Backend
+## Notification Types Supported By The Backend
 
 - `daily_expense_input`
 - `debt_payment`
 - `salary_reminder`
 
-Rekomendasi perilaku UI:
+Recommended UI behavior:
 
-- `daily_expense_input` -> buka input pengeluaran
-- `debt_payment` -> buka detail debt atau halaman pembayaran
-- `salary_reminder` -> buka input income / salary
+- `daily_expense_input` -> open the expense input screen
+- `debt_payment` -> open the debt detail or payment screen
+- `salary_reminder` -> open the income / salary input screen
 
-Backend mengirim payload FCM dengan `notification` + `data`, serta Android channel `finance-go-default` dan priority tinggi.
+The backend sends FCM payloads with `notification` + `data`, plus the Android channel `finance-go-default` and high priority.
 
-`salary_day` adalah tanggal gaji bulanan yang dipilih user. Kalau bulan lebih pendek, backend memakai hari terakhir bulan itu.
+`salary_day` is the monthly salary day selected by the user. If the month is shorter, the backend uses the last day of that month.
 
-## Environment Backend Yang Terkait
+## Related Backend Environment Variables
 
-Backend membaca konfigurasi berikut:
+The backend reads the following configuration values:
 
 - `APP_MODE`
 - `NOTIFICATION_CRON_SCHEDULE`
@@ -162,20 +162,21 @@ Backend membaca konfigurasi berikut:
 - `FIREBASE_CREDENTIALS_PATH`
 - `FIREBASE_CREDENTIALS_JSON`
 
-Jika kredensial Firebase tidak diisi, backend tetap bisa menyimpan reminder history, tetapi push notification tidak akan terkirim.
-`google-services.json` yang Anda kirim dipakai di mobile Android. Backend butuh **service account key JSON** dari Firebase Admin SDK.
+If Firebase credentials are not provided, the backend can still store reminder history, but push notifications will not be sent.
 
-## Catatan Implementasi
+The `google-services.json` file belongs in the mobile Android project. The backend requires a **service account key JSON** from Firebase Admin SDK.
 
-- backend sekarang memakai Firebase Admin SDK / ADC
-- backend menjalankan scheduler notifikasi melalui worker service
-- scheduler bisa dijalankan sebagai service terpisah di Docker Compose
+## Implementation Notes
 
-## Ringkasan
+- the backend uses Firebase Admin SDK / ADC
+- the backend runs notification scheduling through a worker service
+- the scheduler can also run as a separate service in Docker Compose
 
-Kalau disederhanakan:
+## Summary
 
-- daftar app mobile ke Firebase
-- ambil FCM token dari mobile
-- kirim token ke backend
-- backend simpan token dan kirim push
+In short:
+
+- register the mobile app with Firebase
+- obtain the FCM token from the mobile app
+- send the token to the backend
+- let the backend store the token and send pushes

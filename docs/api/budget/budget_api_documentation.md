@@ -6,13 +6,13 @@ This module handles monthly category budget goals and progress tracking.
 **Authentication**: All endpoints require `Authorization: Bearer <access_token>`
 
 > [!NOTE]
-> Semua success response sekarang memakai envelope:
+> All success responses now use this envelope:
 > `{ "Status": "...", "Message": "...", "Data": ... }`
 >
-> Semua error response memakai:
+> All error responses use:
 > `{ "Status": "...", "Message": "..." }`
 
-Budget goals hanya bisa dibuat untuk kategori `expense`.
+Budget goals can only be created for `expense` categories.
 
 ---
 

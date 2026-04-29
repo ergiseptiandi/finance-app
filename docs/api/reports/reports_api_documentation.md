@@ -6,10 +6,10 @@ This module handles financial report endpoints for charts, summaries, and deeper
 **Authentication**: All endpoints require `Authorization: Bearer <access_token>`
 
 > [!NOTE]
-> Semua success response memakai envelope:
+> All success responses use this envelope:
 > `{ "Status": "...", "Message": "...", "Data": ... }`
 >
-> Semua error response memakai:
+> All error responses use:
 > `{ "Status": "...", "Message": "..." }`
 
 ---
