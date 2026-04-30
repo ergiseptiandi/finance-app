@@ -19,4 +19,6 @@ type Repository interface {
 	AllTimeExpense(ctx context.Context, userID int64) (float64, error)
 	IncomeBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error)
 	ExpenseBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error)
+	ConsumptionExpenseBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error)
+	DebtRepaymentBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error)
 }

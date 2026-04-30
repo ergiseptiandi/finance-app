@@ -179,6 +179,35 @@ func (r *MySQLReportsRepository) ExpenseBetween(ctx context.Context, userID int6
 	return value, nil
 }
 
+func (r *MySQLReportsRepository) ConsumptionExpenseBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error) {
+	const query = `
+		SELECT COALESCE(SUM(amount), 0)
+		FROM transactions
+		WHERE user_id = ? AND type = 'expense' AND date >= ? AND date < ?
+	`
+
+	var value float64
+	if err := r.db.QueryRowContext(ctx, query, userID, start, end).Scan(&value); err != nil {
+		return 0, normalizeMySQLError(err)
+	}
+	return value, nil
+}
+
+func (r *MySQLReportsRepository) DebtRepaymentBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error) {
+	const query = `
+		SELECT COALESCE(SUM(p.amount), 0)
+		FROM debt_payments p
+		JOIN debts d ON d.id = p.debt_id
+		WHERE d.user_id = ? AND p.payment_date >= ? AND p.payment_date < ?
+	`
+
+	var value float64
+	if err := r.db.QueryRowContext(ctx, query, userID, start, end).Scan(&value); err != nil {
+		return 0, normalizeMySQLError(err)
+	}
+	return value, nil
+}
+
 func normalizeMySQLError(err error) error {
 	if err == nil {
 		return nil

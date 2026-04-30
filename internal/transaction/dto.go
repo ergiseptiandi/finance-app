@@ -39,7 +39,11 @@ type PaginatedList struct {
 }
 
 type Summary struct {
-	TotalIncome  float64 `json:"total_income"`
-	TotalExpense float64 `json:"total_expense"`
-	Balance      float64 `json:"balance"`
+	TotalIncome       float64 `json:"total_income"`
+	TotalExpense      float64 `json:"total_expense"`
+	Balance           float64 `json:"balance"`
+	ConsumptionExpense float64 `json:"consumption_expense"`
+	DebtRepayment     float64 `json:"debt_repayment"`
+	SavingsRate       float64 `json:"savings_rate"`
+	ConsumptionRate   float64 `json:"consumption_rate"`
 }

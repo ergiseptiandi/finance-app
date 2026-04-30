@@ -202,7 +202,52 @@ WHERE user_id = ?`)
 		return Summary{}, err
 	}
 
+	// Get consumption expense (only transactions, no debt payments)
+	consumptionQuery := strings.Builder{}
+	consumptionQuery.WriteString(`SELECT COALESCE(SUM(amount), 0)
+FROM transactions
+WHERE user_id = ? AND type = 'expense'`)
+	consumptionArgs := []interface{}{userID}
+	if filter.StartDate != nil {
+		consumptionQuery.WriteString(" AND date >= ?")
+		consumptionArgs = append(consumptionArgs, *filter.StartDate)
+	}
+	if filter.EndDate != nil {
+		consumptionQuery.WriteString(" AND date < ?")
+		consumptionArgs = append(consumptionArgs, filter.EndDate.AddDate(0, 0, 1))
+	}
+	if filter.WalletID != nil && *filter.WalletID > 0 {
+		consumptionQuery.WriteString(" AND wallet_id = ?")
+		consumptionArgs = append(consumptionArgs, *filter.WalletID)
+	}
+	if filter.Category != nil && *filter.Category != "" {
+		consumptionQuery.WriteString(" AND category = ?")
+		consumptionArgs = append(consumptionArgs, *filter.Category)
+	}
+	_ = r.db.QueryRowContext(ctx, consumptionQuery.String(), consumptionArgs...).Scan(&sum.ConsumptionExpense)
+
+	// Get debt repayment (only debt payments)
+	debtQuery := strings.Builder{}
+	debtQuery.WriteString(`SELECT COALESCE(SUM(p.amount), 0)
+FROM debt_payments p
+JOIN debts d ON d.id = p.debt_id
+WHERE d.user_id = ?`)
+	debtArgs := []interface{}{userID}
+	if filter.StartDate != nil {
+		debtQuery.WriteString(" AND p.payment_date >= ?")
+		debtArgs = append(debtArgs, *filter.StartDate)
+	}
+	if filter.EndDate != nil {
+		debtQuery.WriteString(" AND p.payment_date < ?")
+		debtArgs = append(debtArgs, filter.EndDate.AddDate(0, 0, 1))
+	}
+	_ = r.db.QueryRowContext(ctx, debtQuery.String(), debtArgs...).Scan(&sum.DebtRepayment)
+
 	sum.Balance = sum.TotalIncome - sum.TotalExpense
+	if sum.TotalIncome > 0 {
+		sum.SavingsRate = math.Round(((sum.TotalIncome-sum.ConsumptionExpense)/sum.TotalIncome)*10000) / 100
+		sum.ConsumptionRate = math.Round((sum.ConsumptionExpense/sum.TotalIncome)*10000) / 100
+	}
 	return sum, nil
 }
 

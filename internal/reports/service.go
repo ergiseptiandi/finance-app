@@ -199,14 +199,27 @@ func (s *Service) RemainingBalance(ctx context.Context, userID int64, filter Rep
 		return RemainingBalanceReport{}, err
 	}
 
-	remainingBalance := income - expense
+	consumptionExpense, err := s.repo.ConsumptionExpenseBetween(ctx, userID, start, end)
+	if err != nil {
+		return RemainingBalanceReport{}, err
+	}
+
+	debtRepayment, err := s.repo.DebtRepaymentBetween(ctx, userID, start, end)
+	if err != nil {
+		return RemainingBalanceReport{}, err
+	}
+
+	remainingBalance := income - consumptionExpense
 	return RemainingBalanceReport{
-		Period:           period,
-		TotalIncome:      income,
-		TotalExpense:     expense,
-		RemainingBalance: remainingBalance,
-		SavingsRate:      percentageOf(remainingBalance, income),
-		ExpenseRatio:     percentageOf(expense, income),
+		Period:             period,
+		TotalIncome:        income,
+		TotalExpense:       expense,
+		ConsumptionExpense: consumptionExpense,
+		DebtRepayment:      debtRepayment,
+		RemainingBalance:   remainingBalance,
+		SavingsRate:        percentageOf(remainingBalance, income),
+		ExpenseRatio:       percentageOf(expense, income),
+		ConsumptionRate:    percentageOf(consumptionExpense, income),
 	}, nil
 }
 

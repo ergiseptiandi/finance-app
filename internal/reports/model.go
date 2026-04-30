@@ -63,10 +63,13 @@ type AverageDailySpendingReport struct {
 }
 
 type RemainingBalanceReport struct {
-	Period           ReportPeriod `json:"period"`
-	TotalIncome      float64      `json:"total_income"`
-	TotalExpense     float64      `json:"total_expense"`
-	RemainingBalance float64      `json:"remaining_balance"`
-	SavingsRate      float64      `json:"savings_rate"`
-	ExpenseRatio     float64      `json:"expense_ratio"`
+	Period             ReportPeriod `json:"period"`
+	TotalIncome        float64      `json:"total_income"`
+	TotalExpense       float64      `json:"total_expense"`
+	ConsumptionExpense float64      `json:"consumption_expense"`
+	DebtRepayment      float64      `json:"debt_repayment"`
+	RemainingBalance   float64      `json:"remaining_balance"`
+	SavingsRate        float64      `json:"savings_rate"`
+	ExpenseRatio       float64      `json:"expense_ratio"`
+	ConsumptionRate    float64      `json:"consumption_rate"`
 }
