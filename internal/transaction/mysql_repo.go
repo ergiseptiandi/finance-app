@@ -243,7 +243,7 @@ WHERE d.user_id = ?`)
 	}
 	_ = r.db.QueryRowContext(ctx, debtQuery.String(), debtArgs...).Scan(&sum.DebtRepayment)
 
-	sum.Balance = sum.TotalIncome - sum.TotalExpense
+	sum.Balance = sum.TotalIncome - sum.ConsumptionExpense
 	if sum.TotalIncome > 0 {
 		sum.SavingsRate = math.Round(((sum.TotalIncome-sum.ConsumptionExpense)/sum.TotalIncome)*10000) / 100
 		sum.ConsumptionRate = math.Round((sum.ConsumptionExpense/sum.TotalIncome)*10000) / 100
