@@ -24,16 +24,20 @@ type DebtOverview struct {
 }
 
 type Summary struct {
-	TotalBalance   float64      `json:"total_balance"`
-	PeriodBalance  float64      `json:"period_balance"`
-	MonthlyIncome  float64      `json:"monthly_income"`
-	MonthlyExpense float64      `json:"monthly_expense"`
-	NetCashflow    float64      `json:"net_cashflow"`
-	SavingsRate    float64      `json:"savings_rate"`
-	ExpenseRatio   float64      `json:"expense_ratio"`
-	BudgetSummary  *BudgetSummary `json:"budget_summary,omitempty"`
-	GoalsProgress  []GoalProgress  `json:"goals_progress,omitempty"`
-	Debt           DebtOverview `json:"debt"`
+	TotalBalance       float64        `json:"total_balance"`
+	NetWorth           float64        `json:"net_worth"`
+	PeriodBalance      float64        `json:"period_balance"`
+	MonthlyIncome      float64        `json:"monthly_income"`
+	MonthlyExpense     float64        `json:"monthly_expense"`
+	ConsumptionExpense float64        `json:"consumption_expense"`
+	DebtRepayment      float64        `json:"debt_repayment"`
+	NetCashflow        float64        `json:"net_cashflow"`
+	SavingsRate        float64        `json:"savings_rate"`
+	ExpenseRatio       float64        `json:"expense_ratio"`
+	ConsumptionRate    float64        `json:"consumption_rate"`
+	BudgetSummary      *BudgetSummary `json:"budget_summary,omitempty"`
+	GoalsProgress      []GoalProgress `json:"goals_progress,omitempty"`
+	Debt               DebtOverview   `json:"debt"`
 }
 
 type BudgetSummary struct {

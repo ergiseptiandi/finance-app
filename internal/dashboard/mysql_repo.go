@@ -135,6 +135,35 @@ func (r *MySQLDashboardRepository) ExpenseBetween(ctx context.Context, userID in
 	return value, nil
 }
 
+func (r *MySQLDashboardRepository) ConsumptionExpenseBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error) {
+	const query = `
+		SELECT COALESCE(SUM(amount), 0)
+		FROM transactions
+		WHERE user_id = ? AND type = 'expense' AND date >= ? AND date < ?
+	`
+
+	var value float64
+	if err := r.db.QueryRowContext(ctx, query, userID, start, end).Scan(&value); err != nil {
+		return 0, err
+	}
+	return value, nil
+}
+
+func (r *MySQLDashboardRepository) DebtRepaymentBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error) {
+	const query = `
+		SELECT COALESCE(SUM(p.amount), 0)
+		FROM debt_payments p
+		JOIN debts d ON d.id = p.debt_id
+		WHERE d.user_id = ? AND p.payment_date >= ? AND p.payment_date < ?
+	`
+
+	var value float64
+	if err := r.db.QueryRowContext(ctx, query, userID, start, end).Scan(&value); err != nil {
+		return 0, err
+	}
+	return value, nil
+}
+
 func (r *MySQLDashboardRepository) ExpenseByDay(ctx context.Context, userID int64, start, end time.Time) (map[string]float64, error) {
 	const query = `
 		SELECT day_key, COALESCE(SUM(amount), 0)

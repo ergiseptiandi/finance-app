@@ -72,6 +72,14 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 	if err != nil {
 		return Summary{}, err
 	}
+	consumptionExpense, err := s.repo.ConsumptionExpenseBetween(ctx, userID, start, end)
+	if err != nil {
+		return Summary{}, err
+	}
+	debtRepayment, err := s.repo.DebtRepaymentBetween(ctx, userID, start, end)
+	if err != nil {
+		return Summary{}, err
+	}
 
 	debtOverview, err := s.repo.DebtOverview(ctx, userID, start, end)
 	if err != nil {
@@ -87,7 +95,8 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 		}
 	}
 
-	netCashflow := monthlyIncome - monthlyExpense
+	netWorth := totalBalance - debtOverview.RemainingDebt
+	netCashflow := monthlyIncome - consumptionExpense
 	periodBalance := netCashflow
 
 	debtOverview.DebtToIncomeRatio = percentageOf(debtOverview.RemainingDebt, monthlyIncome)
@@ -123,16 +132,20 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 	}
 
 	return Summary{
-		TotalBalance:   totalBalance,
-		PeriodBalance:  periodBalance,
-		MonthlyIncome:  monthlyIncome,
-		MonthlyExpense: monthlyExpense,
-		NetCashflow:    netCashflow,
-		SavingsRate:    percentageOf(netCashflow, monthlyIncome),
-		ExpenseRatio:   percentageOf(monthlyExpense, monthlyIncome),
-		BudgetSummary:  budgetSummary,
-		GoalsProgress:  goalsProgress,
-		Debt:           debtOverview,
+		TotalBalance:       totalBalance,
+		NetWorth:           netWorth,
+		PeriodBalance:      periodBalance,
+		MonthlyIncome:      monthlyIncome,
+		MonthlyExpense:     monthlyExpense,
+		ConsumptionExpense: consumptionExpense,
+		DebtRepayment:      debtRepayment,
+		NetCashflow:        netCashflow,
+		SavingsRate:        percentageOf(netCashflow, monthlyIncome),
+		ExpenseRatio:       percentageOf(monthlyExpense, monthlyIncome),
+		ConsumptionRate:    percentageOf(consumptionExpense, monthlyIncome),
+		BudgetSummary:      budgetSummary,
+		GoalsProgress:      goalsProgress,
+		Debt:               debtOverview,
 	}, nil
 }
 
