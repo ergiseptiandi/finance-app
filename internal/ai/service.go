@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -22,7 +23,7 @@ type Service struct {
 
 func NewService(apiKey, apiURL, model string, maxChats int, repo Repository) *Service {
 	if apiURL == "" {
-		apiURL = "https://api.deepseek.com/v1/chat/completions"
+		apiURL = "https://api.deepseek.com/chat/completions"
 	}
 	if model == "" {
 		model = "deepseek-chat"
@@ -61,6 +62,10 @@ type deepseekResponse struct {
 }
 
 func (s *Service) Analyze(ctx context.Context, userID int64, userName, message string) (string, error) {
+	if s.apiKey == "" {
+		return "", fmt.Errorf("AI tidak dikonfigurasi. Hubungi admin untuk mengatur DEEPSEEK_API_KEY.")
+	}
+
 	count, err := s.repo.GetChatCount(ctx, userID)
 	if err != nil {
 		return "", err
@@ -115,13 +120,21 @@ BANTUAN: Berikan analisis keuangan yang jelas dan actionable. Jika pertanyaan di
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {
+		log.Printf("[ai] HTTP request failed: %v", err)
 		return "", fmt.Errorf("AI API request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
+		log.Printf("[ai] failed to read response body: %v", err)
 		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	log.Printf("[ai] DeepSeek response status=%d, body=%s", resp.StatusCode, string(respBody[:min(len(respBody), 500)]))
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("AI API returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var deepseekResp deepseekResponse

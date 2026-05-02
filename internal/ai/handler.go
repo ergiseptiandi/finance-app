@@ -2,6 +2,7 @@ package ai
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -81,6 +82,7 @@ func (h handler) chat(w http.ResponseWriter, r *http.Request) {
 
 	reply, err := h.svc.Analyze(r.Context(), userID, user.Name, message)
 	if err != nil {
+		log.Printf("[ai] analyze error for user %d: %v", userID, err)
 		if errors.Is(err, ErrChatLimitExceeded) {
 			writeError(w, http.StatusTooManyRequests, "Batas chat AI anda sudah habis. Silakan hubungi admin untuk menambah kuota.")
 			return
