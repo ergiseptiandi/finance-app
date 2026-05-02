@@ -136,12 +136,14 @@ func main() {
 	exportService := exportcsv.NewService(txService, debtService, reportsService)
 
 	aiRepo := ai.NewMySQLRepository(db)
+	aiDataProvider := ai.NewDashboardDataProvider(dashboardService)
 	aiService := ai.NewService(
 		cfg.AI.DeepSeekAPIKey,
 		cfg.AI.DeepSeekAPIURL,
 		cfg.AI.DeepSeekModel,
 		cfg.AI.MaxChatsPerUser,
 		aiRepo,
+		aiDataProvider,
 	)
 
 	if cfg.Runtime.Mode == "worker" || os.Getenv("APP_MODE") == "worker" {

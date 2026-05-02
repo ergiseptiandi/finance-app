@@ -12,16 +12,45 @@ import (
 	"time"
 )
 
-type Service struct {
-	apiKey      string
-	apiURL      string
-	model       string
-	maxChats    int
-	repo        Repository
-	httpClient  *http.Client
+type FinancialDataProvider interface {
+	GetFinancialSummary(ctx context.Context, userID int64) (FinancialSummary, error)
 }
 
-func NewService(apiKey, apiURL, model string, maxChats int, repo Repository) *Service {
+type FinancialSummary struct {
+	TotalBalance       float64              `json:"total_balance"`
+	MonthlyIncome      float64              `json:"monthly_income"`
+	MonthlyExpense     float64              `json:"monthly_expense"`
+	ConsumptionExpense float64              `json:"consumption_expense"`
+	DebtRepayment      float64              `json:"debt_repayment"`
+	NetCashflow        float64              `json:"net_cashflow"`
+	SavingsRate        float64              `json:"savings_rate"`
+	ExpenseRatio       float64              `json:"expense_ratio"`
+	DebtTotal          float64              `json:"debt_total"`
+	DebtRemaining      float64              `json:"debt_remaining"`
+	DebtCompletionRate float64              `json:"debt_completion_rate"`
+	BudgetUsage        float64              `json:"budget_usage"`
+	BudgetRemaining    float64              `json:"budget_remaining"`
+	CategoryBreakdown  []CategorySummary    `json:"category_breakdown,omitempty"`
+	RecentTransactions int                  `json:"recent_transactions"`
+}
+
+type CategorySummary struct {
+	Category   string  `json:"category"`
+	Amount     float64 `json:"amount"`
+	Percentage float64 `json:"percentage"`
+}
+
+type Service struct {
+	apiKey         string
+	apiURL         string
+	model          string
+	maxChats       int
+	repo           Repository
+	dataProvider   FinancialDataProvider
+	httpClient     *http.Client
+}
+
+func NewService(apiKey, apiURL, model string, maxChats int, repo Repository, dataProvider FinancialDataProvider) *Service {
 	if apiURL == "" {
 		apiURL = "https://api.deepseek.com/chat/completions"
 	}
@@ -29,12 +58,13 @@ func NewService(apiKey, apiURL, model string, maxChats int, repo Repository) *Se
 		model = "deepseek-chat"
 	}
 	return &Service{
-		apiKey:     apiKey,
-		apiURL:     apiURL,
-		model:      model,
-		maxChats:   maxChats,
-		repo:       repo,
-		httpClient: &http.Client{Timeout: 60 * time.Second},
+		apiKey:       apiKey,
+		apiURL:       apiURL,
+		model:        model,
+		maxChats:     maxChats,
+		repo:         repo,
+		dataProvider: dataProvider,
+		httpClient:   &http.Client{Timeout: 60 * time.Second},
 	}
 }
 
@@ -74,27 +104,38 @@ func (s *Service) Analyze(ctx context.Context, userID int64, userName, message s
 		return "", ErrChatLimitExceeded
 	}
 
+	financialData := ""
+	if s.dataProvider != nil {
+		summary, err := s.dataProvider.GetFinancialSummary(ctx, userID)
+		if err != nil {
+			log.Printf("[ai] failed to fetch financial data for user %d: %v", userID, err)
+		} else {
+			financialData = s.formatFinancialData(summary)
+		}
+	}
+
 	systemPrompt := fmt.Sprintf(`Anda adalah asisten keuangan pribadi untuk aplikasi Finance-GO. 
 
 DATA PENGGUNA:
 - Nama: %s
 - ID: %d
 
+%s
+
 ATURAN:
 1. Anda HANYA boleh menjawab pertanyaan seputar keuangan, analisis finansial, budgeting, utang, investasi, dan fitur-fitur di aplikasi Finance-GO.
 2. JANGAN menjawab pertanyaan di luar topik keuangan (misal: "nama kamu siapa", "kamu bisa apa", dll). Beri tahu user bahwa Anda hanya fokus pada analisis keuangan.
-3. Berikan jawaban yang singkat, jelas, dan actionable (bisa langsung dilakukan).
-4. Gunakan bahasa Indonesia default, kecuali user bertanya dalam bahasa Inggris.
-5. Jika user bertanya tentang data spesifik (saldo, transaksi, utang), beri tahu bahwa data real-time akan segera tersedia.
-6. Rekomendasi harus spesifik dan praktis.
-7. Jangan menyebut Anda adalah AI atau bot - cukup bantu saja.
-8. Maksimal 3-4 kalimat per jawaban.`, userName, userID)
+3. Gunakan DATA KEUANGAN di atas untuk memberikan jawaban yang PERSONAL dan akurat.
+4. Berikan jawaban yang singkat, jelas, dan actionable (bisa langsung dilakukan).
+5. Gunakan bahasa Indonesia default, kecuali user bertanya dalam bahasa Inggris.
+6. Rekomendasi harus spesifik dan praktis, berdasarkan data keuangan yang tersedia.
+7. Jika data tertentu tidak tersedia, sampaikan dengan jujur.
+8. Jangan menyebut Anda adalah AI atau bot - cukup bantu saja.
+9. Maksimal 3-4 kalimat per jawaban.`, userName, userID, financialData)
 
-	promptTemplate := `Pertanyaan: %s
+	userPrompt := fmt.Sprintf(`Pertanyaan: %s
 
-BANTUAN: Berikan analisis keuangan yang jelas dan actionable. Jika pertanyaan di luar keuangan, tolak dengan sopan dan arahkan kembali ke topik keuangan Finance-GO.`
-
-	userPrompt := fmt.Sprintf(promptTemplate, message)
+BANTUAN: Gunakan data keuangan pengguna yang sudah disediakan untuk memberikan analisis yang personal dan akurat.`, message)
 
 	reqBody := deepseekRequest{
 		Model: s.model,
@@ -103,7 +144,7 @@ BANTUAN: Berikan analisis keuangan yang jelas dan actionable. Jika pertanyaan di
 			{Role: "user", Content: userPrompt},
 		},
 		Temperature: 0.7,
-		MaxTokens:   500,
+		MaxTokens:   600,
 	}
 
 	body, err := json.Marshal(reqBody)
@@ -131,7 +172,7 @@ BANTUAN: Berikan analisis keuangan yang jelas dan actionable. Jika pertanyaan di
 		return "", fmt.Errorf("failed to read response: %w", err)
 	}
 
-	log.Printf("[ai] DeepSeek response status=%d, body=%s", resp.StatusCode, string(respBody[:min(len(respBody), 500)]))
+	log.Printf("[ai] DeepSeek response status=%d", resp.StatusCode)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("AI API returned status %d: %s", resp.StatusCode, string(respBody))
@@ -157,6 +198,45 @@ BANTUAN: Berikan analisis keuangan yang jelas dan actionable. Jika pertanyaan di
 	}
 
 	return reply, nil
+}
+
+func (s *Service) formatFinancialData(summary FinancialSummary) string {
+	var b strings.Builder
+	b.WriteString("DATA KEUANGAN SAAT INI:\n")
+
+	b.WriteString(fmt.Sprintf("- Total saldo: Rp%.0f\n", summary.TotalBalance))
+	b.WriteString(fmt.Sprintf("- Pemasukan bulan ini: Rp%.0f\n", summary.MonthlyIncome))
+	b.WriteString(fmt.Sprintf("- Pengeluaran bulan ini: Rp%.0f\n", summary.MonthlyExpense))
+	b.WriteString(fmt.Sprintf("- Pengeluaran konsumsi: Rp%.0f\n", summary.ConsumptionExpense))
+	b.WriteString(fmt.Sprintf("- Pembayaran utang: Rp%.0f\n", summary.DebtRepayment))
+	b.WriteString(fmt.Sprintf("- Arus kas bersih: Rp%.0f\n", summary.NetCashflow))
+	b.WriteString(fmt.Sprintf("- Rasio tabungan: %.1f%%\n", summary.SavingsRate))
+	b.WriteString(fmt.Sprintf("- Rasio pengeluaran: %.1f%%\n", summary.ExpenseRatio))
+
+	if summary.DebtRemaining > 0 {
+		b.WriteString(fmt.Sprintf("- Total utang: Rp%.0f\n", summary.DebtTotal))
+		b.WriteString(fmt.Sprintf("- Sisa utang: Rp%.0f\n", summary.DebtRemaining))
+		b.WriteString(fmt.Sprintf("- Progress pelunasan: %.1f%%\n", summary.DebtCompletionRate))
+	}
+
+	if summary.BudgetUsage > 0 {
+		b.WriteString(fmt.Sprintf("- Penggunaan budget: %.1f%%\n", summary.BudgetUsage))
+		b.WriteString(fmt.Sprintf("- Sisa budget: Rp%.0f\n", summary.BudgetRemaining))
+	}
+
+	if len(summary.CategoryBreakdown) > 0 {
+		b.WriteString("- Kategori pengeluaran terbesar:\n")
+		for i, cat := range summary.CategoryBreakdown {
+			if i >= 5 {
+				break
+			}
+			b.WriteString(fmt.Sprintf("  • %s: Rp%.0f (%.1f%%)\n", cat.Category, cat.Amount, cat.Percentage))
+		}
+	}
+
+	b.WriteString(fmt.Sprintf("- Total transaksi bulan ini: %d\n", summary.RecentTransactions))
+
+	return b.String()
 }
 
 func (s *Service) GetUsage(ctx context.Context, userID int64) (UsageInfo, error) {
