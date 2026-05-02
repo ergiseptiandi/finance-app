@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"finance-backend/internal/ai"
 	"finance-backend/internal/alerts"
 	"finance-backend/internal/auth"
 	"finance-backend/internal/budget"
@@ -134,6 +135,15 @@ func main() {
 
 	exportService := exportcsv.NewService(txService, debtService, reportsService)
 
+	aiRepo := ai.NewMySQLRepository(db)
+	aiService := ai.NewService(
+		cfg.AI.DeepSeekAPIKey,
+		cfg.AI.DeepSeekAPIURL,
+		cfg.AI.DeepSeekModel,
+		cfg.AI.MaxChatsPerUser,
+		aiRepo,
+	)
+
 	if cfg.Runtime.Mode == "worker" || os.Getenv("APP_MODE") == "worker" {
 		worker := notifications.NewWorker(notificationsService, alertsService, notificationsRepo, cfg.Runtime.NotificationCronSpec)
 		workerCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -147,7 +157,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:    ":" + cfg.Server.Port,
-		Handler: server.NewRouter(authService, txService, walletService, categoryService, debtService, dashboardService, reportsService, alertsService, notificationsService, mediaService, fileStorage, cfg.Storage.UploadDir, budgetService, exportService),
+		Handler: server.NewRouter(authService, txService, walletService, categoryService, debtService, dashboardService, reportsService, alertsService, notificationsService, mediaService, fileStorage, cfg.Storage.UploadDir, budgetService, exportService, aiService),
 	}
 
 	log.Printf("server listening on :%s", cfg.Server.Port)

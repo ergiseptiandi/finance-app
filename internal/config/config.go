@@ -15,6 +15,7 @@ type Config struct {
 	SMTP    SMTPConfig
 	Push    PushConfig
 	Runtime RuntimeConfig
+	AI      AIConfig
 	Storage StorageConfig
 }
 
@@ -66,6 +67,13 @@ type RuntimeConfig struct {
 	NotificationCronSpec string
 }
 
+type AIConfig struct {
+	DeepSeekAPIKey   string
+	DeepSeekAPIURL   string
+	DeepSeekModel    string
+	MaxChatsPerUser  int
+}
+
 type StorageConfig struct {
 	UploadDir string
 }
@@ -97,6 +105,11 @@ func Load() (Config, error) {
 	}
 
 	refreshTokenTTL, err := getEnvDuration("AUTH_REFRESH_TOKEN_TTL", 24*time.Hour*30)
+	if err != nil {
+		return Config{}, err
+	}
+
+	aiMaxChats, err := getEnvInt("AI_MAX_CHATS_PER_USER", 100)
 	if err != nil {
 		return Config{}, err
 	}
@@ -142,6 +155,12 @@ func Load() (Config, error) {
 		Runtime: RuntimeConfig{
 			Mode:                 getEnv("APP_MODE", "api"),
 			NotificationCronSpec: getEnv("NOTIFICATION_CRON_SCHEDULE", "@every 1m"),
+		},
+		AI: AIConfig{
+			DeepSeekAPIKey:  os.Getenv("DEEPSEEK_API_KEY"),
+			DeepSeekAPIURL:  getEnv("DEEPSEEK_API_URL", "https://api.deepseek.com/v1/chat/completions"),
+			DeepSeekModel:   getEnv("DEEPSEEK_MODEL", "deepseek-chat"),
+			MaxChatsPerUser: aiMaxChats,
 		},
 		Storage: StorageConfig{
 			UploadDir: getEnv("UPLOAD_DIR", "uploads"),
