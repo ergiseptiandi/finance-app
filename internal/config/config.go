@@ -109,7 +109,7 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
-	aiMaxChats, err := getEnvInt("AI_MAX_CHATS_PER_USER", 100)
+	aiMaxChats, err := getEnvInt("AI_MAX_CHATS_PER_USER", 10)
 	if err != nil {
 		return Config{}, err
 	}

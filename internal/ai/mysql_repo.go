@@ -23,6 +23,16 @@ func (r *MySQLRepository) GetChatCount(ctx context.Context, userID int64) (int, 
 	return count, nil
 }
 
+func (r *MySQLRepository) GetMaxChats(ctx context.Context, userID int64) (int, error) {
+	const query = `SELECT COALESCE(ai_max_chats, 10) FROM users WHERE id = ?`
+	var max int
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&max)
+	if err != nil {
+		return 0, err
+	}
+	return max, nil
+}
+
 func (r *MySQLRepository) IncrementChatCount(ctx context.Context, userID int64) error {
 	const query = `UPDATE users SET ai_chat_count = COALESCE(ai_chat_count, 0) + 1 WHERE id = ?`
 	_, err := r.db.ExecContext(ctx, query, userID)

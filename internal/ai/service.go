@@ -100,7 +100,14 @@ func (s *Service) Analyze(ctx context.Context, userID int64, userName, message s
 	if err != nil {
 		return "", err
 	}
-	if count >= s.maxChats {
+	maxChats, err := s.repo.GetMaxChats(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if maxChats <= 0 {
+		maxChats = s.maxChats
+	}
+	if count >= maxChats {
 		return "", ErrChatLimitExceeded
 	}
 
@@ -244,8 +251,15 @@ func (s *Service) GetUsage(ctx context.Context, userID int64) (UsageInfo, error)
 	if err != nil {
 		return UsageInfo{}, err
 	}
+	maxChats, err := s.repo.GetMaxChats(ctx, userID)
+	if err != nil {
+		return UsageInfo{}, err
+	}
+	if maxChats <= 0 {
+		maxChats = s.maxChats
+	}
 	return UsageInfo{
 		ChatCount: count,
-		MaxChats:  s.maxChats,
+		MaxChats:  maxChats,
 	}, nil
 }
