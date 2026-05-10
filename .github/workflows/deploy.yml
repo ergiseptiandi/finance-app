@@ -32,3 +32,6 @@ jobs:
 
       - name: Refresh Nginx Proxy Manager
         run: docker restart nginx-proxy-manager-app-1
+
+      - name: Clean up Docker build cache
+        run: docker builder prune -a -f
