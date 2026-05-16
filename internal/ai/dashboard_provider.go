@@ -15,10 +15,18 @@ func NewDashboardDataProvider(dashboardService *dashboard.Service) *DashboardDat
 	return &DashboardDataProvider{dashboardService: dashboardService}
 }
 
-func (p *DashboardDataProvider) GetFinancialSummary(ctx context.Context, userID int64) (FinancialSummary, error) {
-	now := time.Now()
-	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	end := start.AddDate(0, 1, 0)
+func (p *DashboardDataProvider) GetFinancialSummary(ctx context.Context, userID int64, periodStart, periodEnd *time.Time) (FinancialSummary, error) {
+	var start, end time.Time
+
+	if periodStart != nil && periodEnd != nil {
+		start = *periodStart
+		end = periodEnd.Add(24*time.Hour - time.Second) // end of day
+	} else {
+		// Default to current calendar month
+		now := time.Now()
+		start = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+		end = start.AddDate(0, 1, 0)
+	}
 
 	filter := dashboard.DashboardFilter{
 		StartDate: &start,

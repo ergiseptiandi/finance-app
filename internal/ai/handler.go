@@ -69,18 +69,18 @@ func (h handler) chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	message, err := decodeChatInput(r)
+	input, err := decodeChatInput(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	if message == "" {
+	if input.Message == "" {
 		writeError(w, http.StatusBadRequest, "message is required")
 		return
 	}
 
-	reply, err := h.svc.Analyze(r.Context(), userID, user.Name, message)
+	reply, err := h.svc.Analyze(r.Context(), userID, user.Name, input.Message, input.Context)
 	if err != nil {
 		log.Printf("[ai] analyze error for user %d: %v", userID, err)
 		if errors.Is(err, ErrChatLimitExceeded) {

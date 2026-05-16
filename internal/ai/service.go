@@ -13,7 +13,7 @@ import (
 )
 
 type FinancialDataProvider interface {
-	GetFinancialSummary(ctx context.Context, userID int64) (FinancialSummary, error)
+	GetFinancialSummary(ctx context.Context, userID int64, periodStart, periodEnd *time.Time) (FinancialSummary, error)
 }
 
 type FinancialSummary struct {
@@ -91,7 +91,7 @@ type deepseekResponse struct {
 	} `json:"error,omitempty"`
 }
 
-func (s *Service) Analyze(ctx context.Context, userID int64, userName, message string) (string, error) {
+func (s *Service) Analyze(ctx context.Context, userID int64, userName, message string, chatCtx *ChatContext) (string, error) {
 	if s.apiKey == "" {
 		return "", fmt.Errorf("AI tidak dikonfigurasi. Hubungi admin untuk mengatur DEEPSEEK_API_KEY.")
 	}
@@ -111,13 +111,30 @@ func (s *Service) Analyze(ctx context.Context, userID int64, userName, message s
 		return "", ErrChatLimitExceeded
 	}
 
+	// Determine period from context
+	var periodStart, periodEnd *time.Time
+	periodLabel := "bulan ini"
+	if chatCtx != nil && chatCtx.PeriodStart != "" && chatCtx.PeriodEnd != "" {
+		if ps, err := time.Parse("2006-01-02", chatCtx.PeriodStart); err == nil {
+			periodStart = &ps
+		}
+		if pe, err := time.Parse("2006-01-02", chatCtx.PeriodEnd); err == nil {
+			periodEnd = &pe
+		}
+		if chatCtx.PeriodMode == "cycle" && chatCtx.SalaryDay > 0 {
+			periodLabel = fmt.Sprintf("siklus gaji (tgl %d %s - %s)", chatCtx.SalaryDay, chatCtx.PeriodStart, chatCtx.PeriodEnd)
+		} else {
+			periodLabel = fmt.Sprintf("%s s/d %s", chatCtx.PeriodStart, chatCtx.PeriodEnd)
+		}
+	}
+
 	financialData := ""
 	if s.dataProvider != nil {
-		summary, err := s.dataProvider.GetFinancialSummary(ctx, userID)
+		summary, err := s.dataProvider.GetFinancialSummary(ctx, userID, periodStart, periodEnd)
 		if err != nil {
 			log.Printf("[ai] failed to fetch financial data for user %d: %v", userID, err)
 		} else {
-			financialData = s.formatFinancialData(summary)
+			financialData = s.formatFinancialData(summary, periodLabel)
 		}
 	}
 
@@ -207,9 +224,9 @@ BANTUAN: Gunakan data keuangan pengguna yang sudah disediakan untuk memberikan a
 	return reply, nil
 }
 
-func (s *Service) formatFinancialData(summary FinancialSummary) string {
+func (s *Service) formatFinancialData(summary FinancialSummary, periodLabel string) string {
 	var b strings.Builder
-	b.WriteString("DATA KEUANGAN SAAT INI:\n")
+	b.WriteString(fmt.Sprintf("DATA KEUANGAN PERIODE %s:\n", strings.ToUpper(periodLabel)))
 
 	b.WriteString(fmt.Sprintf("- Total saldo: Rp%.0f\n", summary.TotalBalance))
 	b.WriteString(fmt.Sprintf("- Pemasukan bulan ini: Rp%.0f\n", summary.MonthlyIncome))
