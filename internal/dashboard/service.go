@@ -11,6 +11,7 @@ import (
 
 	"finance-backend/internal/alerts"
 	"finance-backend/internal/budget"
+	"finance-backend/internal/helpers"
 	"finance-backend/internal/notifications"
 	"finance-backend/internal/wallet"
 )
@@ -23,11 +24,12 @@ var (
 var nowFunc = time.Now
 
 type Service struct {
-	repo          Repository
-	balances      wallet.BalanceProvider
-	alertsSource  AlertSource
-	settingsSource BudgetSource
-	budgetService  *budget.Service
+	repo              Repository
+	balances          wallet.BalanceProvider
+	alertsSource      AlertSource
+	settingsSource    BudgetSource
+	salaryCycleSource SalaryCycleProvider
+	budgetService     *budget.Service
 }
 
 type AlertSource interface {
@@ -38,8 +40,8 @@ type BudgetSource interface {
 	GetSettings(ctx context.Context, userID int64) (notifications.Settings, error)
 }
 
-func NewService(repo Repository, balances wallet.BalanceProvider, alertsSource AlertSource, settingsSource BudgetSource, budgetService ...*budget.Service) *Service {
-	svc := &Service{repo: repo, balances: balances, alertsSource: alertsSource, settingsSource: settingsSource}
+func NewService(repo Repository, balances wallet.BalanceProvider, alertsSource AlertSource, settingsSource BudgetSource, salaryCycleSource SalaryCycleProvider, budgetService ...*budget.Service) *Service {
+	svc := &Service{repo: repo, balances: balances, alertsSource: alertsSource, settingsSource: settingsSource, salaryCycleSource: salaryCycleSource}
 	if len(budgetService) > 0 {
 		svc.budgetService = budgetService[0]
 	}
@@ -47,7 +49,7 @@ func NewService(repo Repository, balances wallet.BalanceProvider, alertsSource A
 }
 
 func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFilter) (Summary, error) {
-	start, end, err := s.resolveRange(filter)
+	start, end, err := s.resolveRange(ctx, userID, filter)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -150,7 +152,7 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter DashboardFil
 }
 
 func (s *Service) DailySpending(ctx context.Context, userID int64, filter DashboardFilter) ([]SpendingPoint, error) {
-	start, end, err := s.resolveRange(filter)
+	start, end, err := s.resolveRange(ctx, userID, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +183,7 @@ func (s *Service) DailySpending(ctx context.Context, userID int64, filter Dashbo
 }
 
 func (s *Service) MonthlySpending(ctx context.Context, userID int64, filter DashboardFilter) ([]MonthlySpendingPoint, error) {
-	start, end, err := s.resolveRange(filter)
+	start, end, err := s.resolveRange(ctx, userID, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -301,7 +303,7 @@ func (s *Service) BudgetVsActual(ctx context.Context, userID int64, filter Dashb
 }
 
 func (s *Service) CategoryBreakdown(ctx context.Context, userID int64, filter DashboardFilter) ([]CategoryBreakdownItem, error) {
-	start, end, err := s.resolveRange(filter)
+	start, end, err := s.resolveRange(ctx, userID, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -359,7 +361,7 @@ func (s *Service) UpcomingBills(ctx context.Context, userID int64, days int) ([]
 }
 
 func (s *Service) TopMerchants(ctx context.Context, userID int64, filter DashboardFilter) ([]TopMerchant, error) {
-	start, end, err := s.resolveRange(filter)
+	start, end, err := s.resolveRange(ctx, userID, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -382,7 +384,7 @@ func (s *Service) Insights(ctx context.Context, userID int64, filter DashboardFi
 		return nil, err
 	}
 
-	start, end, err := s.resolveRange(filter)
+	start, end, err := s.resolveRange(ctx, userID, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -551,7 +553,7 @@ func (s *Service) GoalsProgress(ctx context.Context, userID int64, filter Dashbo
 		return []GoalProgress{}, nil
 	}
 
-	start, end, err := s.resolveRange(filter)
+	start, end, err := s.resolveRange(ctx, userID, filter)
 	if err != nil {
 		return nil, err
 	}
@@ -575,12 +577,21 @@ func (s *Service) GoalsProgress(ctx context.Context, userID int64, filter Dashbo
 	return goals, nil
 }
 
-func (s *Service) resolveRange(filter DashboardFilter) (time.Time, time.Time, error) {
+func (s *Service) resolveRange(ctx context.Context, userID int64, filter DashboardFilter) (time.Time, time.Time, error) {
 	if (filter.StartDate == nil) != (filter.EndDate == nil) {
 		return time.Time{}, time.Time{}, fmt.Errorf("%w: start_date and end_date must be provided together", ErrInvalidInput)
 	}
 
 	if filter.StartDate == nil && filter.EndDate == nil {
+		// Default: gunakan siklus gaji jika tersedia, fallback ke current month
+		if s.salaryCycleSource != nil {
+			salaryDay, err := s.salaryCycleSource.GetSalaryDay(ctx, userID)
+			if err == nil && salaryDay > 0 {
+				start, end := helpers.CurrentSalaryCycle(salaryDay)
+				return startOfDay(start), startOfDay(end), nil
+			}
+		}
+		// Fallback: current month
 		now := nowFunc()
 		start := startOfMonth(now)
 		end := start.AddDate(0, 1, 0)

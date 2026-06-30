@@ -48,11 +48,7 @@ func parseDashboardFilter(r *http.Request) (DashboardFilter, error) {
 	}
 
 	if startDate == "" && endDate == "" {
-		now := nowFunc()
-		monthStart := startOfMonth(now)
-		endOfMonth := monthStart.AddDate(0, 1, 0).AddDate(0, 0, -1)
-		filter.StartDate = &monthStart
-		filter.EndDate = &endOfMonth
+		// No date filter - return nil so service can use salary cycle default
 		return filter, nil
 	}
 

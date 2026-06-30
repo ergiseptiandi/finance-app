@@ -1,6 +1,13 @@
 package budget
 
-import "time"
+import (
+	"context"
+	"time"
+)
+
+type SalaryCycleProvider interface {
+	GetSalaryDay(ctx context.Context, userID int64) (int, error)
+}
 
 type Status string
 

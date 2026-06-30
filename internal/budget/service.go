@@ -6,6 +6,8 @@ import (
 	"math"
 	"strings"
 	"time"
+
+	"finance-backend/internal/helpers"
 )
 
 var (
@@ -14,12 +16,13 @@ var (
 )
 
 type Service struct {
-	repo     Repository
-	expenses ExpenseProvider
+	repo              Repository
+	expenses          ExpenseProvider
+	salaryCycleSource SalaryCycleProvider
 }
 
-func NewService(repo Repository, expenses ExpenseProvider) *Service {
-	return &Service{repo: repo, expenses: expenses}
+func NewService(repo Repository, expenses ExpenseProvider, salaryCycleSource SalaryCycleProvider) *Service {
+	return &Service{repo: repo, expenses: expenses, salaryCycleSource: salaryCycleSource}
 }
 
 func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (Goal, error) {
@@ -90,6 +93,22 @@ func (s *Service) List(ctx context.Context, userID int64, start, end time.Time) 
 	goals, err := s.repo.List(ctx, userID)
 	if err != nil {
 		return nil, Summary{}, err
+	}
+
+	// Jika start/end zero, gunakan default siklus gaji
+	if start.IsZero() || end.IsZero() {
+		if s.salaryCycleSource != nil {
+			salaryDay, err := s.salaryCycleSource.GetSalaryDay(ctx, userID)
+			if err == nil && salaryDay > 0 {
+				start, end = helpers.CurrentSalaryCycle(salaryDay)
+			}
+		}
+		// Jika masih zero (fallback), gunakan current month
+		if start.IsZero() || end.IsZero() {
+			now := time.Now()
+			start = time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+			end = start.AddDate(0, 1, 0)
+		}
 	}
 
 	spendMap := map[string]float64{}

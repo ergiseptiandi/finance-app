@@ -1,5 +1,11 @@
 package reports
 
+import "context"
+
+type SalaryCycleProvider interface {
+	GetSalaryDay(ctx context.Context, userID int64) (int, error)
+}
+
 type ReportPeriod struct {
 	Mode      string `json:"mode"`
 	Month     string `json:"month,omitempty"`

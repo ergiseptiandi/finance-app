@@ -39,6 +39,14 @@ func (s *Service) GetSettings(ctx context.Context, userID int64) (Settings, erro
 	return *item, nil
 }
 
+func (s *Service) GetSalaryDay(ctx context.Context, userID int64) (int, error) {
+	settings, err := s.GetSettings(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	return settings.SalaryDay, nil
+}
+
 func (s *Service) UpdateSettings(ctx context.Context, userID int64, input UpdateSettingsInput) (Settings, error) {
 	current, err := s.GetSettings(ctx, userID)
 	if err != nil {

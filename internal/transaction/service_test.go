@@ -70,7 +70,7 @@ func TestCreateRejectsExpenseWhenWalletBalanceTooLow(t *testing.T) {
 		getByIDFn: func(context.Context, int64, int64) (wallet.Wallet, error) {
 			return wallet.Wallet{ID: 7, Balance: 100}, nil
 		},
-	})
+	}, nil)
 
 	amount := 150.0
 	walletID := int64(7)
@@ -107,7 +107,7 @@ func TestUpdateExpenseUsesOriginalAmountWhenValidatingBalance(t *testing.T) {
 		getByIDFn: func(context.Context, int64, int64) (wallet.Wallet, error) {
 			return wallet.Wallet{ID: 7, Balance: 100}, nil
 		},
-	})
+	}, nil)
 
 	amount := 130.0
 	item, err := svc.Update(context.Background(), 1, 2, UpdateInput{Amount: &amount})

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"finance-backend/internal/helpers"
 	"finance-backend/internal/wallet"
 )
 
@@ -17,12 +18,13 @@ var (
 )
 
 type Service struct {
-	repo    Repository
-	wallets wallet.Resolver
+	repo              Repository
+	wallets           wallet.Resolver
+	salaryCycleSource SalaryCycleProvider
 }
 
-func NewService(repo Repository, wallets wallet.Resolver) *Service {
-	return &Service{repo: repo, wallets: wallets}
+func NewService(repo Repository, wallets wallet.Resolver, salaryCycleSource SalaryCycleProvider) *Service {
+	return &Service{repo: repo, wallets: wallets, salaryCycleSource: salaryCycleSource}
 }
 
 func (s *Service) Create(ctx context.Context, userID int64, input CreateInput) (Transaction, error) {
@@ -127,7 +129,7 @@ func (s *Service) Delete(ctx context.Context, id int64, userID int64) error {
 }
 
 func (s *Service) List(ctx context.Context, userID int64, filter ListFilter) (PaginatedList, error) {
-	filter, err := s.normalizeListFilter(filter)
+	filter, err := s.normalizeListFilter(ctx, userID, filter)
 	if err != nil {
 		return PaginatedList{}, err
 	}
@@ -135,7 +137,7 @@ func (s *Service) List(ctx context.Context, userID int64, filter ListFilter) (Pa
 }
 
 func (s *Service) Summary(ctx context.Context, userID int64, filter ListFilter) (Summary, error) {
-	filter, err := s.normalizeListFilter(filter)
+	filter, err := s.normalizeListFilter(ctx, userID, filter)
 	if err != nil {
 		return Summary{}, err
 	}
@@ -143,12 +145,23 @@ func (s *Service) Summary(ctx context.Context, userID int64, filter ListFilter) 
 	return s.repo.GetSummary(ctx, userID, filter)
 }
 
-func (s *Service) normalizeListFilter(filter ListFilter) (ListFilter, error) {
+func (s *Service) normalizeListFilter(ctx context.Context, userID int64, filter ListFilter) (ListFilter, error) {
 	if (filter.StartDate == nil) != (filter.EndDate == nil) {
 		return ListFilter{}, fmt.Errorf("%w: start_date and end_date must be provided together", ErrInvalidInput)
 	}
 
 	if filter.StartDate == nil && filter.EndDate == nil {
+		// Default: gunakan siklus gaji jika tersedia, fallback ke current month
+		if s.salaryCycleSource != nil {
+			salaryDay, err := s.salaryCycleSource.GetSalaryDay(ctx, userID)
+			if err == nil && salaryDay > 0 {
+				start, end := helpers.CurrentSalaryCycle(salaryDay)
+				filter.StartDate = &start
+				filter.EndDate = &end
+				return filter, nil
+			}
+		}
+		// Fallback: current month
 		now := nowFunc()
 		startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 		endOfMonth := startOfMonth.AddDate(0, 1, 0).AddDate(0, 0, -1)

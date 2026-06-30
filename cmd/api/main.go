@@ -121,17 +121,17 @@ func main() {
 
 	dashboardRepo := dashboard.NewMySQLDashboardRepository(db)
 	budgetRepo := budget.NewMySQLRepository(db)
-	budgetService := budget.NewService(budgetRepo, dashboardExpenseProvider{repo: dashboardRepo})
-	dashboardService := dashboard.NewService(dashboardRepo, walletService, alertsService, notificationsService, budgetService)
+	budgetService := budget.NewService(budgetRepo, dashboardExpenseProvider{repo: dashboardRepo}, notificationsService)
+	dashboardService := dashboard.NewService(dashboardRepo, walletService, alertsService, notificationsService, notificationsService, budgetService)
 
 	reportsRepo := reports.NewMySQLReportsRepository(db)
-	reportsService := reports.NewService(reportsRepo, walletService)
+	reportsService := reports.NewService(reportsRepo, walletService, notificationsService)
 
 	fileStorage := storage.NewLocalStorage(cfg.Storage.UploadDir)
 	mediaService := media.NewService(fileStorage)
 
 	txRepo := transaction.NewMySQLTransactionRepository(db)
-	txService := transaction.NewService(txRepo, walletService)
+	txService := transaction.NewService(txRepo, walletService, notificationsService)
 
 	exportService := exportcsv.NewService(txService, debtService, reportsService)
 

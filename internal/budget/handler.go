@@ -60,7 +60,7 @@ func (h handler) list(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	start, end := currentMonthRange()
+	var start, end time.Time
 	if month := r.URL.Query().Get("month"); month != "" {
 		parsed, err := time.Parse("2006-01", month)
 		if err != nil {
@@ -189,8 +189,4 @@ func containsBudgetValidationError(message string) bool {
 	return message != "" && (strings.Contains(message, "required") || strings.Contains(message, "greater than zero") || strings.Contains(message, "positive number") || strings.Contains(message, "expense categories"))
 }
 
-func currentMonthRange() (time.Time, time.Time) {
-	now := time.Now()
-	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	return start, start.AddDate(0, 1, 0)
-}
+

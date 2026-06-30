@@ -11,17 +11,19 @@ import (
 )
 
 type dashboardRepoStub struct {
-	refreshUserDebtStatusesFn func(context.Context, int64) error
-	allTimeIncomeFn           func(context.Context, int64) (float64, error)
-	allTimeExpenseFn          func(context.Context, int64) (float64, error)
-	incomeBetweenFn           func(context.Context, int64, time.Time, time.Time) (float64, error)
-	expenseBetweenFn          func(context.Context, int64, time.Time, time.Time) (float64, error)
-	expenseByDayFn            func(context.Context, int64, time.Time, time.Time) (map[string]float64, error)
-	expenseByMonthFn          func(context.Context, int64, time.Time, time.Time) (map[string]float64, error)
-	debtOverviewFn            func(context.Context, int64, time.Time, time.Time) (DebtOverview, error)
-	expenseByCategoryFn       func(context.Context, int64, time.Time, time.Time) ([]CategoryBreakdownItem, error)
-	upcomingBillsFn           func(context.Context, int64, time.Time, time.Time) ([]UpcomingBill, error)
-	topMerchantsFn            func(context.Context, int64, time.Time, time.Time, int) ([]TopMerchant, error)
+	refreshUserDebtStatusesFn   func(context.Context, int64) error
+	allTimeIncomeFn             func(context.Context, int64) (float64, error)
+	allTimeExpenseFn            func(context.Context, int64) (float64, error)
+	incomeBetweenFn             func(context.Context, int64, time.Time, time.Time) (float64, error)
+	expenseBetweenFn            func(context.Context, int64, time.Time, time.Time) (float64, error)
+	consumptionExpenseBetweenFn func(context.Context, int64, time.Time, time.Time) (float64, error)
+	debtRepaymentBetweenFn      func(context.Context, int64, time.Time, time.Time) (float64, error)
+	expenseByDayFn              func(context.Context, int64, time.Time, time.Time) (map[string]float64, error)
+	expenseByMonthFn            func(context.Context, int64, time.Time, time.Time) (map[string]float64, error)
+	debtOverviewFn              func(context.Context, int64, time.Time, time.Time) (DebtOverview, error)
+	expenseByCategoryFn         func(context.Context, int64, time.Time, time.Time) ([]CategoryBreakdownItem, error)
+	upcomingBillsFn             func(context.Context, int64, time.Time, time.Time) ([]UpcomingBill, error)
+	topMerchantsFn              func(context.Context, int64, time.Time, time.Time, int) ([]TopMerchant, error)
 }
 
 type balanceProviderStub struct {
@@ -81,6 +83,20 @@ func (r dashboardRepoStub) ExpenseBetween(ctx context.Context, userID int64, sta
 	return 0, nil
 }
 
+func (r dashboardRepoStub) ConsumptionExpenseBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error) {
+	if r.consumptionExpenseBetweenFn != nil {
+		return r.consumptionExpenseBetweenFn(ctx, userID, start, end)
+	}
+	return 0, nil
+}
+
+func (r dashboardRepoStub) DebtRepaymentBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error) {
+	if r.debtRepaymentBetweenFn != nil {
+		return r.debtRepaymentBetweenFn(ctx, userID, start, end)
+	}
+	return 0, nil
+}
+
 func (r dashboardRepoStub) ExpenseByDay(ctx context.Context, userID int64, start, end time.Time) (map[string]float64, error) {
 	if r.expenseByDayFn != nil {
 		return r.expenseByDayFn(ctx, userID, start, end)
@@ -123,7 +139,7 @@ func (r dashboardRepoStub) TopMerchants(ctx context.Context, userID int64, start
 	return []TopMerchant{}, nil
 }
 
-func TestParseDashboardFilterDefaultsToCurrentMonth(t *testing.T) {
+func TestParseDashboardFilterDefaultsToNil(t *testing.T) {
 	originalNowFunc := nowFunc
 	nowFunc = func() time.Time {
 		return time.Date(2026, time.April, 19, 10, 30, 0, 0, time.FixedZone("WIB", 7*60*60))
@@ -136,12 +152,13 @@ func TestParseDashboardFilterDefaultsToCurrentMonth(t *testing.T) {
 		t.Fatalf("parseDashboardFilter returned error: %v", err)
 	}
 
-	if filter.StartDate == nil || filter.StartDate.Format("2006-01-02") != "2026-04-01" {
-		t.Fatalf("unexpected start date: %#v", filter.StartDate)
+	// When no params, StartDate and EndDate should be nil (service layer handles default)
+	if filter.StartDate != nil {
+		t.Fatalf("expected nil start date, got: %#v", filter.StartDate)
 	}
 
-	if filter.EndDate == nil || filter.EndDate.Format("2006-01-02") != "2026-04-30" {
-		t.Fatalf("unexpected end date: %#v", filter.EndDate)
+	if filter.EndDate != nil {
+		t.Fatalf("expected nil end date, got: %#v", filter.EndDate)
 	}
 }
 
@@ -167,6 +184,9 @@ func TestSummaryDefaultsToCurrentMonth(t *testing.T) {
 		expenseBetweenFn: func(context.Context, int64, time.Time, time.Time) (float64, error) {
 			return 3000000, nil
 		},
+		consumptionExpenseBetweenFn: func(context.Context, int64, time.Time, time.Time) (float64, error) {
+			return 3000000, nil
+		},
 		debtOverviewFn: func(_ context.Context, _ int64, start, end time.Time) (DebtOverview, error) {
 			if start.Format("2006-01-02") != "2026-04-01" {
 				t.Fatalf("unexpected debt overview start: %s", start.Format("2006-01-02"))
@@ -189,7 +209,7 @@ func TestSummaryDefaultsToCurrentMonth(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	}, nil, nil)
+	}, nil, nil, nil)
 
 	summary, err := svc.Summary(context.Background(), 1, DashboardFilter{})
 	if err != nil {
@@ -234,7 +254,7 @@ func TestSummaryDefaultsToCurrentMonth(t *testing.T) {
 }
 
 func TestSummaryRejectsRangeLongerThanThreeMonths(t *testing.T) {
-	svc := NewService(dashboardRepoStub{}, nil, nil, nil)
+	svc := NewService(dashboardRepoStub{}, nil, nil, nil, nil)
 
 	startDate := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
 	endDate := time.Date(2026, time.April, 2, 0, 0, 0, 0, time.UTC)
@@ -272,7 +292,7 @@ func TestSummaryUsesPeriodBalanceWhileKeepingTotalBalanceRunning(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 2582000, nil },
-	}, nil, nil)
+	}, nil, nil, nil)
 
 	summary, err := svc.Summary(context.Background(), 1, DashboardFilter{StartDate: &startDate, EndDate: &endDate})
 	if err != nil {
@@ -310,7 +330,7 @@ func TestBudgetVsActualUsesExplicitBudgetAmount(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	}, nil, nil)
+	}, nil, nil, nil)
 
 	budget := 5000000.0
 	result, err := svc.BudgetVsActual(context.Background(), 1, DashboardFilter{}, &budget)
@@ -355,7 +375,7 @@ func TestCategoryBreakdownCalculatesPercentage(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	}, nil, nil)
+	}, nil, nil, nil)
 
 	items, err := svc.CategoryBreakdown(context.Background(), 1, DashboardFilter{})
 	if err != nil {
@@ -389,7 +409,7 @@ func TestUpcomingBillsUsesLookaheadDays(t *testing.T) {
 				{BillName: "Loan installment #1", Amount: 500000, DueDate: "2026-04-25", Status: "pending", SourceType: "debt"},
 			}, nil
 		},
-	}, nil, nil, nil)
+	}, nil, nil, nil, nil)
 
 	items, err := svc.UpcomingBills(context.Background(), 1, 7)
 	if err != nil {
@@ -431,7 +451,7 @@ func TestGoalsProgressReturnsEmptyUntilModuleExists(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	}, nil, nil)
+	}, nil, nil, nil)
 
 	items, err := svc.GoalsProgress(context.Background(), 1, DashboardFilter{})
 	if err != nil {
@@ -457,7 +477,7 @@ func TestInsightsReturnsAlerts(t *testing.T) {
 				},
 			}, nil
 		},
-	}, nil)
+	}, nil, nil)
 
 	items, err := svc.Insights(context.Background(), 1, DashboardFilter{})
 	if err != nil {
@@ -511,7 +531,7 @@ func TestInsightsGeneratesActionableRecommendations(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 9000000, nil },
-	}, nil, nil)
+	}, nil, nil, nil)
 
 	items, err := svc.Insights(context.Background(), 1, DashboardFilter{})
 	if err != nil {
@@ -562,7 +582,7 @@ func TestInsightsTreatsDebtPaymentAsSystemCategory(t *testing.T) {
 		},
 	}, balanceProviderStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 9000000, nil },
-	}, nil, nil)
+	}, nil, nil, nil)
 
 	items, err := svc.Insights(context.Background(), 1, DashboardFilter{})
 	if err != nil {

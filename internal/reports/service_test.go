@@ -9,12 +9,14 @@ import (
 )
 
 type reportsRepoStub struct {
-	expenseByCategoryFn func(context.Context, int64, time.Time, time.Time) ([]CategoryExpense, error)
-	trendByPeriodFn     func(context.Context, int64, time.Time, time.Time, TrendGroupBy) (map[string]TrendTotals, error)
-	allTimeIncomeFn     func(context.Context, int64) (float64, error)
-	allTimeExpenseFn    func(context.Context, int64) (float64, error)
-	incomeBetweenFn     func(context.Context, int64, time.Time, time.Time) (float64, error)
-	expenseBetweenFn    func(context.Context, int64, time.Time, time.Time) (float64, error)
+	expenseByCategoryFn      func(context.Context, int64, time.Time, time.Time) ([]CategoryExpense, error)
+	trendByPeriodFn          func(context.Context, int64, time.Time, time.Time, TrendGroupBy) (map[string]TrendTotals, error)
+	allTimeIncomeFn          func(context.Context, int64) (float64, error)
+	allTimeExpenseFn         func(context.Context, int64) (float64, error)
+	incomeBetweenFn          func(context.Context, int64, time.Time, time.Time) (float64, error)
+	expenseBetweenFn         func(context.Context, int64, time.Time, time.Time) (float64, error)
+	consumptionExpenseBetweenFn func(context.Context, int64, time.Time, time.Time) (float64, error)
+	debtRepaymentBetweenFn   func(context.Context, int64, time.Time, time.Time) (float64, error)
 }
 
 func (r reportsRepoStub) ExpenseByCategory(ctx context.Context, userID int64, start, end time.Time) ([]CategoryExpense, error) {
@@ -59,6 +61,20 @@ func (r reportsRepoStub) ExpenseBetween(ctx context.Context, userID int64, start
 	return 0, nil
 }
 
+func (r reportsRepoStub) ConsumptionExpenseBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error) {
+	if r.consumptionExpenseBetweenFn != nil {
+		return r.consumptionExpenseBetweenFn(ctx, userID, start, end)
+	}
+	return 0, nil
+}
+
+func (r reportsRepoStub) DebtRepaymentBetween(ctx context.Context, userID int64, start, end time.Time) (float64, error) {
+	if r.debtRepaymentBetweenFn != nil {
+		return r.debtRepaymentBetweenFn(ctx, userID, start, end)
+	}
+	return 0, nil
+}
+
 type reportsBalanceStub struct {
 	totalBalanceFn func(context.Context, int64) (float64, error)
 }
@@ -89,7 +105,7 @@ func TestExpenseByCategoryBuildsSummary(t *testing.T) {
 				{Category: "Food", Amount: 3000000, TransactionCount: 6},
 			}, nil
 		},
-	}, nil)
+	}, nil, nil)
 
 	report, err := svc.ExpenseByCategory(context.Background(), 1, ReportsFilter{})
 	if err != nil {
@@ -136,7 +152,7 @@ func TestSpendingTrendsUsesYearGrouping(t *testing.T) {
 				"2026-03": {Income: 4000000, Expense: 1500000},
 			}, nil
 		},
-	}, nil)
+	}, nil, nil)
 
 	filter, err := parseReportsFilter(httptestRequest("GET", "/v1/reports/spending-trends?year=2026"))
 	if err != nil {
@@ -191,7 +207,7 @@ func TestAverageDailySpendingCalculatesDailyExtremes(t *testing.T) {
 				"2026-04-03": {Expense: 0},
 			}, nil
 		},
-	}, nil)
+	}, nil, nil)
 
 	filter, err := parseReportsFilter(httptestRequest("GET", "/v1/reports/average-daily-spending?month=2026-04"))
 	if err != nil {
@@ -226,7 +242,7 @@ func TestRemainingBalanceUsesAllTimeBalanceProviderWhenUnfiltered(t *testing.T) 
 		allTimeExpenseFn: func(context.Context, int64) (float64, error) { return 3000000, nil },
 	}, reportsBalanceStub{
 		totalBalanceFn: func(context.Context, int64) (float64, error) { return 20000000, nil },
-	})
+	}, nil)
 
 	report, err := svc.RemainingBalance(context.Background(), 1, ReportsFilter{})
 	if err != nil {

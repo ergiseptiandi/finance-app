@@ -1,6 +1,13 @@
 package dashboard
 
-import "time"
+import (
+	"context"
+	"time"
+)
+
+type SalaryCycleProvider interface {
+	GetSalaryDay(ctx context.Context, userID int64) (int, error)
+}
 
 type DashboardFilter struct {
 	StartDate *time.Time

@@ -3,11 +3,11 @@ package reports
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"sort"
 	"time"
 
+	"finance-backend/internal/helpers"
 	"finance-backend/internal/wallet"
 )
 
@@ -18,16 +18,17 @@ var (
 )
 
 type Service struct {
-	repo     Repository
-	balances wallet.BalanceProvider
+	repo              Repository
+	balances          wallet.BalanceProvider
+	salaryCycleSource SalaryCycleProvider
 }
 
-func NewService(repo Repository, balances wallet.BalanceProvider) *Service {
-	return &Service{repo: repo, balances: balances}
+func NewService(repo Repository, balances wallet.BalanceProvider, salaryCycleSource SalaryCycleProvider) *Service {
+	return &Service{repo: repo, balances: balances, salaryCycleSource: salaryCycleSource}
 }
 
 func (s *Service) ExpenseByCategory(ctx context.Context, userID int64, filter ReportsFilter) (ExpenseByCategoryReport, error) {
-	start, end, period, err := s.resolveCategoryRange(filter)
+	start, end, period, err := s.resolveCategoryRange(ctx, userID, filter)
 	if err != nil {
 		return ExpenseByCategoryReport{}, err
 	}
@@ -74,7 +75,7 @@ func (s *Service) ExpenseByCategory(ctx context.Context, userID int64, filter Re
 }
 
 func (s *Service) SpendingTrends(ctx context.Context, userID int64, filter ReportsFilter) (SpendingTrendsReport, error) {
-	start, end, period, groupBy, err := s.resolveTrendRange(filter)
+	start, end, period, groupBy, err := s.resolveTrendRange(ctx, userID, filter)
 	if err != nil {
 		return SpendingTrendsReport{}, err
 	}
@@ -113,7 +114,7 @@ func (s *Service) HighestSpendingCategory(ctx context.Context, userID int64, fil
 }
 
 func (s *Service) AverageDailySpending(ctx context.Context, userID int64, filter ReportsFilter) (AverageDailySpendingReport, error) {
-	start, end, period, err := s.resolveCategoryRange(filter)
+	start, end, period, err := s.resolveCategoryRange(ctx, userID, filter)
 	if err != nil {
 		return AverageDailySpendingReport{}, err
 	}
@@ -155,6 +156,53 @@ func (s *Service) AverageDailySpending(ctx context.Context, userID int64, filter
 
 func (s *Service) RemainingBalance(ctx context.Context, userID int64, filter ReportsFilter) (RemainingBalanceReport, error) {
 	if filter.IsZero() {
+		// Default: gunakan siklus gaji jika tersedia
+		if s.salaryCycleSource != nil {
+			salaryDay, err := s.salaryCycleSource.GetSalaryDay(ctx, userID)
+			if err == nil && salaryDay > 0 {
+				start, end := helpers.CurrentSalaryCycle(salaryDay)
+				startDate := start
+				endDate := end
+				income, err := s.repo.IncomeBetween(ctx, userID, startDate, endDate)
+				if err != nil {
+					return RemainingBalanceReport{}, err
+				}
+
+				expense, err := s.repo.ExpenseBetween(ctx, userID, startDate, endDate)
+				if err != nil {
+					return RemainingBalanceReport{}, err
+				}
+
+				consumptionExpense, err := s.repo.ConsumptionExpenseBetween(ctx, userID, startDate, endDate)
+				if err != nil {
+					return RemainingBalanceReport{}, err
+				}
+
+				debtRepayment, err := s.repo.DebtRepaymentBetween(ctx, userID, startDate, endDate)
+				if err != nil {
+					return RemainingBalanceReport{}, err
+				}
+
+				remainingBalance := income - consumptionExpense
+				return RemainingBalanceReport{
+					Period: ReportPeriod{
+						Mode:      "salary_cycle",
+						StartDate: startDate.Format("2006-01-02"),
+						EndDate:   endDate.Format("2006-01-02"),
+					},
+					TotalIncome:        income,
+					TotalExpense:       expense,
+					ConsumptionExpense: consumptionExpense,
+					DebtRepayment:      debtRepayment,
+					RemainingBalance:   remainingBalance,
+					SavingsRate:        percentageOf(remainingBalance, income),
+					ExpenseRatio:       percentageOf(expense, income),
+					ConsumptionRate:    percentageOf(consumptionExpense, income),
+				}, nil
+			}
+		}
+
+		// Fallback: all-time
 		income, err := s.repo.AllTimeIncome(ctx, userID)
 		if err != nil {
 			return RemainingBalanceReport{}, err
@@ -184,7 +232,7 @@ func (s *Service) RemainingBalance(ctx context.Context, userID int64, filter Rep
 		}, nil
 	}
 
-	start, end, period, err := s.resolveBalanceRange(filter)
+	start, end, period, err := s.resolveBalanceRange(ctx, userID, filter)
 	if err != nil {
 		return RemainingBalanceReport{}, err
 	}
@@ -223,8 +271,17 @@ func (s *Service) RemainingBalance(ctx context.Context, userID int64, filter Rep
 	}, nil
 }
 
-func (s *Service) resolveCategoryRange(filter ReportsFilter) (time.Time, time.Time, ReportPeriod, error) {
+func (s *Service) resolveCategoryRange(ctx context.Context, userID int64, filter ReportsFilter) (time.Time, time.Time, ReportPeriod, error) {
 	if filter.IsZero() {
+		// Default: gunakan siklus gaji jika tersedia
+		if s.salaryCycleSource != nil {
+			salaryDay, err := s.salaryCycleSource.GetSalaryDay(ctx, userID)
+			if err == nil && salaryDay > 0 {
+				start, end := helpers.CurrentSalaryCycle(salaryDay)
+				return start, end, buildSalaryCyclePeriod(start, end), nil
+			}
+		}
+		// Fallback: current month
 		start, end := currentMonthRange()
 		return start, end, buildMonthPeriod(start, end), nil
 	}
@@ -240,13 +297,37 @@ func (s *Service) resolveCategoryRange(filter ReportsFilter) (time.Time, time.Ti
 		start, end := rangeFromFilter(filter)
 		return start, end, buildPeriodFromFilter(filter), nil
 	default:
+		// Default: gunakan siklus gaji jika tersedia
+		if s.salaryCycleSource != nil {
+			salaryDay, err := s.salaryCycleSource.GetSalaryDay(ctx, userID)
+			if err == nil && salaryDay > 0 {
+				start, end := helpers.CurrentSalaryCycle(salaryDay)
+				return start, end, buildSalaryCyclePeriod(start, end), nil
+			}
+			// Fallback: current month
+			start, end := currentMonthRange()
+			return start, end, buildMonthPeriod(start, end), nil
+		}
 		start, end := currentMonthRange()
 		return start, end, buildMonthPeriod(start, end), nil
 	}
 }
 
-func (s *Service) resolveTrendRange(filter ReportsFilter) (time.Time, time.Time, ReportPeriod, TrendGroupBy, error) {
+func (s *Service) resolveTrendRange(ctx context.Context, userID int64, filter ReportsFilter) (time.Time, time.Time, ReportPeriod, TrendGroupBy, error) {
 	if filter.IsZero() {
+		// Default: gunakan siklus gaji jika tersedia
+		if s.salaryCycleSource != nil {
+			salaryDay, err := s.salaryCycleSource.GetSalaryDay(ctx, userID)
+			if err == nil && salaryDay > 0 {
+				start, end := helpers.CurrentSalaryCycle(salaryDay)
+				groupBy := TrendGroupByDay
+				if inclusiveDayCount(start, end) > 93 {
+					groupBy = TrendGroupByMonth
+				}
+				return start, end, buildSalaryCyclePeriod(start, end), groupBy, nil
+			}
+		}
+		// Fallback: rolling 12 months
 		start, end := rollingTwelveMonthsRange()
 		return start, end, buildRollingPeriod(start, end), TrendGroupByMonth, nil
 	}
@@ -266,18 +347,40 @@ func (s *Service) resolveTrendRange(filter ReportsFilter) (time.Time, time.Time,
 		}
 		return start, end, buildPeriodFromFilter(filter), groupBy, nil
 	default:
+		// Default: gunakan siklus gaji jika tersedia
+		if s.salaryCycleSource != nil {
+			salaryDay, err := s.salaryCycleSource.GetSalaryDay(ctx, userID)
+			if err == nil && salaryDay > 0 {
+				start, end := helpers.CurrentSalaryCycle(salaryDay)
+				groupBy := TrendGroupByDay
+				if inclusiveDayCount(start, end) > 93 {
+					groupBy = TrendGroupByMonth
+				}
+				return start, end, buildSalaryCyclePeriod(start, end), groupBy, nil
+			}
+		}
 		start, end := rollingTwelveMonthsRange()
 		return start, end, buildRollingPeriod(start, end), TrendGroupByMonth, nil
 	}
 }
 
-func (s *Service) resolveBalanceRange(filter ReportsFilter) (time.Time, time.Time, ReportPeriod, error) {
+func (s *Service) resolveBalanceRange(ctx context.Context, userID int64, filter ReportsFilter) (time.Time, time.Time, ReportPeriod, error) {
 	switch filter.Mode {
 	case ReportFilterModeMonth, ReportFilterModeYear, ReportFilterModeCustom:
 		start, end := rangeFromFilter(filter)
 		return start, end, buildPeriodFromFilter(filter), nil
 	default:
-		return time.Time{}, time.Time{}, ReportPeriod{}, fmt.Errorf("%w: unsupported report filter", ErrInvalidInput)
+		// When mode is empty but filter is not zero (only happens with salary_cycle mode),
+		// or unsupported mode, try salary cycle or fallback to current month
+		if s.salaryCycleSource != nil {
+			salaryDay, err := s.salaryCycleSource.GetSalaryDay(ctx, userID)
+			if err == nil && salaryDay > 0 {
+				start, end := helpers.CurrentSalaryCycle(salaryDay)
+				return start, end, buildSalaryCyclePeriod(start, end), nil
+			}
+		}
+		start, end := currentMonthRange()
+		return start, end, buildMonthPeriod(start, end), nil
 	}
 }
 
@@ -321,6 +424,14 @@ func buildMonthPeriod(start, end time.Time) ReportPeriod {
 		Month:     start.Format("2006-01"),
 		StartDate: start.Format("2006-01-02"),
 		EndDate:   end.AddDate(0, 0, -1).Format("2006-01-02"),
+	}
+}
+
+func buildSalaryCyclePeriod(start, end time.Time) ReportPeriod {
+	return ReportPeriod{
+		Mode:      "salary_cycle",
+		StartDate: start.Format("2006-01-02"),
+		EndDate:   end.Format("2006-01-02"),
 	}
 }
 
