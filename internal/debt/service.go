@@ -79,22 +79,52 @@ func (s *Service) Update(ctx context.Context, userID, debtID int64, input Update
 
 	if changesSchedule {
 		if paidCount > 0 {
-			return DebtDetail{}, errors.New("cannot change amount schedule after payments exist")
-		}
+			paidAmount := 0.0
+			for _, inst := range installments {
+				if inst.Status == StatusPaid {
+					paidAmount += inst.Amount
+				}
+			}
+			updated.PaidAmount = paidAmount
+			remaining := updated.TotalAmount - paidAmount
+			if remaining <= 0 {
+				updated.RemainingAmount = 0
+				updated.Status = StatusPaid
+				if err := s.repo.UpdateDebt(ctx, updated); err != nil {
+					return DebtDetail{}, err
+				}
+				if err := s.repo.ReplaceUnpaidSchedule(ctx, debtID, nil); err != nil {
+					return DebtDetail{}, err
+				}
+			} else {
+				updated.RemainingAmount = remaining
+				updated.Status = StatusPending
+				newInstallments, err := buildRemainingInstallments(updated, int(paidCount))
+				if err != nil {
+					return DebtDetail{}, err
+				}
+				if err := s.repo.UpdateDebt(ctx, updated); err != nil {
+					return DebtDetail{}, err
+				}
+				if err := s.repo.ReplaceUnpaidSchedule(ctx, debtID, newInstallments); err != nil {
+					return DebtDetail{}, err
+				}
+			}
+		} else {
+			newInstallments, err := buildInstallments(updated)
+			if err != nil {
+				return DebtDetail{}, err
+			}
+			updated.PaidAmount = 0
+			updated.RemainingAmount = updated.TotalAmount
+			updated.Status = StatusPending
 
-		newInstallments, err := buildInstallments(updated)
-		if err != nil {
-			return DebtDetail{}, err
-		}
-		updated.PaidAmount = 0
-		updated.RemainingAmount = updated.TotalAmount
-		updated.Status = StatusPending
-
-		if err := s.repo.UpdateDebt(ctx, updated); err != nil {
-			return DebtDetail{}, err
-		}
-		if err := s.repo.ReplaceSchedule(ctx, debtID, newInstallments); err != nil {
-			return DebtDetail{}, err
+			if err := s.repo.UpdateDebt(ctx, updated); err != nil {
+				return DebtDetail{}, err
+			}
+			if err := s.repo.ReplaceSchedule(ctx, debtID, newInstallments); err != nil {
+				return DebtDetail{}, err
+			}
 		}
 	} else {
 		if err := s.repo.UpdateDebt(ctx, updated); err != nil {
@@ -180,15 +210,32 @@ func (s *Service) CreatePayment(ctx context.Context, userID, debtID int64, input
 		return Payment{}, err
 	}
 
-	nextInstallment, err := s.repo.GetNextUnpaidInstallment(ctx, debtID)
+	unpaidInstallments, err := s.repo.GetUnpaidInstallments(ctx, debtID)
 	if err != nil {
 		return Payment{}, err
 	}
-	if input.Amount < nextInstallment.Amount {
+	if len(unpaidInstallments) == 0 {
+		return Payment{}, ErrNoInstallment
+	}
+	if input.Amount < unpaidInstallments[0].Amount {
 		return Payment{}, errors.New("amount must be at least the installment amount")
 	}
 	if err := s.ensurePaymentBalance(ctx, userID, walletID, nil, input.Amount); err != nil {
 		return Payment{}, err
+	}
+
+	remaining := input.Amount
+	var coveredIDs []int64
+	for _, inst := range unpaidInstallments {
+		if remaining >= inst.Amount {
+			coveredIDs = append(coveredIDs, inst.ID)
+			remaining -= inst.Amount
+		} else {
+			break
+		}
+	}
+	if len(coveredIDs) == 0 {
+		coveredIDs = append(coveredIDs, unpaidInstallments[0].ID)
 	}
 
 	payment := Payment{
@@ -199,7 +246,7 @@ func (s *Service) CreatePayment(ctx context.Context, userID, debtID int64, input
 		ProofImage:  input.ProofImage,
 	}
 
-	return s.repo.CreatePaymentAndMarkInstallment(ctx, payment, nextInstallment.ID, input.PaymentDate)
+	return s.repo.CreatePaymentAndMarkInstallments(ctx, payment, coveredIDs, input.PaymentDate)
 }
 
 func (s *Service) UpdatePayment(ctx context.Context, userID, debtID, paymentID int64, input UpdatePaymentInput) (Payment, error) {
@@ -244,6 +291,10 @@ func (s *Service) UpdatePayment(ctx context.Context, userID, debtID, paymentID i
 	}
 
 	if err := s.repo.UpdatePayment(ctx, payment); err != nil {
+		return Payment{}, err
+	}
+
+	if err := s.repo.RefreshDebtTotals(ctx, debtID); err != nil {
 		return Payment{}, err
 	}
 
@@ -387,6 +438,43 @@ func buildInstallments(debt Debt) ([]Installment, error) {
 		dueDate := debt.DueDate.AddDate(0, i, 0)
 		installments = append(installments, Installment{
 			InstallmentNo: i + 1,
+			DueDate:       dueDate,
+			Amount:        amount,
+			Status:        StatusPending,
+		})
+		remaining -= amount
+		if remaining <= 0 {
+			break
+		}
+	}
+
+	return installments, nil
+}
+
+func buildRemainingInstallments(debt Debt, paidCount int) ([]Installment, error) {
+	if debt.MonthlyInstallment <= 0 {
+		return nil, errors.New("monthly_installment must be greater than zero")
+	}
+
+	remaining := debt.RemainingAmount
+	if remaining <= 0 {
+		return []Installment{}, nil
+	}
+
+	count := int(math.Ceil(remaining / debt.MonthlyInstallment))
+	if count < 1 {
+		count = 1
+	}
+
+	installments := make([]Installment, 0, count)
+	for i := 0; i < count; i++ {
+		amount := debt.MonthlyInstallment
+		if remaining < amount {
+			amount = remaining
+		}
+		dueDate := debt.DueDate.AddDate(0, paidCount+i, 0)
+		installments = append(installments, Installment{
+			InstallmentNo: paidCount + i + 1,
 			DueDate:       dueDate,
 			Amount:        amount,
 			Status:        StatusPending,

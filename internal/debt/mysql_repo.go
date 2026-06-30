@@ -342,6 +342,31 @@ func (r *MySQLDebtRepository) ReplaceSchedule(ctx context.Context, debtID int64,
 	return nil
 }
 
+func (r *MySQLDebtRepository) ReplaceUnpaidSchedule(ctx context.Context, debtID int64, installments []Installment) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer rollback(tx)
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM debt_installments WHERE debt_id = ? AND status IN ('pending', 'overdue')`, debtID); err != nil {
+		return err
+	}
+
+	for i := range installments {
+		installments[i].DebtID = debtID
+		if err := insertInstallment(ctx, tx, installments[i]); err != nil {
+			return err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *MySQLDebtRepository) GetNextUnpaidInstallment(ctx context.Context, debtID int64) (Installment, error) {
 	const query = `
 		SELECT id, debt_id, installment_no, due_date, amount, status, paid_at, created_at, updated_at
@@ -375,6 +400,51 @@ func (r *MySQLDebtRepository) GetNextUnpaidInstallment(ctx context.Context, debt
 	}
 
 	return item, nil
+}
+
+func (r *MySQLDebtRepository) GetUnpaidInstallments(ctx context.Context, debtID int64) ([]Installment, error) {
+	const query = `
+		SELECT id, debt_id, installment_no, due_date, amount, status, paid_at, created_at, updated_at
+		FROM debt_installments
+		WHERE debt_id = ? AND status IN ('pending', 'overdue')
+		ORDER BY installment_no ASC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, debtID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items := make([]Installment, 0)
+	for rows.Next() {
+		var item Installment
+		var paidAt sql.NullTime
+		if err := rows.Scan(
+			&item.ID,
+			&item.DebtID,
+			&item.InstallmentNo,
+			&item.DueDate,
+			&item.Amount,
+			&item.Status,
+			&paidAt,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if paidAt.Valid {
+			value := paidAt.Time
+			item.PaidAt = &value
+		}
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return items, nil
 }
 
 func (r *MySQLDebtRepository) CreatePaymentAndMarkInstallment(ctx context.Context, payment Payment, installmentID int64, paidAt time.Time) (Payment, error) {
@@ -414,6 +484,50 @@ func (r *MySQLDebtRepository) CreatePaymentAndMarkInstallment(ctx context.Contex
 	return r.loadPaymentByDebtAndID(ctx, payment.DebtID, paymentID)
 }
 
+func (r *MySQLDebtRepository) CreatePaymentAndMarkInstallments(ctx context.Context, payment Payment, installmentIDs []int64, paidAt time.Time) (Payment, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return Payment{}, err
+	}
+	defer rollback(tx)
+
+	var firstInstallmentID *int64
+	if len(installmentIDs) > 0 {
+		firstInstallmentID = &installmentIDs[0]
+	}
+
+	const insertPayment = `
+		INSERT INTO debt_payments (debt_id, wallet_id, installment_id, amount, payment_date, proof_image)
+		VALUES (?, ?, ?, ?, ?, ?)
+	`
+	res, err := tx.ExecContext(ctx, insertPayment, payment.DebtID, payment.WalletID, firstInstallmentID, payment.Amount, payment.PaymentDate, payment.ProofImage)
+	if err != nil {
+		return Payment{}, err
+	}
+	paymentID, err := res.LastInsertId()
+	if err != nil {
+		return Payment{}, err
+	}
+	payment.ID = paymentID
+	payment.InstallmentID = firstInstallmentID
+
+	for _, id := range installmentIDs {
+		if err := markInstallmentPaidTx(ctx, tx, id, paidAt); err != nil {
+			return Payment{}, err
+		}
+	}
+
+	if err := refreshDebtTotalsTx(ctx, tx, payment.DebtID); err != nil {
+		return Payment{}, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return Payment{}, err
+	}
+
+	return r.loadPaymentByDebtAndID(ctx, payment.DebtID, paymentID)
+}
+
 func (r *MySQLDebtRepository) UpdatePayment(ctx context.Context, payment Payment) error {
 	const query = `
 		UPDATE debt_payments
@@ -434,6 +548,10 @@ func (r *MySQLDebtRepository) UpdatePayment(ctx context.Context, payment Payment
 	}
 
 	return nil
+}
+
+func (r *MySQLDebtRepository) RefreshDebtTotals(ctx context.Context, debtID int64) error {
+	return refreshDebtTotalsTx(ctx, r.db, debtID)
 }
 
 func (r *MySQLDebtRepository) MarkInstallmentPaid(ctx context.Context, debtID, installmentID int64, paidAt time.Time) (Installment, error) {

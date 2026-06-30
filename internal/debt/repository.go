@@ -13,9 +13,13 @@ type Repository interface {
 	GetPayments(ctx context.Context, userID, debtID int64) ([]Payment, error)
 	GetPaymentByID(ctx context.Context, userID, debtID, paymentID int64) (Payment, error)
 	ReplaceSchedule(ctx context.Context, debtID int64, installments []Installment) error
+	ReplaceUnpaidSchedule(ctx context.Context, debtID int64, installments []Installment) error
 	GetNextUnpaidInstallment(ctx context.Context, debtID int64) (Installment, error)
+	GetUnpaidInstallments(ctx context.Context, debtID int64) ([]Installment, error)
 	CreatePaymentAndMarkInstallment(ctx context.Context, payment Payment, installmentID int64, paidAt time.Time) (Payment, error)
+	CreatePaymentAndMarkInstallments(ctx context.Context, payment Payment, installmentIDs []int64, paidAt time.Time) (Payment, error)
 	UpdatePayment(ctx context.Context, payment Payment) error
 	MarkInstallmentPaid(ctx context.Context, debtID, installmentID int64, paidAt time.Time) (Installment, error)
 	RefreshUserDebtStatuses(ctx context.Context, userID int64) error
+	RefreshDebtTotals(ctx context.Context, debtID int64) error
 }
